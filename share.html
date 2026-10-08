@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#2F5D1A">
+<title>分享给朋友 · 像素日常</title>
+<meta name="description" content="把像素日常分享给朋友：扫码或复制链接，直接打开就能看。">
+<link rel="icon" type="image/png" href="assets/heart0.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="blog share-page">
+<div class="page">
+
+  <div class="site-head">
+    <div class="logo">
+      <img class="pixel sprout" src="assets/sprout.png" alt="">
+      <img class="pixel name" src="assets/t_sitename.png" alt="像素日常">
+    </div>
+    <div class="right">
+      今天是 <span id="today" class="date-line">2026-09-30</span><br>
+      站长信箱：admin@xiangsuri.com
+    </div>
+  </div>
+  <div class="slogan">—— 把日子过成一格一格的像素 ——</div>
+
+  <div class="nav">
+    <a href="index.html">首页</a><span class="sep">|</span><a href="album.html">相册</a><span class="sep">|</span><a href="guestbook.html">留言板</a><span class="sep">|</span><a href="about.html">关于</a><span class="sep">|</span><a href="archive.html">归档</a>
+  </div>
+<div class="wide-wrap">
+
+    <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>分享给朋友</span></div>
+
+    <div class="section-head">
+      <h2>把本站分享给朋友</h2>
+      <span class="en">SHARE</span>
+    </div>
+    <div class="sort-note">把链接发过去、或者让朋友扫下面这个码，都能直接打开</div>
+
+    <div class="cell" style="margin-top:12px;">
+      <div class="cell-title tall bar-1">
+        <img class="pixel" src="assets/t_scan.png" alt="扫码打开">
+        <span class="en">SCAN ME</span>
+      </div>
+      <div class="cell-body">
+        <div class="share-body">
+          <div class="share-qr">
+            <img class="pixel qr-img" src="assets/qr_site.png" alt="本站二维码">
+          </div>
+          <div class="share-info">
+            <div class="share-label">本站地址</div>
+            <div class="share-url" id="share-url">pixel-daily-blog.app.workbuddy.host</div>
+            <button class="btn" id="copy-url" type="button">复制链接</button>
+            <div class="form-msg" id="share-msg" role="status"></div>
+            <div class="form-note">
+              链接已经用稳定域名，可以放心发在群里、写在名片上。
+              手机扫上面这个码，效果和点链接一样。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="cell-title bar-3">
+        <img class="pixel" src="assets/t_say.png" alt="可以这么说">
+        <span class="en">HOW TO SAY</span>
+      </div>
+      <div class="cell-body">
+        <ul class="share-tips">
+          <li><b>发给朋友：</b>「我最近开了个博客，记点日常和照片，直接点开就能看 —— pixel-daily-blog.app.workbuddy.host」</li>
+          <li><b>发在群里：</b>平时发一条新文章时，把文章页的地址一起贴上，比只发首页更容易被点开。</li>
+          <li><b>给长辈/不上网的朋友：</b>直接让他们扫二维码，不用输网址。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="cell">
+      <div class="cell-title bar-4">
+        <img class="pixel" src="assets/t_do.png" alt="朋友能做什么">
+        <span class="en">WHAT THEY CAN DO</span>
+      </div>
+      <div class="cell-body">
+        <ul class="share-tips">
+          <li>不用注册、不用登录，点开就看 —— 没有任何登录墙</li>
+          <li>可以给文章留言评论，可以到<b>留言板</b>打招呼</li>
+          <li>手机上打开会自动排成竖屏版式，不用放大缩小</li>
+          <li>想把文章存下来，浏览器里直接「收藏」就行</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="scope-note">
+      这一页只是给分享用的说明页，朋友从首页进不来也没关系——
+      它出现的位置在页脚，不影响正常浏览。
+    </div>
+
+<script>
+  (function () {
+    var url = document.getElementById('share-url');
+    var btn = document.getElementById('copy-url');
+    var box = document.getElementById('share-msg');
+    var text = 'pixel-daily-blog.app.workbuddy.host';
+    var full = 'https://' + text;
+    if (!url || !btn) return;
+
+    function ok(m) { box.textContent = m; box.className = 'form-msg is-ok'; }
+
+    btn.addEventListener('click', function () {
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = full;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var done = false;
+        try { done = document.execCommand('copy'); } catch (e) { done = false; }
+        document.body.removeChild(ta);
+        ok(done ? '已复制，去粘贴给朋友吧。' : '复制没成功，长按上面那行地址手动选吧。');
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(full).then(function () {
+          ok('已复制，去粘贴给朋友吧。');
+        }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  })();
+</script>
+</div>
+
+  <div class="site-foot">
+    © 2026 像素日常 · 由 清羽墨染 一个人维护<br>
+    开站第 <b id="uptime">1</b> 天 · 文章 <b>5</b> 篇 · 照片 <b>6</b> 张
+    · 联系站长：admin@xiangsuri.com<br>
+    <a href="welcome.html">★ 复古主页</a> · <a href="about.html">关于</a>
+    · <a href="archive.html">归档</a> · <a href="share.html">分享给朋友</a>
+    · <a href="admin.html">站长管理</a><br>
+    <span class="foot-url">本站地址：<b>pixel-daily-blog.app.workbuddy.host</b>（无需登录，直接打开就能看）</span><br>
+    <span class="px-en">FASTEST VIEWED AT 800x600</span>
+    <div class="foot-hearts">
+      <img class="pixel" src="assets/heart0.png" alt="">
+      <img class="pixel" src="assets/heart1.png" alt="">
+      <img class="pixel" src="assets/heart2.png" alt="">
+    </div>
+    </div>
+</div>
+
+<script>
+  (function () {
+    var W = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    var n = new Date();
+    var t = document.getElementById('today');
+    if (t) t.textContent = n.getFullYear() + '年' + (n.getMonth() + 1) + '月' + n.getDate() + '日 ' + W[n.getDay()];
+    var START = new Date(2026, 8, 30);
+    var z = new Date(); z.setHours(0, 0, 0, 0);
+    var days = Math.floor((z - START) / 86400000) + 1;
+    var u = document.getElementById('uptime');
+    if (u) u.textContent = days < 1 ? 1 : days;
+  })();
+</script>
+<script>window.SITE_DATA = {"author": "清羽墨染", "base": "", "siteUrl": "pixel-daily-blog.app.workbuddy.host", "posts": {"kaizhan-diyitian": {"title": "开站第一天：终于把这一格格像素拼起来了", "url": "posts/kaizhan-diyitian.html"}, "mianguan": {"title": "楼下新开的面馆", "url": "posts/mianguan.html"}, "gongyuan-paizhao": {"title": "周末去公园拍了一卷照片", "url": "posts/gongyuan-paizhao.html"}, "jixie-jianpan": {"title": "换了一把机械键盘", "url": "posts/jixie-jianpan.html"}, "qiu-tian-naicha": {"title": "秋天的第一杯热奶茶", "url": "posts/qiu-tian-naicha.html"}}};</script>
+<script src="cloud-config.js"></script>
+<script src="vendor/workbuddy-cloud.global.js"></script>
+<script>if (!window.WorkBuddyCloud) { document.write('<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"><\/script>'); }</script>
+<script src="cloud.js"></script>
+</body>
+</html>

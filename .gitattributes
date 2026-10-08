@@ -1,0 +1,17 @@
+# 统一换行符：仓库内一律 LF，检出到各平台也不做转换
+* text=auto eol=lf
+
+# 二进制素材不要参与换行处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# GitHub 语言统计：把博客页面识别为 HTML
+*.html linguist-detectable=true
+*.py linguist-detectable=true
+vendor/* linguist-vendored=true

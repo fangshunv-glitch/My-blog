@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>像素日常 · 复古主页</title>
+<meta name="description" content="像素日常的复古入口 —— 2000 年代风格的个人主页彩蛋。">
+<link rel="icon" type="image/png" href="assets/heart0.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="welcome">
+
+<div class="welcome-inner">
+
+  <!-- 跑马灯横幅 -->
+  <div class="marquee">
+    <div class="marquee-track">
+      <span>★☆ 欢迎光临 像素日常 ☆★ 这里是 2000 年代风格的复古入口 ☆★ 博客首页在 pixel-daily-blog.app.workbuddy.host ☆★ 记录清羽墨染的每一天 ☆★</span>
+      <span>★☆ 欢迎光临 像素日常 ☆★ 这里是 2000 年代风格的复古入口 ☆★ 博客首页在 pixel-daily-blog.app.workbuddy.host ☆★ 记录清羽墨染的每一天 ☆★</span>
+    </div>
+  </div>
+
+  <!-- 像素欢迎大图 -->
+  <div class="hero-frame">
+    <img class="pixel" src="assets/hero.png" alt="像素爱心与星光">
+  </div>
+
+  <!-- 欢迎大标题（中文像素字） -->
+  <div class="welcome-title">
+    <img class="pixel heart" src="assets/heart0.png" alt="">
+    <img class="pixel title" src="assets/t_welcome.png" alt="欢迎光临">
+    <img class="pixel heart" src="assets/heart1.png" alt="">
+  </div>
+
+  <p class="welcome-sub">清羽墨染的日常小窝 · 建站于 2026 年 9 月 30 日</p>
+  <p class="welcome-date">EST. 2026.09.30 &nbsp;/&nbsp; RETRO ENTRANCE</p>
+
+  <!-- 像素计数器：只统计开站天数，不做假的访问量 -->
+  <div class="welcome-counter">
+    <span class="counter" id="lcd">0000001</span>
+  </div>
+  <p class="welcome-sub" style="font-size:12px;margin-top:8px;">
+    像素计数器 · 本站开站第 <b id="days">1</b> 天
+  </p>
+
+  <!-- 进入博客 -->
+  <a class="enter-btn" href="index.html">▶ 进入博客 ◀</a>
+
+  <p class="welcome-sub" style="font-size:12px;margin-top:14px;">
+    这里只是入口彩蛋，随时可以从站内页脚的「复古主页」回到这里。
+  </p>
+
+  <p class="welcome-foot">
+    最佳浏览分辨率 800×600 · 建议使用 IE 5.0+<br>
+    本站使用 FrontPage 制作 · 版权所有 清羽墨染
+  </p>
+
+</div>
+
+<script>
+  (function () {
+    var START = new Date(2026, 8, 30);            // 2026-09-30
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var days = Math.floor((today - START) / 86400000) + 1;
+    if (days < 1) days = 1;
+    document.getElementById('days').textContent = days;
+    // 数码管补零到 7 位
+    document.getElementById('lcd').textContent = ('0000000' + days).slice(-7);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# 像素日常 · Git 忽略规则
+#
+# 注意：由 build.py 生成的 .html 是**故意提交**的。
+#      本站是纯静态站点，产物即交付物，直接开仓库根目录就能跑；
+#      不重新生成也能部署，clone 下来双击 index.html 就能看。
+# ---------------------------------------------------------------------------
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 操作系统
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+*.tmp
+*.bak
+*~
+
+# 本地私密覆盖（例如临时改 cloud-config.js 指向测试环境）
+cloud-config.local.js
+.env
+.env.local
