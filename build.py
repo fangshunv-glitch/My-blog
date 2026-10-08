@@ -327,7 +327,7 @@ def footer(depth):
     · 联系站长：{email}<br>
     <a href="{p}welcome.html">★ 复古主页</a> · <a href="{p}about.html">关于</a>
     · <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
-    · <a href="{p}admin.html">站长管理</a><br>
+    · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
     <span class="foot-url">本站地址：<b>{url}</b>（无需登录，直接打开就能看）</span><br>
     <span class="px-en">FASTEST VIEWED AT 800x600</span>
     <div class="foot-hearts">
@@ -391,6 +391,12 @@ def admin_tags(depth):
     """站长侧：数据 → 配置 → SDK → 管理模块。"""
     return site_data(depth, all_posts=True) + vendor_scripts(depth) + """
 <script src="%sadmin.js"></script>""" % up(depth)
+
+
+def login_tags(depth):
+    """访客账号侧：数据 → 配置 → SDK → 登录/昵称模块。"""
+    return site_data(depth) + vendor_scripts(depth) + """
+<script src="%slogin.js"></script>""" % up(depth)
 
 
 SCRIPT = """
@@ -652,16 +658,29 @@ def build_posts():
           <span class="en">LEAVE A REPLY</span>
         </div>
         <div class="cell-body">
-          <form id="comment-form" novalidate>
-            <div class="form-row"><label for="cm-name">昵称 <em>必填</em></label>
-              <input id="cm-name" name="name" type="text" maxlength="24" placeholder="怎么称呼你？"></div>
-            <div class="form-row"><label for="cm-mail">邮箱 <em>选填</em></label>
-              <input id="cm-mail" name="email" type="text" maxlength="120" placeholder="仅用于接收回复通知，不会公开"></div>
+
+          <!-- 未登录：只看到这扇门。默认可见——JS 挂了也还看得见引导 -->
+          <div class="auth-gate" id="comment-gate">
+            <div class="gate-lines">
+              <p class="auth-gate-line">
+                评论要先登录。写出来的话会挂在<b>你自己的账号</b>上，别人冒用不了。
+              </p>
+              <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
+            </div>
+            <a class="btn gate-btn" id="comment-login" href="../login.html">登录 / 注册</a>
+          </div>
+
+          <!-- 已登录：只填内容，昵称从账号带出来 -->
+          <form id="comment-form" novalidate hidden>
+            <div class="me-line">
+              我以 <b id="comment-me">—</b> 的身份评论
+              <a class="me-edit" href="../login.html">改昵称</a>
+            </div>
             <div class="form-row"><label for="cm-text">评论内容 <em>必填</em></label>
               <textarea id="cm-text" name="content" maxlength="800" placeholder="聊聊这篇文章…"></textarea></div>
             <button class="btn" type="submit">发表评论</button>
             <div class="form-msg" role="status"></div>
-            <div class="form-note">评论会立刻显示在这里。邮箱只用于接收站长回复，不会公开。</div>
+            <div class="form-note">评论会立刻显示在这里。</div>
           </form>
         </div>
       </div>
@@ -886,23 +905,36 @@ def build_guestbook():
           <span class="en">LEAVE A MESSAGE</span>
         </div>
         <div class="cell-body">
-          <form id="guestbook-form" novalidate>
-            <div class="form-row"><label for="gb-name">昵称 <em>必填</em></label>
-              <input id="gb-name" name="name" type="text" maxlength="24" placeholder="怎么称呼你？"></div>
-            <div class="form-row"><label for="gb-mail">邮箱 <em>选填</em></label>
-              <input id="gb-mail" name="email" type="text" maxlength="120" placeholder="仅用于接收站长回复，不会公开"></div>
+
+          <!-- 未登录：只看到这扇门。默认可见——JS 挂了也还看得见引导 -->
+          <div class="auth-gate" id="guestbook-gate">
+            <div class="gate-lines">
+              <p class="auth-gate-line">
+                留言板要先对一下身份。登录之后就能发言，写出来的每句话都挂在
+                <b>你自己的账号</b>上，别人冒用不了。
+              </p>
+              <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
+            </div>
+            <a class="btn gate-btn" id="guestbook-login" href="login.html">登录 / 注册</a>
+          </div>
+
+          <!-- 已登录：只填内容，昵称从账号带出来 -->
+          <form id="guestbook-form" novalidate hidden>
+            <div class="me-line">
+              我以 <b id="guestbook-me">—</b> 的身份留言
+              <a class="me-edit" href="login.html">改昵称</a>
+            </div>
             <div class="form-row"><label for="gb-text">留言内容 <em>必填</em></label>
               <textarea id="gb-text" name="content" maxlength="800" placeholder="打个招呼、换友链，或者随便说点什么…"></textarea></div>
             <button class="btn" type="submit">发表留言</button>
             <div class="form-msg" role="status"></div>
-            <div class="form-note">
-              留言会立刻显示在这一页。邮箱只用于接收站长回复，不会公开。
-            </div>
+            <div class="form-note">留言会立刻显示在这一页。</div>
           </form>
         </div>
       </div>
 
-    </div>""".format(intro=md(GUESTBOOK_INTRO), n=len(items), rows="".join(rows))
+    </div>""".format(intro=md(GUESTBOOK_INTRO), n=len(items),
+                    rows="".join(rows) or '<div class="empty-tip">还没有留言，来说第一句。</div>')
 
     out = page("留言板 · %s" % SITE["name"],
                "像素日常的留言板：打招呼、交换友链、找站长。", "guestbook", 0, main)
@@ -917,8 +949,9 @@ def build_admin():
     <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>站长管理</span></div>
 
     <div class="scope-note" style="margin-top:0;">
-      <b>访客看博客不需要登录。</b>留言板、文章评论、相册、归档都是直接打开的——
+      <b>浏览博客不需要登录。</b>相册、归档、文章都直接打开——
       这一页只是站长的后台，用来回复/隐藏/删除留言与评论。登录方式为邮箱。
+      访客自己的账号在 <a href="login.html">账号页</a>，和这里不冲突。
     </div>
 
     <!-- ============ 未登录 ============ -->
@@ -986,7 +1019,7 @@ def build_admin():
               <button class="btn" type="submit">注册并登录</button>
               <div class="form-msg" id="signup-msg" role="status"></div>
             </form>
-            <div class="auth-alt">账号只用来管后台。访客不需要注册，也不受影响。</div>
+            <div class="auth-alt">这个账号是站长本人用的。访客想留言，去账号页注册就行——两边是同一套账号体系。</div>
           </div>
 
           <!-- 忘记密码 -->
@@ -1109,6 +1142,160 @@ def build_admin():
 # ---------------------------------------------------------------------------
 # 分享页（把二维码和链接放在一起，方便发给朋友）
 # ---------------------------------------------------------------------------
+# 访客账号页（登录 / 注册 / 取昵称）
+#
+# 为什么要有这一页：留言和评论改成「先登录再发言」之后，访客需要一个入口。
+# 放独立页面而不是在留言框里展开，是因为登录动作要收邮箱验证码、
+# 首次还要取昵称，塞进侧边栏那个窄框里会很难用。
+# ---------------------------------------------------------------------------
+def build_login():
+    main = """
+    <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>账号</span></div>
+
+    <div class="scope-note" style="margin-top:0;">
+      <b>浏览本站永远不需要登录。</b>相册、归档、文章都直接打开——
+      只有「留言」和「评论」要先对一下身份，这样每句话都挂在真实账号上，别人冒用不了。
+    </div>
+
+    <!-- ============ 未登录 ============ -->
+    <div id="guest-auth" hidden>
+      <div class="cell">
+        <div class="cell-title tall bar-7">
+          <img class="pixel" src="assets/t_login.png" alt="登录">
+          <span class="en">SIGN IN</span>
+        </div>
+        <div class="cell-body">
+          <div class="auth-tabs">
+            <a href="#" data-tab="login" class="active">登录</a>
+            <a href="#" data-tab="signup">注册</a>
+            <a href="#" data-tab="reset">忘记密码</a>
+          </div>
+
+          <!-- 登录 -->
+          <div id="pane-login">
+            <form id="login-form" novalidate>
+              <div class="form-row"><label for="login-email">邮箱 <em>必填</em></label>
+                <input id="login-email" type="text" maxlength="120" autocomplete="username"
+                       placeholder="注册时用的邮箱"></div>
+              <div class="form-row"><label for="login-password">密码 <em>必填</em></label>
+                <input id="login-password" type="password" maxlength="72"
+                       autocomplete="current-password" placeholder="登录密码"></div>
+              <button class="btn" type="submit">登录</button>
+              <div class="form-msg" id="login-msg" role="status"></div>
+            </form>
+
+            <form id="login-code-form" novalidate hidden>
+              <div class="form-row"><label for="login-code">邮箱验证码 <em>必填</em></label>
+                <div class="code-line">
+                  <input id="login-code" type="text" maxlength="8" inputmode="numeric"
+                         autocomplete="one-time-code" placeholder="收到的数字">
+                  <button type="button" class="btn-mini" id="login-send-code">获取验证码</button>
+                </div>
+              </div>
+              <button class="btn" type="submit">登录</button>
+              <div class="form-msg" id="login-code-msg" role="status"></div>
+            </form>
+
+            <div class="auth-alt">
+              记不住密码就走验证码，效果一样。
+              <a href="#" id="login-mode-toggle">改用邮箱验证码登录</a>
+            </div>
+          </div>
+
+          <!-- 注册 -->
+          <div id="pane-signup" hidden>
+            <form id="signup-form" novalidate>
+              <div class="form-row"><label for="signup-email">邮箱 <em>必填</em></label>
+                <input id="signup-email" type="text" maxlength="120" autocomplete="email"
+                       placeholder="以后用这个邮箱登录"></div>
+              <div class="form-row"><label for="signup-code">邮箱验证码 <em>必填</em></label>
+                <div class="code-line">
+                  <input id="signup-code" type="text" maxlength="8" inputmode="numeric"
+                         autocomplete="one-time-code" placeholder="收到的数字">
+                  <button type="button" class="btn-mini" id="signup-send-code">获取验证码</button>
+                </div>
+              </div>
+              <div class="form-row"><label for="signup-password">设置密码 <em>至少 6 位</em></label>
+                <input id="signup-password" type="password" maxlength="72"
+                       autocomplete="new-password" placeholder="自己想一个"></div>
+              <button class="btn" type="submit">注册并登录</button>
+              <div class="form-msg" id="signup-msg" role="status"></div>
+            </form>
+            <div class="auth-alt">
+              顺序是：填邮箱 → 点「获取验证码」→ 收到码填进来 → 设个密码。
+              邮箱只用来登录，不会显示在留言旁边。
+            </div>
+          </div>
+
+          <!-- 忘记密码 -->
+          <div id="pane-reset" hidden>
+            <form id="reset-form" novalidate>
+              <div class="form-row"><label for="reset-email">邮箱 <em>必填</em></label>
+                <input id="reset-email" type="text" maxlength="120" autocomplete="email"
+                       placeholder="注册时用的邮箱"></div>
+              <div class="form-row"><label for="reset-code">邮箱验证码 <em>必填</em></label>
+                <div class="code-line">
+                  <input id="reset-code" type="text" maxlength="8" inputmode="numeric"
+                         autocomplete="one-time-code" placeholder="收到的数字">
+                  <button type="button" class="btn-mini" id="reset-send-code">获取验证码</button>
+                </div>
+              </div>
+              <div class="form-row"><label for="reset-password">新密码 <em>至少 6 位</em></label>
+                <input id="reset-password" type="password" maxlength="72"
+                       autocomplete="new-password" placeholder="重新设一个"></div>
+              <button class="btn" type="submit">重设密码</button>
+              <div class="form-msg" id="reset-msg" role="status"></div>
+            </form>
+            <div class="auth-alt">顺序是：填邮箱 → 点「获取验证码」→ 收到码填进来 → 设新密码。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 已登录 ============ -->
+    <div id="guest-account" hidden>
+
+      <div class="adm-bar">
+        <div class="adm-me">
+          已登录：<b id="me-email">—</b>
+          <span class="adm-uid">当前昵称 <code id="me-name">—</code></span>
+        </div>
+        <button class="btn-mini" id="logout-btn" type="button">退出登录</button>
+      </div>
+
+      <div class="cell">
+        <div class="cell-title tall bar-3">
+          <img class="pixel" src="assets/t_me.png" alt="我的昵称">
+          <span class="en">MY NAME</span>
+        </div>
+        <div class="cell-body">
+          <p class="adm-p" id="nick-intro"></p>
+          <form id="nick-form" novalidate>
+            <div class="form-row"><label for="nick-input">昵称 <em>2-24 个字</em></label>
+              <input id="nick-input" type="text" maxlength="24"
+                     placeholder="留言和评论旁边显示的就是这个名字"></div>
+            <button class="btn" type="submit" id="nick-save">就这个</button>
+            <div class="form-msg" id="nick-msg" role="status"></div>
+            <div class="form-note">
+              昵称全站唯一，先到先得；之后随时可以在这里改。
+              改了之后，<b>以前发过的留言会保持当时的名字</b>，不会跟着变。
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="scope-note">
+        <a href="index.html">回首页</a> 或 <a href="guestbook.html">去留言板</a> 就能发言了。
+      </div>
+    </div>
+    """
+    out = bare_page("账号 · %s" % SITE["name"],
+                    "登录像素日常的访客账号：留言和评论需要先登录。浏览本站无需登录。",
+                    "", 0, main, body_class="blog login-page", tags=login_tags(0))
+    write("login.html", out)
+
+
+# ---------------------------------------------------------------------------
 def build_share():
     url = SITE["url"]
     main = """
@@ -1165,8 +1352,8 @@ def build_share():
       </div>
       <div class="cell-body">
         <ul class="share-tips">
-          <li>不用注册、不用登录，点开就看 —— 没有任何登录墙</li>
-          <li>可以给文章留言评论，可以到<b>留言板</b>打招呼</li>
+          <li>不用注册、不用登录，点开就看 —— 浏览本身没有任何登录墙</li>
+          <li>想留言或评论时，用一个邮箱验证码登一下就行，不用另外注册</li>
           <li>手机上打开会自动排成竖屏版式，不用放大缩小</li>
           <li>想把文章存下来，浏览器里直接「收藏」就行</li>
         </ul>
@@ -1245,6 +1432,7 @@ def main():
     build_guestbook()
     build_share()
     build_admin()
+    build_login()
     print("完成。")
 
 

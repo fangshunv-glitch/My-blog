@@ -975,6 +975,38 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
 .code-line input { flex: 1 1 auto; min-width: 0; }
 .code-line .btn-mini { flex: none; }
 
+/* ------------------------------------------------------------
+   发言门控（留言板 / 文章评论）
+   未登录时表单整块换成登录引导；登录后表单里只剩内容框，
+   昵称由账号带出来，不再让人手填。
+   ------------------------------------------------------------ */
+.auth-gate {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-left: 5px solid var(--new);
+  padding: 11px 12px;
+}
+.gate-lines p { margin: 0 0 6px; }
+.gate-lines p:last-child { margin-bottom: 0; }
+.auth-gate-line {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--header);
+}
+.auth-gate-line.dim { font-size: 12px; color: var(--muted); }
+.gate-btn { margin-top: 9px; }
+
+.me-line {
+  margin: 0 0 10px;
+  padding: 6px 9px;
+  background: var(--panel);
+  border: 1px dashed var(--line-soft);
+  font-size: 12px;
+  color: var(--muted);
+}
+.me-line b { font-size: 13px; color: var(--header); }
+.me-edit { margin-left: 8px; font-size: 11px; }
+
 .adm-bar {
   display: flex; align-items: center; gap: 10px;
   justify-content: space-between;

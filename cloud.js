@@ -6,8 +6,12 @@
  * 设计原则：
  *   1. 页面里的静态内容只作降级打底——JS 一旦拿到云端数据就整块替换；
  *      拿不到（断网 / 脚本没加载）则原样保留，页面照样能看。
- *   2. 所有写操作走数据库的行级安全策略，前端不做权限判断。
- *   3. 任何一条失败路径都要给出人能看懂的中文提示，不许静默失败。
+ *   2. 发言需要对身份：未登录时把表单换成登录引导，登录后只填内容。
+ *   3. **提交时不带 uid、也不带昵称**。这两样都由数据库自己填：
+ *      uid 走列默认值 auth.uid()，昵称走默认值 pixel_display_name()，
+ *      行级策略再核对一遍。客户端硬塞的值只会被拒——所以伪造不出来。
+ *   4. 所有写操作走数据库的行级安全策略，前端不做权限判断。
+ *   5. 任何一条失败路径都要给出人能看懂的中文提示，不许静默失败。
  *
  * 依赖：本文件之前必须已经加载 WorkBuddy Cloud SDK（全局 WorkBuddyCloud）
  *       以及页面内联的 window.SITE_DATA（本站数据，由 build.py 注入）
@@ -15,10 +19,9 @@
 (function () {
   'use strict';
 
-  // publicConfig —— 见 cloud-config.js（admin.js 共用同一份，避免写重复）
+  // publicConfig —— 见 cloud-config.js（admin.js / login.js 共用同一份）
   var CONFIG = window.PIXEL_CLOUD_CONFIG || {};
 
-  var LIMIT_NAME = 24;      // 与数据库 WITH CHECK 保持一致
   var LIMIT_TEXT = 800;
   var LIST_LIMIT = 100;     // 单页最多显示多少条
 
@@ -26,6 +29,9 @@
   var AUTHOR = D.author || '站长';
   var BASE = D.base || '';
   var POSTS = D.posts || {};
+
+  // 当前访客的身份。未登录时 name 为空。
+  var ME = { uid: '', name: '', loggedIn: false };
 
   // -------------------------------------------------------------------------
   // 小工具
@@ -60,20 +66,26 @@
     return document.getElementById(id);
   }
 
+  function show(node, on) {
+    if (node) node.hidden = !on;
+  }
+
   // -------------------------------------------------------------------------
   // 云客户端
   // -------------------------------------------------------------------------
-  var _db = null;
+  var _sdk = null;
 
-  function db() {
-    if (_db) return _db;
+  function sdk() {
+    if (_sdk) return _sdk;
     var S = window.WorkBuddyCloud;
     if (!S || typeof S.createWorkBuddyCloud !== 'function') {
       throw new Error('SDK_MISSING');
     }
-    _db = S.createWorkBuddyCloud(CONFIG).database;
-    return _db;
+    _sdk = S.createWorkBuddyCloud(CONFIG);
+    return _sdk;
   }
+
+  function db() { return sdk().database; }
 
   // 把 PostgREST 的 { data, error } 信封拆成 Promise
   function run(query) {
@@ -86,8 +98,15 @@
   function friendly(err) {
     if (!err) return '操作没成功，请稍后再试。';
     if (err.message === 'SDK_MISSING') return '云端脚本没加载成功——检查网络后刷新页面。';
+    switch (err.kind) {
+      case 'unauthenticated': return '登录状态已失效，重新登录一次再来。';
+      case 'network':
+      case 'backend-unavailable': return '网络不太顺，稍后再试。';
+      default: break;
+    }
     switch (err.code) {
-      case '42501': return '服务器拒绝了这次操作，可能是内容不合规。';
+      case '42501': return '服务器拒绝了这次操作——多半是登录状态掉了，重新登录一次。';
+      case '23502': return '云端没认出你的身份。去账号页重新登录一次再试。';
       case '23505': return '这条内容已经提交过了。';
       case '42P01': return '云端还没准备好，请稍后再试。';
       default: break;
@@ -105,6 +124,71 @@
     d.className = 'cloud-notice';
     d.textContent = msg;
     box.insertBefore(d, box.firstChild);
+  }
+
+  // -------------------------------------------------------------------------
+  // 身份：会话 + 昵称
+  // -------------------------------------------------------------------------
+  function currentUser() {
+    return Promise.resolve(sdk().auth.getUser()).then(function (res) {
+      if (!res || res.error) return null;
+      var u = res.data;
+      return (u && (u.user || u)) || null;
+    }, function () { return null; });
+  }
+
+  // profiles 的行级策略只放行自己那一行，所以「查得到 == 我有昵称」。
+  function loadProfile() {
+    return run(db().from('profiles').select('uid, display_name').limit(1))
+      .then(function (rows) {
+        var r = rows && rows[0];
+        ME.uid = r ? (r.uid || '') : '';
+        ME.name = r ? (r.display_name || '') : '';
+        return !!r;
+      }, function () {
+        ME.uid = '';
+        ME.name = '';
+        return false;
+      });
+  }
+
+  // 未登录 → 显示登录引导；登录了但还没取昵称 → 引导去取昵称。
+  function paintGate(opt) {
+    var gate = el(opt.gateId);
+    var form = el(opt.formId);
+    if (!gate || !form) return;
+
+    // 登录页做完该做的事之后回到当前页
+    var loginUrl = BASE + 'login.html?next='
+      + encodeURIComponent(location.pathname + location.search);
+    var link = el(opt.loginId);
+    if (link) link.href = loginUrl;
+    var edit = form.querySelector('.me-edit');
+    if (edit) edit.href = loginUrl;
+
+    if (ME.name) {
+      show(gate, false);
+      show(form, true);
+      var meBox = el(opt.meId);
+      if (meBox) meBox.textContent = ME.name;
+      return;
+    }
+
+    show(gate, true);
+    show(form, false);
+
+    var lines = gate.querySelector('.gate-lines');
+    if (lines) {
+      if (!gate.dataset.anonHtml) gate.dataset.anonHtml = lines.innerHTML;
+      if (ME.loggedIn) {
+        lines.innerHTML = '<p class="auth-gate-line">还差一步：给账号<b>取个昵称</b>，'
+          + '之后留言和评论旁边显示的就是它。</p>';
+        if (link) link.textContent = '去取昵称';
+      } else {
+        lines.innerHTML = gate.dataset.anonHtml;
+        if (link) link.textContent = '登录 / 注册';
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -153,10 +237,10 @@
   // -------------------------------------------------------------------------
   // 写入：表单提交
   // -------------------------------------------------------------------------
-  function say(form, msg, isError) {
+  function say(form, text, isError) {
     var box = form.querySelector('.form-msg');
     if (!box) return;
-    box.textContent = msg;
+    box.textContent = text;
     box.className = 'form-msg ' + (isError ? 'is-error' : 'is-ok');
   }
 
@@ -167,8 +251,8 @@
     var btn = form.querySelector('button[type=submit]');
     var busy = false;
 
-    function fail(msg, field) {
-      say(form, msg, true);
+    function fail(text, field) {
+      say(form, text, true);
       if (field && field.focus) field.focus();
     }
 
@@ -176,48 +260,33 @@
       e.preventDefault();
       if (busy) return;
 
-      var fName = form.querySelector('[name=name]');
-      var fMail = form.querySelector('[name=email]');
-      var fText = form.querySelector('[name=content]');
-
-      var name = (fName.value || '').trim();
-      var mail = (fMail.value || '').trim();
-      var body = (fText.value || '').trim();
-
-      if (!name) return fail('昵称还没填。', fName);
-      if (name.length > LIMIT_NAME) return fail('昵称太长了，最多 ' + LIMIT_NAME + ' 个字。', fName);
-      if (!body) return fail('内容还是空的。', fText);
-      if (body.length > LIMIT_TEXT) return fail('内容太长了，最多 ' + LIMIT_TEXT + ' 个字。', fText);
-      if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
-        return fail('邮箱格式看着不太对，检查一下。', fMail);
+      // 没有昵称 = 还没走完登录流程。正常情况下表单是藏着的，
+      // 这里再挡一道，防止有人手动改 DOM 绕过。
+      if (!ME.name) {
+        return fail('先在账号页登录并取好昵称，再回来发言。');
       }
 
-      var row = { name: name, content: body };
+      var fText = form.querySelector('[name=content]');
+      var body = fText ? (fText.value || '').trim() : '';
+      if (!body) return fail('内容还是空的。', fText);
+      if (body.length > LIMIT_TEXT) {
+        return fail('内容太长了，最多 ' + LIMIT_TEXT + ' 个字。', fText);
+      }
+
+      // 只发内容。uid 和昵称交给数据库的默认值 + 行级策略。
+      var row = { content: body };
       if (opt.slug) row.post_slug = opt.slug;
 
       busy = true;
       if (btn) { btn.disabled = true; btn.textContent = '正在提交…'; }
       say(form, '正在提交…', false);
 
-      var insert = db().from(opt.table).insert(row).select('id, name, content, reply, created_at');
+      var insert = db().from(opt.table).insert(row)
+        .select('id, name, content, reply, created_at');
 
-      run(insert).then(function (rows) {
-        // 邮箱单独写到 contact_emails。
-        // 为什么不放在留言表里：留言表对访客是公开读的，
-        // 而这个环境里列级授权挡不住 select('*')，邮箱放一起等于公开。
-        // contact_emails 对未登录访客连读权限都没有，只有站长能看。
-        var newId = rows && rows[0] ? rows[0].id : null;
-        if (!mail || !newId) return null;
-        return run(db().from('contact_emails').insert({
-          source: opt.table, ref_id: newId, email: mail
-        })).then(null, function () {
-          return null;   // 邮箱没存上不该连累留言本身
-        });
-      }).then(function () {
-        if (fName.value) { try { localStorage.setItem('pd_name', name); } catch (x) {} }
-        if (fMail.value) { try { localStorage.setItem('pd_mail', mail); } catch (x) {} }
-        form.reset();
-        say(form, '已发布，谢谢你的留言。', false);
+      run(insert).then(function () {
+        if (fText) fText.value = '';
+        say(form, '已发布，谢谢。', false);
         loadRecent();                 // 侧边栏也要跟着刷新
         return loadList(opt.list);
       }).catch(function (err) {
@@ -227,16 +296,6 @@
         if (btn) { btn.disabled = false; btn.textContent = opt.buttonText; }
       });
     });
-
-    // 回填上次用过的昵称 / 邮箱，省得每次重打
-    try {
-      var n = localStorage.getItem('pd_name');
-      var m = localStorage.getItem('pd_mail');
-      var fN = form.querySelector('[name=name]');
-      var fM = form.querySelector('[name=email]');
-      if (n && fN) fN.value = n;
-      if (m && fM) fM.value = m;
-    } catch (x) {}
   }
 
   // -------------------------------------------------------------------------
@@ -305,36 +364,61 @@
     table: 'guestbook',
     boxId: 'guestbook-list',
     formId: 'guestbook-form',
+    gateId: 'guestbook-gate',
+    loginId: 'guestbook-login',
+    meId: 'guestbook-me',
     countId: 'guestbook-count',
     countLabel: '{n} MESSAGES',
     emptyTip: '还没有留言，来说第一句。',
     buttonText: '发表留言'
   };
 
+  var COMMENT = null;
+
   function boot() {
-    loadRecent();
-    loadList(GB);
-    bindForm({ formId: GB.formId, table: GB.table, buttonText: GB.buttonText, list: GB });
+    if (el(GB.boxId)) {
+      loadList(GB);
+      bindForm({ formId: GB.formId, table: GB.table, buttonText: GB.buttonText, list: GB });
+    }
 
     var postBox = el('comment-list');
     if (postBox) {
-      var slug = postBox.getAttribute('data-slug') || '';
-      var opt = {
+      COMMENT = {
         table: 'post_comments',
         boxId: 'comment-list',
         formId: 'comment-form',
+        gateId: 'comment-gate',
+        loginId: 'comment-login',
+        meId: 'comment-me',
         countId: 'comment-count',
         countLabel: '{n} COMMENTS',
         emptyTip: '还没有评论，来说第一句。',
         buttonText: '发表评论',
-        slug: slug
+        slug: postBox.getAttribute('data-slug') || ''
       };
-      loadList(opt);
+      loadList(COMMENT);
       bindForm({
-        formId: opt.formId, table: opt.table,
-        buttonText: opt.buttonText, slug: slug, list: opt
+        formId: COMMENT.formId, table: COMMENT.table,
+        buttonText: COMMENT.buttonText, slug: COMMENT.slug, list: COMMENT
       });
     }
+
+    loadRecent();
+
+    // 身份解析放在最后：拿到之前两个门控区都保持默认（引导登录）状态，
+    // 拿到之后再决定是藏起来门、露出表单，还是提示去取昵称。
+    currentUser().then(function (user) {
+      if (!user) throw new Error('NO_SESSION');
+      ME.loggedIn = true;
+      return loadProfile();
+    }).then(function () {
+      if (GB) paintGate(GB);
+      if (COMMENT) paintGate(COMMENT);
+    }, function () {
+      ME.loggedIn = false;
+      if (GB) paintGate(GB);
+      if (COMMENT) paintGate(COMMENT);
+    });
   }
 
   if (document.readyState === 'loading') {

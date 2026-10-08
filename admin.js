@@ -618,26 +618,7 @@
     }
   };
 
-  // 访客邮箱单独存在 contact_emails，只有站长读得到
-  function loadEmails(source) {
-    return run(db().from('contact_emails')
-      .select('id, source, ref_id, email').eq('source', source).limit(LIMIT)
-    ).then(function (rows) {
-      var map = {};
-      (rows || []).forEach(function (r) { map[r.ref_id] = r.email; });
-      return map;
-    }, function () {
-      return {};   // 读不到邮箱不影响看留言
-    });
-  }
-
-  function deleteEmailFor(source, refId) {
-    return run(db().from('contact_emails').delete()
-      .eq('source', source).eq('ref_id', refId)
-    ).then(null, function () { return null; });
-  }
-
-  function itemHTML(kind, row, emails) {
+  function itemHTML(kind, row) {
     var from = '';
     if (kind === 'comments') {
       var meta = POSTS[row.post_slug];
@@ -647,7 +628,6 @@
         + '》</div>';
     }
     var hidden = row.status !== 'published';
-    var mail = emails && emails[row.id];
     return '<div class="adm-item' + (hidden ? ' is-hidden' : '') + '" data-id="' + esc(row.id) + '">'
       + '<div class="adm-head">'
       + '<span class="adm-name">' + esc(row.name) + '</span>'
@@ -656,7 +636,6 @@
       + '</div>'
       + from
       + '<div class="adm-text">' + esc(row.content) + '</div>'
-      + (mail ? '<div class="adm-mail">访客邮箱：<b>' + esc(mail) + '</b>（只有你能看到）</div>' : '')
       + (row.reply ? '<div class="adm-reply-view">站长回复：' + esc(row.reply) + '</div>' : '')
       + '<div class="adm-tools">'
       + '<button type="button" class="btn-mini" data-act="reply">'
@@ -683,12 +662,11 @@
 
     var q = db().from(cfg.table).select(cfg.cols).order('created_at', { ascending: false }).limit(LIMIT);
 
-    return Promise.all([run(q), loadEmails(cfg.table)]).then(function (res) {
-      var rows = res[0] || [];
-      var emails = res[1] || {};
+    return run(q).then(function (rows) {
+      rows = rows || [];
       var hidden = rows.filter(function (r) { return r.status !== 'published'; }).length;
       box.innerHTML = rows.length
-        ? rows.map(function (r) { return itemHTML(kind, r, emails); }).join('')
+        ? rows.map(function (r) { return itemHTML(kind, r); }).join('')
         : '<div class="empty-tip">' + esc(cfg.empty) + '</div>';
       var c = el('admin-count');
       if (c) {
@@ -772,7 +750,6 @@
         if (!window.confirm('确定删除这条吗？删了就找不回来了。')) return;
         btn.disabled = true;
         return run(db().from(cfg.table).delete().eq('id', id))
-          .then(function () { return deleteEmailFor(cfg.table, id); })
           .then(function () { return loadItems(currentKind); })
           .then(function () { msg(msgBox, '已删除。', false); })
           .catch(function (err) { msg(msgBox, errText(err), true); })

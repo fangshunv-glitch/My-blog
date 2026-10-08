@@ -16,7 +16,7 @@
 - [目录结构](#目录结构)
 - [快速开始](#快速开始)
 - [写一篇文章](#写一篇文章)
-- [云端互动](#云端互动)
+- [云端互动](#账号与云端互动)
 - [站长后台](#站长后台)
 - [可见性模型](#可见性模型)
 - [部署](#部署)
@@ -32,7 +32,7 @@
 - `content.py` —— 全站唯一需要手改的文件，文章、分类、站点信息、静态兜底数据都写在这里；
 - `build.py` —— 读 `content.py`，生成所有 HTML 页面。
 
-生成结果是普通 HTML/CSS/JS，任何静态托管都能直接跑。留言板和文章评论走云端数据库，访客**无需登录**即可留言；站长用邮箱验证码登录独立后台管理内容。
+生成结果是普通 HTML/CSS/JS，任何静态托管都能直接跑。留言板和文章评论走云端数据库：浏览不用登录，发言时用一个邮箱验证码登一下，每句话都挂在自己的账号上。站长另有独立后台管理内容。
 
 设计上刻意做了两件事：
 
@@ -51,8 +51,9 @@
 | 归档 | 按年月分组的时间线 |
 | 相册 | 全站照片索引，按所属文章聚合 |
 | 关于 | 站长名片页 |
-| 留言板 | 云端存储，访客免登录留言，支持回复 |
-| 文章评论 | 每篇文章独立的云端评论区 |
+| 留言板 | 云端存储，**登录后**留言，展示昵称来自账号 |
+| 文章评论 | 每篇文章独立的云端评论区，同样需要登录 |
+| 访客账号 | 邮箱 + 验证码登录/注册，首次登录时取一个全站唯一的昵称 |
 | 最近互动 | 侧边栏实时拉取最新留言与评论 |
 | 分享页 | 手机扫码打开 + 一键复制链接，教朋友怎么用 |
 | 复古欢迎页 | `welcome.html`，纯 2000 年代风格的入口彩蛋 |
@@ -88,12 +89,14 @@
 ├── about.html
 ├── guestbook.html
 ├── share.html
+├── admin.html              # 站长后台页面
+├── login.html              # 访客账号页（登录 / 注册 / 取昵称）
 ├── posts/                  # 文章详情页
 ├── category/               # 分类列表页
-├── welcome.html            # 复古欢迎页（手工维护）
-├── admin.html              # 站长后台（手工维护）
-├── admin.js                # 后台逻辑
-├── cloud.js                # 访客侧云端互动模块
+├── welcome.html            # 复古欢迎页（唯一手工维护的页面）
+├── cloud.js                # 访客侧：留言与评论的读写
+├── login.js                # 访客侧：认证与昵称
+├── admin.js                # 站长侧：内容管理
 ├── cloud-config.js         # 云端连接配置（公开键）
 ├── style.css               # 全站样式
 ├── assets/                 # 像素素材 PNG
@@ -103,7 +106,7 @@
     └── gen_assets.py       # 像素素材生成脚本
 ```
 
-> `index.html`、`posts/`、`category/`、`archive.html`、`album.html`、`about.html`、`guestbook.html` 都是**生成产物**，改了会在下次构建时被覆盖。要改内容请改 `content.py`。
+> `index.html`、`posts/`、`category/`、`archive.html`、`album.html`、`about.html`、`guestbook.html`、`login.html`、`admin.html`、`share.html` 都是**生成产物**，改了会在下次构建时被覆盖。要改内容请改 `content.py`。
 
 ---
 
@@ -187,26 +190,51 @@ PIXEL_FONT=/System/Library/Fonts/Songti.ttc python tools/gen_assets.py
 
 ---
 
-## 云端互动
+## 账号与云端互动
 
 留言板和文章评论存在云端 PostgreSQL 里，由**数据库的 RLS 策略**裁决权限，前端不做任何权限判断 —— 就算有人绕过界面直接调接口，该拒的一样会被拒。
 
-涉及的表：
+**浏览永远不需要登录**，只有发言需要。访客用邮箱验证码就能登进来，不用单独走一遍注册流程。
 
-| 表 | 用途 |
-| --- | --- |
-| `guestbook` | 留言板 |
-| `post_comments` | 文章评论 |
-| `site_admins` | 站长白名单 |
-| `private_posts` | 只有站长能看的私密内容 |
-| `contact_emails` | 邮箱单独隔离存放（防止访客读到） |
+### 身份怎么落到留言上
 
-几个关键设计：
+发言时客户端**只发内容**，`uid` 和昵称都不传 —— 它们由数据库填：
 
-- **访客是匿名身份**，没有 `owner_id`。提交走 `INSERT`，读取只放行公开字段。
-- **敏感字段隔离**。站长邮箱不跟留言放同一张表 —— 列级授权在 RLS 下并不可靠，所以干脆拆表。
-- **站长认领走数据库函数** `pixel_claim_admin(p_email)`（`SECURITY DEFINER`），内部用 `auth.uid()` 判定身份，不信任前端传来的任何 uid。
-- **写死的防线**：`TRUNCATE` 不受 RLS 约束，所以额外 `REVOKE` 掉了。
+```sql
+uid  TEXT DEFAULT auth.uid()                  -- 数据库自己认人
+name TEXT DEFAULT public.pixel_display_name() -- 从 profiles 取当前昵称
+```
+
+行级策略再核对一遍：
+
+```sql
+CREATE POLICY guestbook_insert ON guestbook FOR INSERT TO authenticated
+  WITH CHECK (uid = auth.uid()
+    AND name = public.pixel_display_name()
+    AND status = 'published'
+    AND char_length(btrim(content)) BETWEEN 1 AND 800)
+```
+
+这样写的好处是**伪造不出来**：客户端硬塞一个别人的 uid，会被 `uid = auth.uid()` 拒掉；硬塞「站长」当昵称，会被 `name = pixel_display_name()` 拒掉。前端因此不需要、也不应该去「算出」自己的 uid —— 那正是上一版出问题的地方。
+
+### 涉及的表
+
+| 表 | 用途 | 谁可读 |
+| --- | --- | --- |
+| `profiles` | uid ↔ 昵称，昵称全站唯一 | 只有本人 |
+| `guestbook` | 留言板 | 所有人（`status = 'published'`） |
+| `post_comments` | 文章评论 | 所有人（`status = 'published'`） |
+| `site_admins` | 站长白名单 | 只有本人那一行 |
+| `private_posts` | 只有站长能看的私密内容 | 只有站长 |
+| `site_events` | 认领 / 登录的诊断日志 | 客户端完全不可见 |
+
+### 几个关键取舍
+
+- **昵称快照在留言行上**（`name` 列），不靠联表取。好处是读列表不用 join；代价是改了昵称之后，以前发过的留言保持当时的名字 —— 这是刻意的，翻旧帖时不会出现「名字对不上人」。
+- **`profiles` 只放行本人那一行**。既然昵称快照已经在留言行上，公开读整张表就没有必要了，还会把全站用户名单暴露出去。
+- **站长身份走数据库函数** `pixel_claim_admin()`（`SECURITY DEFINER`），内部用 `auth.uid()` 判定，不信任前端传来的任何 uid。
+- **`TRUNCATE` 不受 RLS 约束**，所以建表后额外 `REVOKE` 掉了。
+- **列级授权在这个环境里不可靠** —— 实测 `select('*')` 会把所有列一起返回。所以敏感字段一律独立表 + 访客零权限，不要指望 `GRANT SELECT (col)` 挡得住。
 
 ### 连接配置
 
@@ -236,7 +264,7 @@ window.PIXEL_CLOUD_CONFIG = {
 - **内容管理**：回复 / 隐藏 / 删除留言与评论。
 - **私密内容**：在线撰写只有站长本人能读的内容，存在 `private_posts` 表 —— 数据库层面就只放行站长一个人，访客连数据都取不到。
 
-> 访客看博客**永远不需要登录**。后台只是站长的入口，对浏览没有任何影响。
+> 浏览本站**永远不需要登录**。后台只是站长的入口，对浏览没有任何影响。
 
 ---
 

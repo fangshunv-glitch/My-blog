@@ -22,7 +22,7 @@
       <img class="pixel name" src="assets/t_sitename.png" alt="像素日常">
     </div>
     <div class="right">
-      今天是 <span id="today" class="date-line">2026-09-30</span><br>
+      今天是 <span id="today" class="date-line">2026-10-08</span><br>
       站长信箱：admin@xiangsuri.com
     </div>
   </div>
@@ -39,14 +39,15 @@
 
       <div class="scope-note" style="margin-top:0;margin-bottom:12px;">
         <p>这里和文章评论是两回事。文章评论只聊那一篇文章本身；这一页用来<strong>打招呼、交换友链、或者直接找站长</strong>——不挂靠任何文章的内容都放这儿。</p>
+<p>要发言得先登一下账号：点下面的按钮，填邮箱收个验证码就行，不用另外注册。浏览这一页本身不需要登录。</p>
       </div>
 
       <div class="cell">
         <div class="cell-title tall bar-4">
           <img class="pixel" src="assets/t_guest.png" alt="留言板">
-          <span class="en" id="guestbook-count">3 MESSAGES</span>
+          <span class="en" id="guestbook-count">0 MESSAGES</span>
         </div>
-        <div class="cell-body" id="guestbook-list"><div class="comment"><div class="comment-head"><div class="comment-avatar"></div><span class="comment-name">阿树</span><span class="comment-time">2026-09-30 20:12</span></div><div class="comment-text">路过，站点做得很用心。想交换个友链，我那边也是记录日常的，回访即可。</div></div><div class="comment"><div class="comment-head"><div class="comment-avatar"></div><span class="comment-name">阿绿</span><span class="comment-time">2026-09-29 11:05</span></div><div class="comment-text">第一次来，打个招呼。绿色这个配色我很喜欢，加油写下去。</div></div><div class="comment"><div class="comment-head"><div class="comment-avatar"></div><span class="comment-name">小满</span><span class="comment-time">2026-09-25 19:48</span></div><div class="comment-text">站长你好，想问下你拍照用的机身是哪台？想入坑。</div><div class="comment-reply"><span class="comment-name">清羽墨染</span> 回复：老机器了，回头在「关于」页里列一下我用过的东西。</div></div></div>
+        <div class="cell-body" id="guestbook-list"><div class="empty-tip">还没有留言，来说第一句。</div></div>
       </div>
 
       <div class="cell">
@@ -55,18 +56,30 @@
           <span class="en">LEAVE A MESSAGE</span>
         </div>
         <div class="cell-body">
-          <form id="guestbook-form" novalidate>
-            <div class="form-row"><label for="gb-name">昵称 <em>必填</em></label>
-              <input id="gb-name" name="name" type="text" maxlength="24" placeholder="怎么称呼你？"></div>
-            <div class="form-row"><label for="gb-mail">邮箱 <em>选填</em></label>
-              <input id="gb-mail" name="email" type="text" maxlength="120" placeholder="仅用于接收站长回复，不会公开"></div>
+
+          <!-- 未登录：只看到这扇门。默认可见——JS 挂了也还看得见引导 -->
+          <div class="auth-gate" id="guestbook-gate">
+            <div class="gate-lines">
+              <p class="auth-gate-line">
+                留言板要先对一下身份。登录之后就能发言，写出来的每句话都挂在
+                <b>你自己的账号</b>上，别人冒用不了。
+              </p>
+              <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
+            </div>
+            <a class="btn gate-btn" id="guestbook-login" href="login.html">登录 / 注册</a>
+          </div>
+
+          <!-- 已登录：只填内容，昵称从账号带出来 -->
+          <form id="guestbook-form" novalidate hidden>
+            <div class="me-line">
+              我以 <b id="guestbook-me">—</b> 的身份留言
+              <a class="me-edit" href="login.html">改昵称</a>
+            </div>
             <div class="form-row"><label for="gb-text">留言内容 <em>必填</em></label>
               <textarea id="gb-text" name="content" maxlength="800" placeholder="打个招呼、换友链，或者随便说点什么…"></textarea></div>
             <button class="btn" type="submit">发表留言</button>
             <div class="form-msg" role="status"></div>
-            <div class="form-note">
-              留言会立刻显示在这一页。邮箱只用于接收站长回复，不会公开。
-            </div>
+            <div class="form-note">留言会立刻显示在这一页。</div>
           </form>
         </div>
       </div>
@@ -113,7 +126,7 @@
           <span class="en">RECENT</span>
         </div>
         <div class="cell-body">
-          <ul class="activity" id="recent-list"><li><div class="act-head"><span class="act-name">路人甲</span><a class="src src-post" href="posts/kaizhan-diyitian.html">博文</a><span class="act-time">09-30</span></div><div class="act-body">评论了《<a href="posts/kaizhan-diyitian.html">开站第一天：终于把这一格格像…</a>》</div></li><li><div class="act-head"><span class="act-name">小满</span><a class="src src-post" href="posts/kaizhan-diyitian.html">博文</a><span class="act-time">09-30</span></div><div class="act-body">评论了《<a href="posts/kaizhan-diyitian.html">开站第一天：终于把这一格格像…</a>》</div></li><li><div class="act-head"><span class="act-name">阿绿</span><a class="src src-post" href="posts/kaizhan-diyitian.html">博文</a><span class="act-time">09-30</span></div><div class="act-body">评论了《<a href="posts/kaizhan-diyitian.html">开站第一天：终于把这一格格像…</a>》</div></li><li><div class="act-head"><span class="act-name">阿树</span><a class="src src-guest" href="guestbook.html">留言板</a><span class="act-time">09-30</span></div><div class="act-body">路过，站点做得很用心。想交换个友链，我那边也是记录日常的，回…</div></li><li><div class="act-head"><span class="act-name">阿绿</span><a class="src src-guest" href="guestbook.html">留言板</a><span class="act-time">09-29</span></div><div class="act-body">第一次来，打个招呼。绿色这个配色我很喜欢，加油写下去。</div></li></ul>
+          <ul class="activity" id="recent-list"></ul>
           <div class="cell-note">文章评论与留言板分开统计，互不重复</div>
         </div>
       </div>
@@ -130,11 +143,11 @@
 
   <div class="site-foot">
     © 2026 像素日常 · 由 清羽墨染 一个人维护<br>
-    开站第 <b id="uptime">1</b> 天 · 文章 <b>5</b> 篇 · 照片 <b>6</b> 张
+    开站第 <b id="uptime">9</b> 天 · 文章 <b>5</b> 篇 · 照片 <b>6</b> 张
     · 联系站长：admin@xiangsuri.com<br>
     <a href="welcome.html">★ 复古主页</a> · <a href="about.html">关于</a>
     · <a href="archive.html">归档</a> · <a href="share.html">分享给朋友</a>
-    · <a href="admin.html">站长管理</a><br>
+    · <a href="login.html">我的账号</a> · <a href="admin.html">站长管理</a><br>
     <span class="foot-url">本站地址：<b>pixel-daily-blog.app.workbuddy.host</b>（无需登录，直接打开就能看）</span><br>
     <span class="px-en">FASTEST VIEWED AT 800x600</span>
     <div class="foot-hearts">
