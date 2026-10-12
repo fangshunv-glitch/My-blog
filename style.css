@@ -1352,6 +1352,128 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
 }
 
 /* ============================================================
+   复古动效（内页）
+   ------------------------------------------------------------
+   原则：一切都用 steps() 跳帧，不用平滑缓动。千禧年的动效是
+   GIF 味的 —— 一帧一帧地蹦，不是矢量补间。
+   所有动效都归文件末尾的「动效总开关」管，系统里关了动画就全停。
+   ============================================================ */
+
+/* 1. 入场：像老显示器点亮，4 帧渐显 */
+.page { animation: px-boot .24s steps(4) 1 both; }
+@keyframes px-boot { from { opacity: 0 } to { opacity: 1 } }
+
+/* 2. 顶部阅读进度：一排像素格子，滚到哪儿填到哪儿
+      （DOM 由 build.py 里那段内联脚本插入，只在页面真的能滚动时出现） */
+.px-readbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 4px; z-index: 60;
+  background: rgba(10, 20, 5, .18);
+  pointer-events: none;
+}
+.px-readbar i {
+  display: block; height: 100%; width: 0;
+  background: repeating-linear-gradient(90deg, var(--new) 0 6px, transparent 6px 8px);
+  border-right: 3px solid var(--yellow);   /* 走在最前面的那一格 */
+}
+
+/* 3. 点线目录：点线往右挪一格再循环 —— 老网站的虚线会自己跑 */
+.toc-dots { animation: dots-march 3.2s steps(8) infinite; }
+@keyframes dots-march { from { background-position: 0 0 } to { background-position: 8px 0 } }
+.foot-toc .toc-dots { animation: dots-march-sm 2.8s steps(7) infinite; }
+@keyframes dots-march-sm { from { background-position: 0 0 } to { background-position: 7px 0 } }
+
+/* 4. 章题头：一条扫描线自上而下扫过，像 CRT 刷新一屏 */
+.chapter-head { position: relative; overflow: hidden; }
+.chapter-head::after {
+  content: ""; position: absolute; left: 0; right: 0; top: -3px; height: 2px;
+  background: linear-gradient(90deg, transparent, #8EC759 30%, #8EC759 70%, transparent);
+  opacity: 0;
+  animation: crt-scan 6.5s steps(16) infinite;
+}
+@keyframes crt-scan {
+  0%   { top: -3px; opacity: 0 }
+  6%   { opacity: .85 }
+  55%  { top: 100%; opacity: .85 }
+  62%  { top: 100%; opacity: 0 }
+  100% { top: 100%; opacity: 0 }
+}
+
+/* 5. 文章列表：鼠标移上去，标题下划一条像素线「唰」地铺过去 */
+.post-title a {
+  background-image: linear-gradient(90deg, var(--new) 0 100%);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0 3px;
+}
+.post:hover .post-title a { animation: px-underline .3s steps(6) 1 forwards; }
+@keyframes px-underline { from { background-size: 0 3px } to { background-size: 100% 3px } }
+
+/* 「阅读全文 ▸」的箭头：hover 时来回蹦 */
+.more .arrow { display: inline-block; }
+.post:hover .more .arrow { animation: px-nudge .5s steps(2) infinite; }
+@keyframes px-nudge { 0%, 100% { transform: translateX(0) } 50% { transform: translateX(3px) } }
+
+/* 6. 缩略图 / 相册的斜条纹：自己往前爬一格 */
+.post.featured .thumb { animation: stripe-crawl-12 2.4s steps(12) infinite; }
+@keyframes stripe-crawl-12 { from { background-position: 0 0 } to { background-position: 12px 0 } }
+.album-item:hover .album-ph { animation: stripe-crawl-14 .6s steps(6) 1; }
+@keyframes stripe-crawl-14 { from { background-position: 0 0 } to { background-position: 14px 0 } }
+
+/* 7. 侧边栏面板标题的像素小图：偶尔闪一下，像坏掉的 GIF */
+.cell-title img.pixel { animation: icon-flicker 4.2s steps(1) infinite; }
+@keyframes icon-flicker {
+  0%, 90%, 100% { opacity: 1 }
+  93% { opacity: .25 }
+  96% { opacity: 1 }
+}
+
+/* 8. 项目插图：hover 时左右抖两下 */
+.proj-art img { image-rendering: pixelated; }
+.project:hover .proj-art img { animation: px-shake .34s steps(2) 2; }
+@keyframes px-shake {
+  0%, 100% { transform: translateX(0) }
+  50% { transform: translateX(-3px) }
+}
+
+/* 9. 页脚三颗爱心：两帧心跳，一颗接一颗 */
+.foot-hearts img { animation: heart-beat 1.8s steps(1) infinite; }
+.foot-hearts img:nth-child(2) { animation-delay: .18s; }
+.foot-hearts img:nth-child(3) { animation-delay: .36s; }
+@keyframes heart-beat {
+  0%, 72%, 100% { transform: translateY(0) }
+  28% { transform: translateY(-3px) }
+}
+
+/* 10. 页脚跑马灯：深色底上的版本（浅色那条在欢迎页） */
+.foot-marquee {
+  background: transparent;
+  border-top: 1px dashed #557F30;
+  border-bottom: 1px dashed #557F30;
+  color: var(--yellow);
+  padding: 5px 0;
+  margin-bottom: 12px;
+}
+/* 无缝循环：内容在 build.py 里复制了两份，这里只跑一份的距离（-50%）。
+   顺手覆盖掉欢迎页那套 padding-left:100% 的推入式跑法 —— 那种跑法
+   开头十几秒整条都是空的。 */
+.foot-marquee .marquee-track {
+  padding-left: 0;
+  animation: marq-loop 26s linear infinite;
+}
+@keyframes marq-loop {
+  from { transform: translateX(0) }
+  to   { transform: translateX(-50%) }
+}
+
+/* 11. 正文小标题左侧那根绿条：偶尔跳一下橙色，像个跳动的小光标 */
+.article-body h3 { animation: bar-flash 3.4s steps(1) infinite; }
+@keyframes bar-flash {
+  0%, 82%, 100% { border-left-color: #8EC759 }
+  86%, 94% { border-left-color: var(--new) }
+}
+
+/* ============================================================
    响应式：手机 / 平板
    —— 一律放在文件最后，靠顺序覆盖上面的桌面规则
    ============================================================ */
@@ -1538,4 +1660,19 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
   .proj-lede { font-size: 18px; }
   .proj-foot { flex-direction: column; align-items: flex-start; }
   .proj-links { width: 100%; }
+}
+
+/* ============================================================
+   动效总开关
+   —— 系统里开了「减少动态效果」就全部停掉。
+     跑马灯要单独 display:none：它靠 animation 把文字推进视野，
+     只是停掉动画的话，字会停在右边界外面，成了一条空白带。
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .marquee { display: none; }
+  .px-readbar { display: none; }
 }

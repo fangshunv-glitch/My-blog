@@ -389,11 +389,20 @@ def sidebar(depth, skip_me=False):
     </div>""".format(p=p, me=me, cats=cats, arch=arch, acts="".join(acts), links=links)
 
 
-def footer(depth):
+def footer(depth, marquee=True):
+    """页脚。marquee=False 时不带那条跑马灯（封面用，保持一屏干净）。"""
     n_posts = len(LISTED)
     n_photos = len(PHOTOS)
+    # 跑马灯内容就是站点口号。做成「一份内容复制两遍、动画只跑一半」的
+    # 无缝循环 —— 这样整条始终是满的，不会出现开头一长段空白。
+    marq = ""
+    if marquee:
+        unit = '<span>※ %s ※</span>' % html.escape(SITE["slogan"])
+        marq = ('<div class="marquee foot-marquee"><div class="marquee-track">%s</div></div>'
+                % (unit * 5 * 2))
     return """
   <div class="site-foot">
+    {marq}
     <div class="foot-contact">
       <a href="{gh}" target="_blank" rel="noopener">GitHub</a>
       <span class="sep">·</span>
@@ -415,7 +424,7 @@ def footer(depth):
         <img class="pixel" src="{p}assets/heart2.png" alt="">
       </div>
     </div>
-    </div>""".format(name=html.escape(SITE["name"]),
+    </div>""".format(name=html.escape(SITE["name"]), marq=marq,
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
                      email=html.escape(SITE["email"]), url=html.escape(SITE["url"]),
                      gh=html.escape(SITE.get("github", "#")),
@@ -492,6 +501,29 @@ SCRIPT = """
     var days = Math.floor((z - START) / 86400000) + 1;
     var u = document.getElementById('uptime');
     if (u) u.textContent = days < 1 ? 1 : days;
+
+    /* 顶部像素阅读进度条。
+       封面不要（它就只有一屏），页面短到不用滚也不要，
+       免得冒出一条永远空着的条。 */
+    if (!document.body.classList.contains('cover-body')
+        && document.documentElement.scrollHeight > window.innerHeight * 1.5) {
+      var bar = document.createElement('div');
+      bar.className = 'px-readbar';
+      bar.innerHTML = '<i></i>';
+      document.body.appendChild(bar);
+      var fill = bar.firstChild, raf = 0;
+      var upd = function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var r = max > 0 ? (window.pageYOffset || document.documentElement.scrollTop) / max : 0;
+        fill.style.width = (r < 0 ? 0 : r > 1 ? 1 : r) * 100 + '%';
+        raf = 0;
+      };
+      window.addEventListener('scroll', function () {
+        if (!raf) raf = requestAnimationFrame(upd);
+      }, { passive: true });
+      window.addEventListener('resize', upd);
+      upd();
+    }
   })();
 </script>"""
 
@@ -556,7 +588,7 @@ def post_card(post, depth, show_cat=True, show_excerpt=True):
         <div class="post-meta">{meta}</div>
         {body}
         <div class="post-foot">
-          <a class="more" href="{url}">阅读全文 ▸</a>
+          <a class="more" href="{url}">阅读全文 <span class="arrow">▸</span></a>
           <span class="post-tags">{tags}</span>
         </div>
       </article>""".format(url=url, title=html.escape(post["title"]),
@@ -622,7 +654,7 @@ def build_home():
     out = "\n".join([
         head("%s · %s" % (SITE["name"], epigraph), HOME.get("lede", ""), 0),
         '<body class="cover-body">', '<div class="page">',
-        main, footer(0), "</div>", script_tag(),
+        main, footer(0, marquee=False), "</div>", script_tag(),
         "</body>", "</html>",
     ])
     write("index.html", out)

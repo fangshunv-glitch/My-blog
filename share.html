@@ -137,6 +137,7 @@
 </div>
 
   <div class="site-foot">
+    <div class="marquee foot-marquee"><div class="marquee-track"><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span></div></div>
     <div class="foot-contact">
       <a href="https://github.com/fangshunv-glitch" target="_blank" rel="noopener">GitHub</a>
       <span class="sep">·</span>
@@ -172,6 +173,29 @@
     var days = Math.floor((z - START) / 86400000) + 1;
     var u = document.getElementById('uptime');
     if (u) u.textContent = days < 1 ? 1 : days;
+
+    /* 顶部像素阅读进度条。
+       封面不要（它就只有一屏），页面短到不用滚也不要，
+       免得冒出一条永远空着的条。 */
+    if (!document.body.classList.contains('cover-body')
+        && document.documentElement.scrollHeight > window.innerHeight * 1.5) {
+      var bar = document.createElement('div');
+      bar.className = 'px-readbar';
+      bar.innerHTML = '<i></i>';
+      document.body.appendChild(bar);
+      var fill = bar.firstChild, raf = 0;
+      var upd = function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var r = max > 0 ? (window.pageYOffset || document.documentElement.scrollTop) / max : 0;
+        fill.style.width = (r < 0 ? 0 : r > 1 ? 1 : r) * 100 + '%';
+        raf = 0;
+      };
+      window.addEventListener('scroll', function () {
+        if (!raf) raf = requestAnimationFrame(upd);
+      }, { passive: true });
+      window.addEventListener('resize', upd);
+      upd();
+    }
   })();
 </script>
 <script>window.SITE_DATA = {"author": "清羽墨染", "base": "", "siteUrl": "pixel-daily-blog.app.workbuddy.host", "posts": {"kaizhan-diyitian": {"title": "开站第一天：终于把这一格格像素拼起来了", "url": "posts/kaizhan-diyitian.html"}, "mianguan": {"title": "楼下新开的面馆", "url": "posts/mianguan.html"}, "gongyuan-paizhao": {"title": "周末去公园拍了一卷照片", "url": "posts/gongyuan-paizhao.html"}, "jixie-jianpan": {"title": "换了一把机械键盘", "url": "posts/jixie-jianpan.html"}, "qiu-tian-naicha": {"title": "秋天的第一杯热奶茶", "url": "posts/qiu-tian-naicha.html"}}};</script>

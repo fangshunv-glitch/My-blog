@@ -50,7 +50,7 @@
         <div class="post-meta"><span class="m-date">2026-09-27</span><span>评论 0</span></div>
         <p class="post-excerpt">出门拐两个弯，开了家小面馆。老板话不多，一碗牛肉面端上来热气腾腾，葱花切得很细。吃到一半下起雨，索性坐着没走，一下午就这么过去了。</p>
         <div class="post-foot">
-          <a class="more" href="../posts/mianguan.html">阅读全文 ▸</a>
+          <a class="more" href="../posts/mianguan.html">阅读全文 <span class="arrow">▸</span></a>
           <span class="post-tags"><span class="chip">面馆</span><span class="chip">雨天</span></span>
         </div>
       </article>
@@ -59,7 +59,7 @@
         <div class="post-meta"><span class="m-date">2026-09-08</span><span>评论 0</span></div>
         <p class="post-excerpt">降温来得比天气预报还快。翻出外套，顺手买了杯热的，甜度调到三分。路上看见梧桐叶子开始泛黄，才反应过来夏天是真的过去了。</p>
         <div class="post-foot">
-          <a class="more" href="../posts/qiu-tian-naicha.html">阅读全文 ▸</a>
+          <a class="more" href="../posts/qiu-tian-naicha.html">阅读全文 <span class="arrow">▸</span></a>
           <span class="post-tags"><span class="chip">秋天</span><span class="chip">奶茶</span><span class="chip">降温</span></span>
         </div>
       </article>
@@ -120,6 +120,7 @@
 </div>
 
   <div class="site-foot">
+    <div class="marquee foot-marquee"><div class="marquee-track"><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span><span>※ 把日子过成一格一格的像素 ※</span></div></div>
     <div class="foot-contact">
       <a href="https://github.com/fangshunv-glitch" target="_blank" rel="noopener">GitHub</a>
       <span class="sep">·</span>
@@ -155,6 +156,29 @@
     var days = Math.floor((z - START) / 86400000) + 1;
     var u = document.getElementById('uptime');
     if (u) u.textContent = days < 1 ? 1 : days;
+
+    /* 顶部像素阅读进度条。
+       封面不要（它就只有一屏），页面短到不用滚也不要，
+       免得冒出一条永远空着的条。 */
+    if (!document.body.classList.contains('cover-body')
+        && document.documentElement.scrollHeight > window.innerHeight * 1.5) {
+      var bar = document.createElement('div');
+      bar.className = 'px-readbar';
+      bar.innerHTML = '<i></i>';
+      document.body.appendChild(bar);
+      var fill = bar.firstChild, raf = 0;
+      var upd = function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var r = max > 0 ? (window.pageYOffset || document.documentElement.scrollTop) / max : 0;
+        fill.style.width = (r < 0 ? 0 : r > 1 ? 1 : r) * 100 + '%';
+        raf = 0;
+      };
+      window.addEventListener('scroll', function () {
+        if (!raf) raf = requestAnimationFrame(upd);
+      }, { passive: true });
+      window.addEventListener('resize', upd);
+      upd();
+    }
   })();
 </script>
 <script>window.SITE_DATA = {"author": "清羽墨染", "base": "../", "siteUrl": "pixel-daily-blog.app.workbuddy.host", "posts": {"kaizhan-diyitian": {"title": "开站第一天：终于把这一格格像素拼起来了", "url": "posts/kaizhan-diyitian.html"}, "mianguan": {"title": "楼下新开的面馆", "url": "posts/mianguan.html"}, "gongyuan-paizhao": {"title": "周末去公园拍了一卷照片", "url": "posts/gongyuan-paizhao.html"}, "jixie-jianpan": {"title": "换了一把机械键盘", "url": "posts/jixie-jianpan.html"}, "qiu-tian-naicha": {"title": "秋天的第一杯热奶茶", "url": "posts/qiu-tian-naicha.html"}}};</script>
