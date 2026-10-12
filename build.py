@@ -376,7 +376,6 @@ def sidebar(depth, skip_me=False):
         </div>
         <div class="cell-body">
           <ul class="activity" id="recent-list">{acts}</ul>
-          <div class="cell-note">文章评论与留言板分开统计，互不重复</div>
         </div>
       </div>
 
@@ -404,11 +403,11 @@ def footer(depth):
     </div>
     {toc}
     <div class="foot-line">
-      © 2026 {name} · 由 {author} 一个人维护<br>
+      © 2026 {name}<br>
       开站第 <b id="uptime">{days}</b> 天 · 文章 <b>{n_posts}</b> 篇 · 照片 <b>{n_photos}</b> 张<br>
       <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
       · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
-      <span class="foot-url">本站地址：<b>{url}</b>（无需登录，直接打开就能看）</span><br>
+      <span class="foot-url">本站地址：<b>{url}</b></span><br>
       <span class="px-en">FASTEST VIEWED AT 800x600</span>
       <div class="foot-hearts">
         <img class="pixel" src="{p}assets/heart0.png" alt="">
@@ -416,7 +415,7 @@ def footer(depth):
         <img class="pixel" src="{p}assets/heart2.png" alt="">
       </div>
     </div>
-    </div>""".format(name=html.escape(SITE["name"]), author=html.escape(SITE["author"]),
+    </div>""".format(name=html.escape(SITE["name"]),
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
                      email=html.escape(SITE["email"]), url=html.escape(SITE["url"]),
                      gh=html.escape(SITE.get("github", "#")),
