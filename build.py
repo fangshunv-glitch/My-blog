@@ -4,13 +4,22 @@
 ==========================
 读 content.py，生成：
 
-    index.html               博客首页（主入口）
-    archive.html             文章归档
+    index.html               封面首页（站名 + 题记 + 点线目录）
+    blog.html                博客（文章列表 + 侧边栏）
+    projects.html            项目
+    about.html               关于
     album.html               相册（全站照片索引）
+    guestbook.html           留言板
+    archive.html             文章归档
     posts/<slug>.html        文章详情
     category/<slug>.html     分类列表
+    share.html               分享给朋友
+    admin.html / login.html  站长后台 / 访客账号
 
-不生成（手工维护）：welcome.html 复古欢迎页 / about.html 关于 / guestbook.html 留言板
+不生成（手工维护）：welcome.html 复古欢迎页
+
+首页是一屏封面，不是文章列表 —— 章节结构与目录都由 content.py 的
+CHAPTERS 驱动，加一章只要往那张表里加一行。文章列表在 blog.html。
 
 用法：  python build.py
 """
@@ -21,8 +30,9 @@ import re
 import shutil
 from datetime import date, datetime
 
-from content import (SITE, CATEGORIES, LINKS, POSTS, COMMENTS, GUESTBOOK,
-                     GUESTBOOK_INTRO, ABOUT)
+from content import (SITE, HOME, CHAPTERS, CATEGORIES, LINKS, POSTS, COMMENTS,
+                     GUESTBOOK, GUESTBOOK_INTRO, ABOUT,
+                     PROJECTS, PROJECTS_LEDE, PROJECTS_INTRO, PROJECTS_NOTE)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PER_PAGE = 5          # 首页每页文章数
@@ -170,11 +180,74 @@ def head(title, desc, depth):
 
 NAV_ITEMS = [
     ("home", "首页", "index.html"),
+    ("about", "关于", "about.html"),
+    ("projects", "项目", "projects.html"),
+    ("blog", "博客", "blog.html"),
     ("album", "相册", "album.html"),
     ("guestbook", "留言板", "guestbook.html"),
-    ("about", "关于", "about.html"),
-    ("archive", "归档", "archive.html"),
 ]
+
+# 章节查表：key -> (编号, 章名, 页址, 英文名, 一句话)
+CHAPTER_BY_KEY = {c[0]: c for c in CHAPTERS}
+
+CN_DIGITS = "〇一二三四五六七八九"
+
+
+def cn_year(year=None):
+    """2026 -> 二〇二六。用来在封面底部盖一个像旧书版权页的年份。"""
+    return "".join(CN_DIGITS[int(d)] for d in str(year or date.today().year))
+
+
+def toc_nav(depth=0, cls="toc"):
+    """点线目录：`章节名 …………… 编号`。
+
+    封面和页脚共用同一份数据，所以两处的目录永远一致。
+    """
+    p = up(depth)
+    rows = "".join(
+        '<li><a href="{p}{href}">'
+        '<span class="toc-name">{name}</span>'
+        '<span class="toc-dots" aria-hidden="true"></span>'
+        '<span class="toc-num">{num}</span>'
+        '</a></li>'.format(p=p, href=href, name=html.escape(name), num=num)
+        for key, num, name, href, en, desc in CHAPTERS
+    )
+    return '<nav class="%s"><ol>%s</ol></nav>' % (cls, rows)
+
+
+def chapter_head(key, depth=0):
+    """章题头：编号 + 章名 + 英文名。每个章节页顶部都有一份。
+
+    这是从参考站借来的做法 —— 全站每一章长得像一本书的一章，
+    用户在哪儿、这是第几章，一眼就看得到。
+    章名用像素字图片（assets/ch_<key>.png），和站名保持同一套视觉。
+    """
+    k, num, name, href, en, desc = CHAPTER_BY_KEY[key]
+    p = up(depth)
+    return """
+    <header class="chapter-head">
+      <a class="ch-back" href="{p}index.html">← 回到封面</a>
+      <div class="ch-mark">
+        <span class="ch-num">{num}</span>
+        <h1 class="ch-title">
+          <img class="pixel" src="{p}assets/ch_{key}.png" alt="{name}">
+        </h1>
+        <span class="ch-en">{en}</span>
+      </div>
+      <p class="ch-desc">{desc}</p>
+    </header>""".format(p=p, num=num, name=html.escape(name), key=key,
+                       en=en, desc=html.escape(desc))
+
+
+def chapter_crumb(key, tail, depth=0):
+    """从属于某一章的子页（归档 / 分类）用的面包屑，不占章节编号。"""
+    k, num, name, href, en, desc = CHAPTER_BY_KEY[key]
+    p = up(depth)
+    return ('<div class="crumb"><a href="%sindex.html">封面</a>'
+            '<span class="sep">›</span>'
+            '<a href="%s%s">%s %s</a>'
+            '<span class="sep">›</span><span>%s</span></div>'
+            % (p, p, href, num, html.escape(name), html.escape(tail)))
 
 
 def header(active, depth):
@@ -322,23 +395,32 @@ def footer(depth):
     n_photos = len(PHOTOS)
     return """
   <div class="site-foot">
-    © 2026 {name} · 由 {author} 一个人维护<br>
-    开站第 <b id="uptime">{days}</b> 天 · 文章 <b>{n_posts}</b> 篇 · 照片 <b>{n_photos}</b> 张
-    · 联系站长：{email}<br>
-    <a href="{p}welcome.html">★ 复古主页</a> · <a href="{p}about.html">关于</a>
-    · <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
-    · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
-    <span class="foot-url">本站地址：<b>{url}</b>（无需登录，直接打开就能看）</span><br>
-    <span class="px-en">FASTEST VIEWED AT 800x600</span>
-    <div class="foot-hearts">
-      <img class="pixel" src="{p}assets/heart0.png" alt="">
-      <img class="pixel" src="{p}assets/heart1.png" alt="">
-      <img class="pixel" src="{p}assets/heart2.png" alt="">
+    <div class="foot-contact">
+      <a href="{gh}" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="mailto:{email}">写信</a>
+      <span class="sep">·</span>
+      <a href="{p}welcome.html">复古入口</a>
+    </div>
+    {toc}
+    <div class="foot-line">
+      © 2026 {name} · 由 {author} 一个人维护<br>
+      开站第 <b id="uptime">{days}</b> 天 · 文章 <b>{n_posts}</b> 篇 · 照片 <b>{n_photos}</b> 张<br>
+      <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
+      · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
+      <span class="foot-url">本站地址：<b>{url}</b>（无需登录，直接打开就能看）</span><br>
+      <span class="px-en">FASTEST VIEWED AT 800x600</span>
+      <div class="foot-hearts">
+        <img class="pixel" src="{p}assets/heart0.png" alt="">
+        <img class="pixel" src="{p}assets/heart1.png" alt="">
+        <img class="pixel" src="{p}assets/heart2.png" alt="">
+      </div>
     </div>
     </div>""".format(name=html.escape(SITE["name"]), author=html.escape(SITE["author"]),
-                   days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
-                   email=html.escape(SITE["email"]), url=html.escape(SITE["url"]),
-                   p=up(depth))
+                     days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
+                     email=html.escape(SITE["email"]), url=html.escape(SITE["url"]),
+                     gh=html.escape(SITE.get("github", "#")),
+                     toc=toc_nav(depth, "foot-toc"), p=up(depth))
 
 
 # 云端互动：SDK 走 CDN，cloud.js 是本站的读写封装
@@ -422,22 +504,28 @@ def script_tag():
             .replace("{d}", str(int(d))))
 
 
-def page(title, desc, active, depth, main, skip_me=False):
+def page(title, desc, active, depth, main, skip_me=False, top=""):
+    """标准两栏页：章题头（top）→ 正文 + 侧边栏。
+
+    top 放在 .layout 外面，这样章题头是通栏居中的，不会被挤进正文那一栏。
+    """
     return "\n".join([
         head(title, desc, depth),
         '<body class="blog">', '<div class="page">',
-        header(active, depth), '<div class="layout">', main, sidebar(depth, skip_me),
+        header(active, depth), top,
+        '<div class="layout">', main, sidebar(depth, skip_me),
         "</div>", footer(depth), "</div>", script_tag(), cloud_tags(depth),
         "</body>", "</html>",
     ])
 
 
-def bare_page(title, desc, active, depth, main, body_class="blog", tags=""):
-    """无侧边栏的整页（管理后台 / 分享页用）。"""
+def bare_page(title, desc, active, depth, main, body_class="blog", tags="",
+              top="", wrap="wide-wrap"):
+    """无侧边栏的整页（项目 / 管理后台 / 分享页用）。"""
     return "\n".join([
         head(title, desc, depth),
         '<body class="%s">' % body_class, '<div class="page">',
-        header(active, depth), '<div class="wide-wrap">', main, "</div>",
+        header(active, depth), top, '<div class="%s">' % wrap, main, "</div>",
         footer(depth), "</div>", script_tag(), tags,
         "</body>", "</html>",
     ])
@@ -492,9 +580,59 @@ def pager(total, depth):
 
 
 # ---------------------------------------------------------------------------
-# 首页
+# 封面首页
 # ---------------------------------------------------------------------------
 def build_home():
+    """一屏封面：站名 + 题记 + 点线目录。
+
+    首页不承担信息流 —— 它只回答「这里有什么、点哪儿进去」。
+    文章列表在 blog.html，也就是目录里的「叁 博客」。
+    """
+    epigraph = HOME.get("epigraph") or SITE["slogan"]
+    contact = '<span class="sep">·</span>'.join(
+        '<a href="%s"%s>%s</a>'
+        % (html.escape(url),
+           ' target="_blank" rel="noopener"' if url.startswith("http") else "",
+           html.escape(name))
+        for name, url in HOME.get("contact", []))
+
+    main = """
+    <div class="cover">
+      <div class="cover-inner">
+        <div class="cover-mark">
+          <img class="pixel" src="assets/t_cover.png" alt="{name}">
+        </div>
+        <p class="cover-epigraph">{epi}</p>
+        <p class="cover-from">{epi_from}</p>
+
+        {toc}
+
+        <p class="cover-lede">{lede}</p>
+      </div>
+
+      <div class="cover-foot">
+        <div class="cover-year">{year}</div>
+        <div class="cover-contact">{contact}</div>
+      </div>
+    </div>""".format(
+        name=html.escape(SITE["name"]), epi=html.escape(epigraph),
+        epi_from=html.escape(HOME.get("epigraph_from", "")),
+        toc=toc_nav(0, "toc"), lede=html.escape(HOME.get("lede", "")),
+        year=cn_year(), contact=contact)
+
+    out = "\n".join([
+        head("%s · %s" % (SITE["name"], epigraph), HOME.get("lede", ""), 0),
+        '<body class="cover-body">', '<div class="page">',
+        main, footer(0), "</div>", script_tag(),
+        "</body>", "</html>",
+    ])
+    write("index.html", out)
+
+
+# ---------------------------------------------------------------------------
+# 博客：文章列表（原来在首页，现在归到「叁 博客」这一章）
+# ---------------------------------------------------------------------------
+def build_blog():
     depth = 0
     feat_html = ""
     for post in FEATURED:
@@ -542,9 +680,77 @@ def build_home():
     </div>""".format(total=len(LISTED), feat=feat_html, cards=cards,
                       pager=pager(len(LISTED), depth))
 
-    out = page("%s · %s" % (SITE["name"], SITE["slogan"]),
-               "记录日常、照片与碎碎念的个人博客。", "home", depth, main)
-    write("index.html", out)
+    out = page("%s · 博客" % SITE["name"],
+               "记录日常、照片与碎碎念的个人博客。", "blog", depth, main,
+               top=chapter_head("blog", depth))
+    write("blog.html", out)
+
+
+# ---------------------------------------------------------------------------
+# 项目
+# ---------------------------------------------------------------------------
+def build_projects():
+    """项目一章：不做卡片网格，一条一条排。
+
+    每一条 = 一张像素插图 + 名称 + 类型标签 + 一句话说明 + 几条要点 + 链接。
+    留白多、没有边框和阴影 —— 这是从参考站借来的排版，让「东西」自己说话。
+    """
+    depth = 0
+    blocks = []
+    for pr in PROJECTS:
+        points = "".join('<li>%s</li>' % html.escape(x)
+                         for x in pr.get("points", []))
+        chips = "".join('<span class="chip">%s</span>' % html.escape(s)
+                        for s in pr.get("stack", []))
+        links = []
+        for i, (text, url) in enumerate(pr.get("links", [])):
+            ext = ' target="_blank" rel="noopener"' if url.startswith("http") else ""
+            if i == 0:
+                links.append('<a class="proj-go" href="%s"%s>%s →</a>'
+                             % (html.escape(url), ext, html.escape(text)))
+            else:
+                links.append('<a class="proj-link" href="%s"%s>%s</a>'
+                             % (html.escape(url), ext, html.escape(text)))
+        meta = " · ".join(x for x in (pr.get("year", ""), pr.get("status", "")) if x)
+        blocks.append("""
+      <article class="project">
+        <div class="proj-art">
+          <img class="pixel" src="assets/{art}" alt="">
+        </div>
+        <div class="proj-body">
+          <div class="proj-head">
+            <h2 class="proj-name">{name}</h2>
+            <span class="proj-kind">{kind}</span>
+          </div>
+          <p class="proj-desc">{desc}</p>
+          <ul class="proj-points">{points}</ul>
+          <div class="proj-foot">
+            <div class="proj-side">
+              <div class="proj-meta">{meta}</div>
+              <div class="proj-stack">{chips}</div>
+            </div>
+            <div class="proj-links">{links}</div>
+          </div>
+        </div>
+      </article>""".format(
+            art=html.escape(pr.get("art", "")), name=html.escape(pr["name"]),
+            kind=html.escape(pr.get("kind", "")), desc=html.escape(pr.get("desc", "")),
+            points=points, meta=html.escape(meta), chips=chips,
+            links="".join(links)))
+
+    note = ('<p class="proj-note">%s</p>' % html.escape(PROJECTS_NOTE)
+            if PROJECTS_NOTE.strip() else "")
+
+    main = """
+    <p class="proj-lede">{lede}</p>
+    <div class="proj-intro">{intro}</div>
+{blocks}
+    {note}""".format(lede=html.escape(PROJECTS_LEDE),
+                     intro=md(PROJECTS_INTRO), blocks="".join(blocks), note=note)
+
+    out = bare_page("%s · 项目" % SITE["name"], PROJECTS_LEDE, "projects", depth,
+                    main, top=chapter_head("projects", depth), wrap="proj-wrap")
+    write("projects.html", out)
 
 
 # ---------------------------------------------------------------------------
@@ -628,7 +834,8 @@ def build_posts():
     <div class="main">
 
       <div class="crumb">
-        <a href="../index.html">首页</a><span class="sep">›</span>
+        <a href="../index.html">封面</a><span class="sep">›</span>
+        <a href="../blog.html">叁 博客</a><span class="sep">›</span>
         <a href="../category/{cslug}.html">{cat}</a><span class="sep">›</span>
         <span>{title}</span>
       </div>
@@ -715,10 +922,7 @@ def build_categories():
         main = """
     <div class="main">
 
-      <div class="crumb">
-        <a href="../index.html">首页</a><span class="sep">›</span>
-        <span>分类：{name}</span>
-      </div>
+      {crumb}
 
       <div class="section-head">
         <h2>分类：{name}</h2>
@@ -727,9 +931,10 @@ def build_categories():
       </div>
       <div class="sort-note">{desc} · 按发布时间倒序</div>
 {cards}
-    </div>""".format(name=cat["name"], n=len(items), desc=html.escape(cat["desc"]), cards=cards)
+    </div>""".format(name=cat["name"], n=len(items), desc=html.escape(cat["desc"]),
+                     cards=cards, crumb=chapter_crumb("blog", "分类：" + cat["name"], 1))
         out = page("分类：%s · %s" % (cat["name"], SITE["name"]),
-                   cat["desc"], "", 1, main)
+                   cat["desc"], "blog", 1, main)
         write("category/%s.html" % cat["slug"], out)
 
 
@@ -762,14 +967,14 @@ def build_archive():
     main = """
     <div class="main">
 
-      <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>归档</span></div>
+      %s
 
       <div class="sort-note" style="padding-top:0;">按发布时间倒序，同月内同样倒序 · 共 %d 篇</div>
 %s
-    </div>""" % (len(LISTED), "".join(blocks))
+    </div>""" % (chapter_crumb("blog", "归档", 0), len(LISTED), "".join(blocks))
 
     out = page("文章归档 · %s" % SITE["name"], "像素日常的全部文章，按月份归档。",
-               "archive", 0, main)
+               "blog", 0, main)
     write("archive.html", out)
 
 
@@ -804,8 +1009,6 @@ def build_album():
     main = """
     <div class="main">
 
-      <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>相册</span></div>
-
       <div class="section-head">
         <h2>相册</h2>
         <span class="en">PHOTO INDEX</span>
@@ -815,7 +1018,8 @@ def build_album():
 %s
     </div>""" % (len(PHOTOS), "".join(blocks))
 
-    out = page("相册 · %s" % SITE["name"], "像素日常的全站照片索引。", "album", 0, main)
+    out = page("相册 · %s" % SITE["name"], "像素日常的全站照片索引。", "album", 0, main,
+               top=chapter_head("album", 0))
     write("album.html", out)
 
 
@@ -836,8 +1040,6 @@ def build_about():
 
     main = """
     <div class="main">
-
-      <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>关于</span></div>
 
       <div class="cell">
         <div class="cell-title tall bar-6">
@@ -860,7 +1062,8 @@ def build_about():
                      foot=html.escape(ABOUT["foot_note"]))
 
     out = page("关于 · %s" % SITE["name"],
-               "关于站长清羽墨染，以及这个博客的来历。", "about", 0, main, skip_me=True)
+               "关于站长清羽墨染，以及这个博客的来历。", "about", 0, main, skip_me=True,
+               top=chapter_head("about", 0))
     write("about.html", out)
 
 
@@ -884,8 +1087,6 @@ def build_guestbook():
 
     main = """
     <div class="main">
-
-      <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>留言板</span></div>
 
       <div class="scope-note" style="margin-top:0;margin-bottom:12px;">
         {intro}
@@ -937,7 +1138,8 @@ def build_guestbook():
                     rows="".join(rows) or '<div class="empty-tip">还没有留言，来说第一句。</div>')
 
     out = page("留言板 · %s" % SITE["name"],
-               "像素日常的留言板：打招呼、交换友链、找站长。", "guestbook", 0, main)
+               "像素日常的留言板：打招呼、交换友链、找站长。", "guestbook", 0, main,
+               top=chapter_head("guestbook", 0))
     write("guestbook.html", out)
 
 
@@ -946,7 +1148,7 @@ def build_guestbook():
 # ---------------------------------------------------------------------------
 def build_admin():
     main = """
-    <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>站长管理</span></div>
+    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>站长管理</span></div>
 
     <div class="scope-note" style="margin-top:0;">
       <b>浏览博客不需要登录。</b>相册、归档、文章都直接打开——
@@ -1150,7 +1352,7 @@ def build_admin():
 # ---------------------------------------------------------------------------
 def build_login():
     main = """
-    <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>账号</span></div>
+    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>账号</span></div>
 
     <div class="scope-note" style="margin-top:0;">
       <b>浏览本站永远不需要登录。</b>相册、归档、文章都直接打开——
@@ -1285,7 +1487,7 @@ def build_login():
       </div>
 
       <div class="scope-note">
-        <a href="index.html">回首页</a> 或 <a href="guestbook.html">去留言板</a> 就能发言了。
+        <a href="index.html">回封面</a> 或 <a href="blog.html">去看博客</a> 就能发言了。
       </div>
     </div>
     """
@@ -1299,7 +1501,7 @@ def build_login():
 def build_share():
     url = SITE["url"]
     main = """
-    <div class="crumb"><a href="index.html">首页</a><span class="sep">›</span><span>分享给朋友</span></div>
+    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>分享给朋友</span></div>
 
     <div class="section-head">
       <h2>把本站分享给朋友</h2>
@@ -1424,6 +1626,8 @@ def main():
         if os.path.isdir(p):
             shutil.rmtree(p)
     build_home()
+    build_blog()
+    build_projects()
     build_posts()
     build_categories()
     build_archive()

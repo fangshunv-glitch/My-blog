@@ -1147,6 +1147,211 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
 .share-tips li::before { content: "▸"; position: absolute; left: 0; color: #9ACD32; }
 
 /* ============================================================
+   封面首页 / 章节题头 / 点线目录 / 项目页
+   —— 结构借自 lennney.com/zh：首页只做「目录」，每一章有编号，
+      目录用点线连到编号；视觉仍走本站的绿色像素风，不搬它的米色纸。
+   ============================================================ */
+
+/* ---------- 封面 ---------- */
+.cover-body .page { background: #F4FBEC; }
+
+.cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100vh - 40px);
+  padding: 58px 24px 0;
+  text-align: center;
+}
+
+/* 顶部断层色带：Y2K 的老味道，一条一条码出来 */
+.cover::before {
+  content: "";
+  display: block;
+  height: 8px;
+  margin: -58px -24px 46px;
+  background: linear-gradient(
+    to right,
+    #2F5D1A 0 12.5%, #4C8C1F 12.5% 25%, #6DB33F 25% 37.5%,
+    #8EC759 37.5% 50%, #B6E27F 50% 62.5%, #8EC759 62.5% 75%,
+    #4C8C1F 75% 87.5%, #2F5D1A 87.5% 100%);
+  border-bottom: 1px solid var(--line);
+}
+
+.cover-inner { width: 100%; max-width: 420px; margin: 0 auto; padding-bottom: 44px; }
+
+.cover-mark { display: flex; justify-content: center; margin-bottom: 24px; }
+.cover-mark img { width: 300px; height: auto; }
+
+.cover-epigraph {
+  margin: 0 0 5px;
+  font-family: "宋体", SimSun, serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 4px;
+  color: var(--text);
+}
+.cover-from {
+  margin: 0 0 34px;
+  font-size: 11px; letter-spacing: 2px; color: var(--muted);
+}
+.cover-lede { margin: 30px 0 0; font-size: 12px; color: var(--muted); }
+
+.cover-foot { padding: 0 0 30px; }
+.cover-year {
+  font-size: 12px; letter-spacing: 6px; color: var(--line); margin-bottom: 14px;
+}
+.cover-contact { font-size: 12px; }
+.cover-contact .sep { color: #A8CE86; margin: 0 8px; }
+
+/* ---------- 点线目录：章节名 …… 编号 ---------- */
+.toc ol { list-style: none; margin: 0; padding: 0; }
+
+.toc a {
+  display: flex; align-items: center;
+  padding: 8px 2px;
+  font-family: "宋体", SimSun, serif;
+  font-size: 15px; font-weight: 700; letter-spacing: 3px;
+  color: var(--text);
+}
+.toc a:hover { color: var(--new); text-decoration: none; }
+
+.toc-name { flex: none; }
+
+.toc-dots {
+  flex: 1 1 auto;
+  align-self: center;
+  height: 3px;
+  margin: 0 10px;
+  /* 像素点线：3px 方点 + 5px 间隔，比 CSS dotted 更硬朗 */
+  background-image: repeating-linear-gradient(
+    to right, var(--line-soft) 0 3px, transparent 3px 8px);
+}
+.toc-num { flex: none; color: var(--line); letter-spacing: 0; }
+
+.toc a:hover .toc-dots {
+  background-image: repeating-linear-gradient(
+    to right, var(--new) 0 3px, transparent 3px 8px);
+}
+.toc a:hover .toc-num { color: var(--new); }
+
+/* 页脚版：同样的目录，小一号、浅色、居中收窄 */
+.foot-contact { margin-bottom: 10px; }
+.foot-contact .sep { color: #4C8C1F; margin: 0 8px; }
+
+.foot-toc { max-width: 300px; margin: 0 auto 14px; text-align: left; }
+.foot-toc ol { list-style: none; margin: 0; padding: 0; }
+.foot-toc a {
+  display: flex; align-items: center;
+  font-size: 12px; letter-spacing: 1px; padding: 3px 0; color: #D8EFC2;
+  font-family: "宋体", SimSun, serif; font-weight: 700;
+}
+.foot-toc a:hover { color: var(--yellow); text-decoration: none; }
+.foot-toc .toc-dots {
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    to right, #557F30 0 2px, transparent 2px 7px);
+}
+.foot-toc .toc-num { color: #8EC759; }
+.foot-toc a:hover .toc-dots {
+  background-image: repeating-linear-gradient(
+    to right, var(--yellow) 0 2px, transparent 2px 7px);
+}
+.foot-toc a:hover .toc-num { color: var(--yellow); }
+
+/* ---------- 章节题头 ---------- */
+.chapter-head {
+  padding: 24px 16px 16px;
+  text-align: center;
+  border-bottom: 1px dashed var(--line-soft);
+}
+.ch-back { display: inline-block; margin-bottom: 20px; font-size: 12px; color: var(--muted); }
+.ch-back:hover { color: var(--new); text-decoration: none; }
+
+.ch-mark { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ch-num {
+  font-family: "宋体", SimSun, serif;
+  font-size: 13px; letter-spacing: 5px; color: var(--line);
+}
+.ch-title { margin: 0; line-height: 0; }
+.ch-title img { height: 44px; width: auto; }
+.ch-en {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 9px; letter-spacing: 3px; color: var(--muted);
+}
+.ch-desc { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+
+/* ---------- 项目页 ---------- */
+.proj-wrap { max-width: 800px; margin: 0 auto; padding: 20px 16px 30px; }
+
+.proj-lede {
+  margin: 6px 0 14px;
+  font-family: "宋体", SimSun, serif;
+  font-size: 20px; font-weight: 700; letter-spacing: 3px;
+  color: var(--header); text-align: center;
+}
+.proj-intro {
+  max-width: 600px; margin: 0 auto 30px;
+  text-align: center; font-size: 13px; color: #3A4F28;
+}
+.proj-intro p { margin: 0; }
+.proj-intro strong { color: var(--new); }
+
+/* 一条项目 = 插图 + 正文。不做卡片：没有边框、没有底色、没有圆角 */
+.project {
+  display: flex; gap: 24px;
+  padding: 24px 0;
+  border-top: 1px dashed var(--line-soft);
+}
+.proj-art { flex: none; width: 120px; }
+.proj-art img { width: 120px; height: auto; }
+.proj-body { flex: 1 1 auto; min-width: 0; }
+
+.proj-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.proj-name {
+  margin: 0;
+  font-family: "宋体", SimSun, serif;
+  font-size: 18px; font-weight: 700; letter-spacing: 1px;
+  color: var(--header);
+}
+.proj-kind {
+  flex: none;
+  background: var(--link); color: #FFFFFF;
+  font-size: 11px; letter-spacing: 1px; padding: 1px 8px;
+}
+
+.proj-desc { margin: 9px 0 11px; font-size: 13px; color: #3A4F28; }
+
+.proj-points { margin: 0 0 14px; padding: 0; list-style: none; }
+.proj-points li {
+  position: relative; padding-left: 14px;
+  font-size: 12px; line-height: 1.9; color: var(--muted);
+}
+.proj-points li::before {
+  content: "▪"; position: absolute; left: 0; color: var(--link);
+}
+
+.proj-foot {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.proj-meta { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+.proj-stack { margin-top: 7px; }
+.proj-links { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.proj-go {
+  display: inline-block; padding: 6px 14px;
+  background: var(--link); border: 1px solid var(--line); color: #FFFFFF;
+  font-size: 12px; letter-spacing: 1px;
+}
+.proj-go:hover { background: var(--new); border-color: var(--new); color: #FFFFFF; text-decoration: none; }
+.proj-link { font-size: 12px; }
+
+.proj-note {
+  margin: 28px 0 0; padding-top: 16px;
+  border-top: 1px dashed var(--line-soft);
+  text-align: center; font-size: 12px; color: var(--muted);
+}
+
+/* ============================================================
    响应式：手机 / 平板
    —— 一律放在文件最后，靠顺序覆盖上面的桌面规则
    ============================================================ */
@@ -1305,4 +1510,32 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
   .welcome-title img.heart { height: 28px; }
   .enter-btn { padding: 12px 34px; font-size: 17px; letter-spacing: 2px; }
   .welcome-sub { font-size: 14px; }
+}
+
+/* ---------- 封面 / 章节题头 / 项目页 的窄屏适配 ---------- */
+@media (max-width: 860px) {
+  /* 项目：插图挪到标题上方，一条占满整行 */
+  .project { flex-direction: column; gap: 14px; }
+  .proj-art { width: 96px; }
+  .proj-art img { width: 96px; }
+}
+
+@media (max-width: 640px) {
+  .cover { padding: 36px 16px 0; min-height: auto; }
+  .cover::before { margin: -36px -16px 30px; }
+  .cover-inner { padding-bottom: 28px; }
+  .cover-mark img { width: 240px; }
+  .cover-epigraph { font-size: 15px; letter-spacing: 2px; }
+  .cover-from { margin-bottom: 26px; }
+  .cover-lede { margin-top: 22px; }
+  .toc a { font-size: 15px; padding: 9px 2px; }
+
+  .chapter-head { padding: 18px 12px 14px; }
+  .ch-back { margin-bottom: 14px; }
+  .ch-title img { height: 36px; }
+
+  .proj-wrap { padding: 16px 12px 24px; }
+  .proj-lede { font-size: 18px; }
+  .proj-foot { flex-direction: column; align-items: flex-start; }
+  .proj-links { width: 100%; }
 }

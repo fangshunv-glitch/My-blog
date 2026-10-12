@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#2F5D1A">
+<title>像素日常 · 项目</title>
+<meta name="description" content="动手做过的东西，都在这里。">
+<link rel="icon" type="image/png" href="assets/heart0.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="blog">
+<div class="page">
+
+  <div class="site-head">
+    <div class="logo">
+      <img class="pixel sprout" src="assets/sprout.png" alt="">
+      <img class="pixel name" src="assets/t_sitename.png" alt="像素日常">
+    </div>
+    <div class="right">
+      今天是 <span id="today" class="date-line">2026-10-12</span><br>
+      站长信箱：admin@xiangsuri.com
+    </div>
+  </div>
+  <div class="slogan">—— 把日子过成一格一格的像素 ——</div>
+
+  <div class="nav">
+    <a href="index.html">首页</a><span class="sep">|</span><a href="about.html">关于</a><span class="sep">|</span><a class="active" href="projects.html">项目</a><span class="sep">|</span><a href="blog.html">博客</a><span class="sep">|</span><a href="album.html">相册</a><span class="sep">|</span><a href="guestbook.html">留言板</a>
+  </div>
+
+    <header class="chapter-head">
+      <a class="ch-back" href="index.html">← 回到封面</a>
+      <div class="ch-mark">
+        <span class="ch-num">贰</span>
+        <h1 class="ch-title">
+          <img class="pixel" src="assets/ch_projects.png" alt="项目">
+        </h1>
+        <span class="ch-en">PROJECTS</span>
+      </div>
+      <p class="ch-desc">真正动手做过的东西</p>
+    </header>
+<div class="proj-wrap">
+
+    <p class="proj-lede">动手做过的东西，都在这里。</p>
+    <div class="proj-intro"><p>这一页只放<strong>真的动手做过</strong>的东西。标准不复杂：能打开来用，或者至少能说清楚它解决的是什么麻烦。半途而废的、只有想法的，先不放上来。</p></div>
+
+      <article class="project">
+        <div class="proj-art">
+          <img class="pixel" src="assets/proj_house.png" alt="">
+        </div>
+        <div class="proj-body">
+          <div class="proj-head">
+            <h2 class="proj-name">Love &amp; Forever</h2>
+            <span class="proj-kind">网页工具</span>
+          </div>
+          <p class="proj-desc">整理、筛选、比较和记录候选房源的看房管理网页。以北京新房和二手房为主要场景，把散在各处的房源收进一个能排序的列表里。</p>
+          <ul class="proj-points"><li>筛选条件自己配：预算、通勤、户型、面积、房屋类型都能设</li><li>同一套房重复导入会累积价格快照，能看到近一年的涨跌</li><li>顺带给小区建档，均价、挂牌量、建成年份一栏一栏摆开</li><li>数据只存在这台电脑的浏览器里，不上传任何服务器</li><li>复古 / 素净两套界面随时换，看久了眼睛不累</li></ul>
+          <div class="proj-foot">
+            <div class="proj-side">
+              <div class="proj-meta">2026 · 在用</div>
+              <div class="proj-stack"><span class="chip">HTML</span><span class="chip">原生 JS</span><span class="chip">localStorage</span></div>
+            </div>
+            <div class="proj-links"><a class="proj-go" href="https://github.com/fangshunv-glitch/house-recommend" target="_blank" rel="noopener">查看项目 →</a><a class="proj-link" href="https://github.com/fangshunv-glitch/house-recommend/blob/main/数据对接格式.md" target="_blank" rel="noopener">数据格式说明</a></div>
+          </div>
+        </div>
+      </article>
+      <article class="project">
+        <div class="proj-art">
+          <img class="pixel" src="assets/proj_blog.png" alt="">
+        </div>
+        <div class="proj-body">
+          <div class="proj-head">
+            <h2 class="proj-name">像素日常</h2>
+            <span class="proj-kind">个人博客</span>
+          </div>
+          <p class="proj-desc">就是你正在看的这个站点。外面是 2000 年代个人主页的样子，里面是标准博客的骨架 —— 皮是旧的，结构不将就。</p>
+          <ul class="proj-points"><li>content.py 一个文件管全部内容，跑 build.py 生成静态页面</li><li>留言和评论走云端数据库，先登录再发言，署名由账号决定，伪造不了</li><li>中文像素字是拿宋体二值化放大的，不依赖任何美术素材</li><li>访客看博客永远不用登录，手机上打开也不用放大缩小</li></ul>
+          <div class="proj-foot">
+            <div class="proj-side">
+              <div class="proj-meta">2026 · 持续更新</div>
+              <div class="proj-stack"><span class="chip">Python</span><span class="chip">原生 JS</span><span class="chip">PostgreSQL</span></div>
+            </div>
+            <div class="proj-links"><a class="proj-go" href="https://github.com/fangshunv-glitch/My-blog" target="_blank" rel="noopener">查看项目 →</a></div>
+          </div>
+        </div>
+      </article>
+    <p class="proj-note">还有几个躺在本地的文件夹里，等收拾干净了再往这儿放。</p>
+</div>
+
+  <div class="site-foot">
+    <div class="foot-contact">
+      <a href="https://github.com/fangshunv-glitch" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="mailto:admin@xiangsuri.com">写信</a>
+      <span class="sep">·</span>
+      <a href="welcome.html">复古入口</a>
+    </div>
+    <nav class="foot-toc"><ol><li><a href="about.html"><span class="toc-name">关于</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">壹</span></a></li><li><a href="projects.html"><span class="toc-name">项目</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">贰</span></a></li><li><a href="blog.html"><span class="toc-name">博客</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">叁</span></a></li><li><a href="album.html"><span class="toc-name">相册</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">肆</span></a></li><li><a href="guestbook.html"><span class="toc-name">留言板</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">伍</span></a></li></ol></nav>
+    <div class="foot-line">
+      © 2026 像素日常 · 由 清羽墨染 一个人维护<br>
+      开站第 <b id="uptime">13</b> 天 · 文章 <b>5</b> 篇 · 照片 <b>6</b> 张<br>
+      <a href="archive.html">归档</a> · <a href="share.html">分享给朋友</a>
+      · <a href="login.html">我的账号</a> · <a href="admin.html">站长管理</a><br>
+      <span class="foot-url">本站地址：<b>pixel-daily-blog.app.workbuddy.host</b>（无需登录，直接打开就能看）</span><br>
+      <span class="px-en">FASTEST VIEWED AT 800x600</span>
+      <div class="foot-hearts">
+        <img class="pixel" src="assets/heart0.png" alt="">
+        <img class="pixel" src="assets/heart1.png" alt="">
+        <img class="pixel" src="assets/heart2.png" alt="">
+      </div>
+    </div>
+    </div>
+</div>
+
+<script>
+  (function () {
+    var W = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    var n = new Date();
+    var t = document.getElementById('today');
+    if (t) t.textContent = n.getFullYear() + '年' + (n.getMonth() + 1) + '月' + n.getDate() + '日 ' + W[n.getDay()];
+    var START = new Date(2026, 8, 30);
+    var z = new Date(); z.setHours(0, 0, 0, 0);
+    var days = Math.floor((z - START) / 86400000) + 1;
+    var u = document.getElementById('uptime');
+    if (u) u.textContent = days < 1 ? 1 : days;
+  })();
+</script>
+
+</body>
+</html>

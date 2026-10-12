@@ -61,6 +61,8 @@ TITLES = [
     # (文本, 网格, 倍数, 颜色, 描边, 文件名)
     ("欢迎光临", 16, 6, "#F2FFE4", "#1B3308", "t_welcome.png"),
     ("像素日常", 16, 3, "#E4F8CE", "#17300A", "t_sitename.png"),
+    # 封面用的站名：倍数更大、颜色是深的（封面底色是浅绿，深字才看得清）
+    ("像素日常", 16, 6, "#2F5D1A", None, "t_cover.png"),
     ("相册", 16, 3, "#FFFFFF", None, "t_album.png"),
     ("留言板", 16, 3, "#FFFFFF", None, "t_guest.png"),
     # —— 博客版 ——
@@ -73,6 +75,15 @@ TITLES = [
     ("发表评论", 16, 2, "#FFFFFF", None, "t_pub.png"),
     ("发表留言", 16, 2, "#FFFFFF", None, "t_msg.png"),
     ("照片墙", 16, 2, "#FFFFFF", None, "t_wall.png"),
+    # —— 章节页（封面目录里的每一章）——
+    # 白字那套是给彩色标题栏用的；深绿这套（ch_*.png）给浅色背景的章节题头用。
+    ("项目", 16, 3, "#FFFFFF", None, "t_project.png"),
+    ("博客", 16, 3, "#FFFFFF", None, "t_blog.png"),
+    ("关于", 16, 4, "#2F5D1A", None, "ch_about.png"),
+    ("项目", 16, 4, "#2F5D1A", None, "ch_projects.png"),
+    ("博客", 16, 4, "#2F5D1A", None, "ch_blog.png"),
+    ("相册", 16, 4, "#2F5D1A", None, "ch_album.png"),
+    ("留言板", 16, 4, "#2F5D1A", None, "ch_guestbook.png"),
     # —— 站长后台 / 分享页 ——
     ("站长登录", 16, 2, "#FFFFFF", None, "t_login.png"),
     ("认领站长", 16, 2, "#FFFFFF", None, "t_claim.png"),
@@ -247,6 +258,100 @@ def draw_avatar(path, scale=6):
 
 
 draw_avatar(os.path.join(OUT, "avatar.png"))
+
+
+# ---------------- 项目插图 ----------------
+# 用字符网格画像素画：一个字符一个像素，NEAREST 放大，边缘天然是硬的。
+# '.' 表示透明，其余字符查 palette。加一个新项目的插图只要再写一份网格。
+def draw_grid(path, rows, palette, scale=8):
+    width = max(len(r) for r in rows)
+    rows = [r.ljust(width, ".") for r in rows]
+    h = len(rows)
+    img = Image.new("RGBA", (width, h), (0, 0, 0, 0))
+    px = img.load()
+
+    def rgb(c):
+        return (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16), 255)
+
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch in palette:
+                px[x, y] = rgb(palette[ch])
+    img.resize((width * scale, h * scale), Image.NEAREST).save(path)
+    print("art ->", os.path.basename(path), img.size)
+    return path
+
+
+# 房子：给「Love & Forever 看房管理」用。
+# 深绿屋顶 + 米白墙 + 绿门，左上角一点橙色小心。
+HOUSE_PAL = {
+    "R": "#2F5D1A", "r": "#4C8C1F",          # 屋顶 深 / 亮
+    "W": "#F2FFE4", "w": "#D6EBB8",          # 墙面 亮 / 暗
+    "G": "#B6E27F", "g": "#7CBF3F",          # 窗玻璃 / 窗框
+    "D": "#2F5D1A", "d": "#1B3308",          # 门 / 门把手
+    "F": "#3E7B14",                          # 地基
+    "X": "#FF6B35",                          # 小心（点缀色）
+}
+HOUSE = [
+    "..XX.XX.................",
+    ".XXXXXXX..RRRR..........",
+    "..XXXXX..RRRRRR.........",
+    "...XXX..RRrrrrRR........",
+    ".......RRrrrrrrRR.......",
+    "......RRrrrrrrrrRR......",
+    ".....RRrrrrrrrrrrRR.....",
+    "....RRrrrrrrrrrrrrRR....",
+    "...RRRRRRRRRRRRRRRRRR...",
+    "...WWWWWWWWWWWWWWWWWW...",
+    "...WwwwwWWWWWWWWwwwwW...",
+    "...WwGGwWWWWWWWWwGGwW...",
+    "...WwGGwWWWWWWWWwGGwW...",
+    "...WwggwWWWWWWWWwggwW...",
+    "...WwwwwWWWWWWWWwwwwW...",
+    "...WwwwwWWDDDDWWwwwwW...",
+    "...WwwwwWWDDdDWWwwwwW...",
+    "...WwwwwWWDDDDWWwwwwW...",
+    "...WwwwwWWDDDDWWwwwwW...",
+    "...WWWWWWWWWWWWWWWWWW...",
+    "...FFFFFFFFFFFFFFFFFF...",
+    "........................",
+]
+
+# 显示器：给「像素日常」这个博客项目用。
+MONITOR_PAL = {
+    "F": "#2F5D1A",           # 机壳
+    "S": "#12260A",           # 屏幕底色
+    "T": "#8EC759",           # 文字
+    "A": "#FFD400",           # 标题条
+    "f": "#4C8C1F", "B": "#3E7B14",   # 支架 / 底座
+}
+MONITOR = [
+    "........................",
+    "........................",
+    "....FFFFFFFFFFFFFFFF....",
+    "....FSSSSSSSSSSSSSSF....",
+    "....FSAAAAAAAAAAAASF....",
+    "....FSSSSSSSSSSSSSSF....",
+    "....FSTTTTTTTTTTTTSF....",
+    "....FSTTTTTSSSSSSSSF....",
+    "....FSTTTTTTTTTTTTSF....",
+    "....FSTTTTSSSSSSSSSF....",
+    "....FSTTTTTTTTTTTTSF....",
+    "....FSTTTTTSSSSSSSSF....",
+    "....FSSSSSSSSSSSSSSF....",
+    "....FFFFFFFFFFFFFFFF....",
+    ".........FFFFFF.........",
+    ".........FFFFFF.........",
+    "........FFFFFFFF........",
+    "......FFFFFFFFFFFF......",
+    "....FFFFFFFFFFFFFFFF....",
+    "........................",
+    "........................",
+    "........................",
+]
+
+draw_grid(os.path.join(OUT, "proj_house.png"), HOUSE, HOUSE_PAL)
+draw_grid(os.path.join(OUT, "proj_blog.png"), MONITOR, MONITOR_PAL)
 
 
 # ---------------- 站点二维码（分享页用） ----------------
