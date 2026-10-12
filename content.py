@@ -38,7 +38,9 @@ SITE = {
     "bio": "写字的人 / 拍照的人 · 坐标南方小城",
     "email": "admin@xiangsuri.com",
     "since": "2026-09-30",           # 开站日期，用于「开站第 N 天」
-    "url": "pixel-daily-blog.app.workbuddy.host",
+    # 必须带协议头：这串会被原样复制给别人、也会显示在页脚与分享页上。
+    # 裸域名粘到聊天窗口里有时会被当成普通文字，点不动。
+    "url": "https://pixel-daily-blog.app.workbuddy.host/",
     "github": "https://github.com/fangshunv-glitch",
 }
 

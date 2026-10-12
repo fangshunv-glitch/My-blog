@@ -958,7 +958,7 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
 }
 
 /* ---------- 页脚站点地址 ---------- */
-.site-foot .foot-url { font-size: 11px; }
+.site-foot .foot-url { font-size: 11px; word-break: break-all; }
 .site-foot .foot-url b {
   font-family: "Press Start 2P", monospace;
   font-size: 8px;

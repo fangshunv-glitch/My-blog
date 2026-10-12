@@ -432,7 +432,7 @@ def footer(depth, marquee=True):
       开站第 <b id="uptime">{days}</b> 天 · 文章 <b>{n_posts}</b> 篇 · 照片 <b>{n_photos}</b> 张<br>
       <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
       · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
-      <span class="foot-url">本站地址：<b>{url}</b></span><br>
+      <span class="foot-url">本站地址：<a href="{url}"><b>{url}</b></a></span><br>
       <span class="px-en">FASTEST VIEWED AT 800x600</span>
       <div class="foot-hearts">
         <img class="pixel" src="{p}assets/heart0.png" alt="">
