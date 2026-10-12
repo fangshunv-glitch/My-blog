@@ -192,6 +192,29 @@
   }
 
   // -------------------------------------------------------------------------
+  // 页眉右上角的账号入口
+  // —— 静态 HTML 里写的是「登录 / 注册」（JS 挂了也能点进账号页），
+  //    这里拿到会话后改文案：登录了显示自己的昵称，身份就摆在明面上。
+  // -------------------------------------------------------------------------
+  function paintHeadLogin() {
+    var a = el('head-login');
+    if (!a) return;
+    a.href = BASE + 'login.html?next='
+      + encodeURIComponent(location.pathname + location.search);
+
+    var txt = a.querySelector('.txt');
+    if (!txt) return;
+    if (ME.name) {
+      txt.textContent = trunc(ME.name, 8);
+      a.className = 'head-login is-in';
+      a.title = '已登录，点这里进账号页';
+    } else if (ME.loggedIn) {
+      txt.textContent = '去取昵称';
+      a.className = 'head-login is-in';
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // 渲染：单条留言 / 评论
   // -------------------------------------------------------------------------
   function itemHTML(row) {
@@ -414,10 +437,12 @@
     }).then(function () {
       if (GB) paintGate(GB);
       if (COMMENT) paintGate(COMMENT);
+      paintHeadLogin();
     }, function () {
       ME.loggedIn = false;
       if (GB) paintGate(GB);
       if (COMMENT) paintGate(COMMENT);
+      paintHeadLogin();
     });
   }
 

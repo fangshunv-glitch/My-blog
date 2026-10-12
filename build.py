@@ -267,6 +267,9 @@ def header(active, depth):
       今天是 <span id="today" class="date-line">{today}</span><br>
       站长信箱：{email}
     </div>
+    <a class="head-login" id="head-login" href="{p}login.html">
+      <i class="dot" aria-hidden="true"></i><span class="txt">登录 / 注册</span>
+    </a>
   </div>
   <div class="slogan">—— {slogan} ——</div>
 
@@ -277,6 +280,19 @@ def header(active, depth):
         slogan=html.escape(SITE["slogan"]), today=date.today().strftime("%Y-%m-%d"),
         nav="".join(nav),
     )
+
+
+def swap_head_login(out, href, label):
+    """改掉页眉右上角那颗按钮的去向。
+
+    账号页和站长后台本来就在处理身份，那里还摆一颗「登录 / 注册」只会被误点，
+    所以这两页换成「返回博客」。其他页面保持原样，交给 cloud.js 按登录态改文案。
+    """
+    return (out
+            .replace('<a class="head-login" id="head-login" href="login.html">',
+                     '<a class="head-login is-in" id="head-login" href="%s">' % href, 1)
+            .replace('<span class="txt">登录 / 注册</span>',
+                     '<span class="txt">%s</span>' % html.escape(label), 1))
 
 
 def sidebar(depth, skip_me=False):
@@ -780,7 +796,8 @@ def build_projects():
                      intro=md(PROJECTS_INTRO), blocks="".join(blocks), note=note)
 
     out = bare_page("%s · 项目" % SITE["name"], PROJECTS_LEDE, "projects", depth,
-                    main, top=chapter_head("projects", depth), wrap="proj-wrap")
+                    main, top=chapter_head("projects", depth), wrap="proj-wrap",
+                    tags=cloud_tags(depth))
     write("projects.html", out)
 
 
@@ -1369,7 +1386,7 @@ def build_admin():
     out = bare_page("站长管理 · %s" % SITE["name"],
                     "像素日常的站长后台：管理留言与评论。访客浏览本站无需登录。",
                     "", 0, main, body_class="blog admin-page", tags=admin_tags(0))
-    write("admin.html", out)
+    write("admin.html", swap_head_login(out, "blog.html", "返回博客"))
 
 
 # ---------------------------------------------------------------------------
@@ -1525,7 +1542,7 @@ def build_login():
     out = bare_page("账号 · %s" % SITE["name"],
                     "登录像素日常的访客账号：留言和评论需要先登录。浏览本站无需登录。",
                     "", 0, main, body_class="blog login-page", tags=login_tags(0))
-    write("login.html", out)
+    write("login.html", swap_head_login(out, "blog.html", "返回博客"))
 
 
 # ---------------------------------------------------------------------------

@@ -245,6 +245,40 @@ body.blog { padding: 10px 0 0; }
 }
 .site-head .right .date-line { font-size: 9px; color: var(--yellow); }
 
+/* 页眉右上角的账号入口
+   —— 全站最显眼的一颗按钮：黄底 + 硬阴影 + 方块闪。
+   深绿页眉上，浅绿小字旁边只有这一块是暖色，一眼就能找到。
+   登录态由 cloud.js 改文案（未登录「登录 / 注册」→ 已登录显示昵称）。 */
+.head-login {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 7px;
+  margin-left: 12px;
+  padding: 7px 13px 6px;
+  background: var(--yellow);
+  color: #223F08;
+  border: 2px solid #16300A;
+  box-shadow: 3px 3px 0 #16300A;
+  font-family: "宋体", SimSun, serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  text-decoration: none; white-space: nowrap;
+}
+.head-login .dot {
+  width: 7px; height: 7px; flex: none;
+  background: var(--new);
+  border: 1px solid #16300A;
+  animation: hb-blink 1.4s steps(1) infinite;
+}
+@keyframes hb-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: .25; } }
+.head-login:hover {
+  background: #FFE95E;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #16300A;
+}
+.head-login:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #16300A; }
+/* 已登录：从「招呼人进来」变成「自己的门牌」，不再抢眼 */
+.head-login.is-in { background: var(--nav); color: #2F5D1A; }
+.head-login.is-in .dot { background: #4E9A21; animation: none; }
+
 /* 导航条 */
 .nav {
   background: var(--nav);
@@ -1513,13 +1547,10 @@ a.photo-card:hover .album-cap .from { color: var(--new); }
   .site-head .logo { gap: 9px; }
   .site-head .logo img.sprout { height: 34px; }
   .site-head .logo img.name { height: 28px; }
-  .site-head .right {
-    margin-left: 0;
-    width: 100%;
-    text-align: left;
-    font-size: 11px;
-    line-height: 1.8;
-  }
+  /* 日期/信箱在手机上让位给登录按钮：两者都留着，第一行就被挤成两截，
+     而按钮顶到右上角才是手机上大家都顺手的位置 */
+  .site-head .right { display: none; }
+  .site-head .head-login { margin-left: auto; padding: 6px 11px 5px; font-size: 12px; }
   .site-head .slogan { padding: 0 12px 9px; font-size: 11px; }
 
   /* 导航：一行装不下就横向滑动，不折成两三行 */
