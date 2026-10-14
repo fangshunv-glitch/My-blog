@@ -33,6 +33,28 @@
   // 当前访客的身份。未登录时 name 为空。
   var ME = { uid: '', name: '', loggedIn: false };
 
+  // 文章标题映射：feed.js 从数据库读到之后挂到 window.PIXEL_POSTS 上，
+  // 这里优先用它；静态兜底的那份（SITE_DATA.posts）只在它还没到位时顶一下。
+  function postMeta(slug) {
+    if (window.PIXEL_POSTS && window.PIXEL_POSTS[slug]) return window.PIXEL_POSTS[slug];
+    return POSTS[slug] || null;
+  }
+
+  // 侧边栏的「最近互动」要靠文章标题，而文章是 feed.js 异步读出来的。
+  // 等它一声，但别死等——它要是挂了，3 秒后照常跑，顶多显示不出文章名。
+  function whenPostsReady(cb) {
+    if (window.PIXEL_POSTS_READY) { cb(); return; }
+    var fired = false;
+    function once() {
+      if (fired) return;
+      fired = true;
+      window.removeEventListener('pixel:posts-ready', once);
+      cb();
+    }
+    window.addEventListener('pixel:posts-ready', once);
+    setTimeout(once, 3000);
+  }
+
   // -------------------------------------------------------------------------
   // 小工具
   // -------------------------------------------------------------------------
@@ -322,6 +344,45 @@
   }
 
   // -------------------------------------------------------------------------
+  // 文章评论：登录访客都能发（策略是 uid = auth.uid()，站长没有特权）
+  // -------------------------------------------------------------------------
+  function startComments(slug) {
+    if (COMMENT || !slug) return;      // 同一个页面只装一次
+    COMMENT = {
+      table: 'post_comments',
+      boxId: 'comment-list',
+      formId: 'comment-form',
+      gateId: 'comment-gate',
+      loginId: 'comment-login',
+      meId: 'comment-me',
+      countId: 'comment-count',
+      countLabel: '{n} COMMENTS',
+      emptyTip: '还没有评论，来说第一句。',
+      buttonText: '发表评论',
+      slug: slug
+    };
+    loadList(COMMENT);
+    bindForm({
+      formId: COMMENT.formId, table: COMMENT.table,
+      buttonText: COMMENT.buttonText, slug: slug, list: COMMENT
+    });
+    // 身份可能已经解析过了（boot 跑在前面），所以这里自己再问一次，
+    // 拿到结果直接绘一次门控，别让评论区停在「登录引导 / 表单」的默认态。
+    currentUser().then(function (user) {
+      if (!user) throw new Error('NO_SESSION');
+      ME.loggedIn = true;
+      return loadProfile();
+    }).then(function () {
+      paintGate(COMMENT);
+      paintHeadLogin();
+    }, function () {
+      ME.loggedIn = false;
+      paintGate(COMMENT);
+      paintHeadLogin();
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // 侧边栏「最近互动」：文章评论 + 留言板合并，标明来源
   // -------------------------------------------------------------------------
   function loadRecent() {
@@ -340,7 +401,7 @@
       var feed = [];
 
       (r[0] || []).forEach(function (c) {
-        var meta = POSTS[c.post_slug];
+        var meta = postMeta(c.post_slug);
         if (!meta) return;
         feed.push({
           time: c.created_at, name: c.name, kind: 'post',
@@ -404,29 +465,14 @@
       bindForm({ formId: GB.formId, table: GB.table, buttonText: GB.buttonText, list: GB });
     }
 
+    // 文章详情页的 slug 是 feed.js 读出来才填上的，所以这里只在已经填好时启动；
+    // 没填好的，等 feed.js 叫 startComments()（挂在 window.PixelCloud 上）。
     var postBox = el('comment-list');
-    if (postBox) {
-      COMMENT = {
-        table: 'post_comments',
-        boxId: 'comment-list',
-        formId: 'comment-form',
-        gateId: 'comment-gate',
-        loginId: 'comment-login',
-        meId: 'comment-me',
-        countId: 'comment-count',
-        countLabel: '{n} COMMENTS',
-        emptyTip: '还没有评论，来说第一句。',
-        buttonText: '发表评论',
-        slug: postBox.getAttribute('data-slug') || ''
-      };
-      loadList(COMMENT);
-      bindForm({
-        formId: COMMENT.formId, table: COMMENT.table,
-        buttonText: COMMENT.buttonText, slug: COMMENT.slug, list: COMMENT
-      });
+    if (postBox && postBox.getAttribute('data-slug')) {
+      startComments(postBox.getAttribute('data-slug'));
     }
 
-    loadRecent();
+    whenPostsReady(loadRecent);
 
     // 身份解析放在最后：拿到之前两个门控区都保持默认（引导登录）状态，
     // 拿到之后再决定是藏起来门、露出表单，还是提示去取昵称。
@@ -446,9 +492,15 @@
     });
   }
 
+  // 给 feed.js 用的接口：文章是异步读出来的，slug 到位得由它来叫一声。
+  window.PixelCloud = window.PixelCloud || {};
+  window.PixelCloud.initComments = startComments;
+  window.PixelCloud.ME = ME;
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
   }
+  window.dispatchEvent(new CustomEvent('pixel:cloud-ready'));
 })();

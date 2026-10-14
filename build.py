@@ -11,7 +11,7 @@
     album.html               相册（全站照片索引）
     guestbook.html           留言板
     archive.html             文章归档
-    posts/<slug>.html        文章详情
+    post.html?slug=<slug>    文章详情（内容从云端读，见 feed.js）
     category/<slug>.html     分类列表
     share.html               分享给朋友
     admin.html / login.html  站长后台 / 访客账号
@@ -300,8 +300,9 @@ def sidebar(depth, skip_me=False):
 
     # 分类
     cats = "".join(
-        '<li><a href="%s">%s</a><span class="n">(%d)</span></li>'
-        % (up(depth, "category/%s.html" % c["slug"]), c["name"], cat_count(c["name"]))
+        '<li><a href="%s">%s</a><span class="n" data-cat-count="%s">(%d)</span></li>'
+        % (up(depth, "category/%s.html" % c["slug"]), c["name"],
+           html.escape(c["name"]), cat_count(c["name"]))
         for c in CATEGORIES
     )
 
@@ -310,8 +311,8 @@ def sidebar(depth, skip_me=False):
     for post in LISTED:
         months.setdefault(post["date"][:7], []).append(post)
     arch = "".join(
-        '<li><a href="%s#%s">%s 年 %d 月</a><span class="n">(%d)</span></li>'
-        % (up(depth, "archive.html"), ym, ym[:4], int(ym[5:7]), len(v))
+        '<li><a href="%s#%s">%s 年 %d 月</a><span class="n" data-arch-count="%s">(%d)</span></li>'
+        % (up(depth, "archive.html"), ym, ym[:4], int(ym[5:7]), ym, len(v))
         for ym, v in sorted(months.items(), reverse=True)
     )
 
@@ -332,7 +333,7 @@ def sidebar(depth, skip_me=False):
     acts = []
     for it in feed[:5]:
         if it["kind"] == "comment":
-            url = up(depth, "posts/%s.html" % it["post"]["slug"])
+            url = up(depth, "post.html?slug=%s" % it["post"]["slug"])
             badge = '<a class="src src-post" href="%s">博文</a>' % url
             body = '评论了《<a href="%s">%s</a>》' % (url, html.escape(trunc(it["post"]["title"], 14)))
         else:
@@ -429,7 +430,7 @@ def footer(depth, marquee=True):
     {toc}
     <div class="foot-line">
       © 2026 {name}<br>
-      开站第 <b id="uptime">{days}</b> 天 · 文章 <b>{n_posts}</b> 篇 · 照片 <b>{n_photos}</b> 张<br>
+      开站第 <b id="uptime">{days}</b> 天 · 文章 <b id="foot-posts">{n_posts}</b> 篇 · 照片 <b id="foot-photos">{n_photos}</b> 张<br>
       <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
       · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
       <span class="foot-url">本站地址：<a href="{url}"><b>{url}</b></a></span><br>
@@ -459,13 +460,17 @@ def site_data(depth, all_posts=False):
     管理后台用 all_posts=True，因为站长本来就能看到全部。
     """
     src = PUBLISHED if all_posts else LISTED
-    posts = {p["slug"]: {"title": p["title"], "url": "posts/%s.html" % p["slug"]}
+    posts = {p["slug"]: {"title": p["title"], "url": "post.html?slug=%s" % p["slug"]}
              for p in src}
     data = {
         "author": SITE["author"],
+        "siteName": SITE["name"],
         "base": up(depth),
         "siteUrl": SITE["url"],
         "posts": posts,
+        # 分类名 → 分类页 slug。文章在数据库里存的是名字，
+        # 前台要拿它拼出 category/xxx.html 的链接（见 feed.js）。
+        "cats": {c["name"]: c["slug"] for c in CATEGORIES},
     }
     return '<script>window.SITE_DATA = %s;</script>' % json.dumps(data, ensure_ascii=False)
 
@@ -488,9 +493,14 @@ def vendor_scripts(depth):
 
 
 def cloud_tags(depth):
-    """访客侧：数据 → 配置 → SDK → 互动模块（留言/评论）。"""
+    """访客侧：数据 → 配置 → SDK → 内容渲染 → 互动模块（留言/评论）。
+
+    feed.js 必须排在 cloud.js 前面：它把云端文章灌进列表页，
+    顺便把「slug → 标题」的映射交给 cloud.js，侧边栏的最近互动才认得出文章名。
+    """
     return site_data(depth) + vendor_scripts(depth) + """
-<script src="%scloud.js"></script>""" % up(depth)
+<script src="%sfeed.js"></script>
+<script src="%scloud.js"></script>""" % (up(depth), up(depth))
 
 
 def admin_tags(depth):
@@ -587,7 +597,7 @@ def cat_of(post):
 # ---------------------------------------------------------------------------
 def post_card(post, depth, show_cat=True, show_excerpt=True):
     p = up(depth)
-    url = p + "posts/%s.html" % post["slug"]
+    url = p + "post.html?slug=%s" % post["slug"]
     tags = "".join('<span class="chip">%s</span>' % html.escape(t)
                    for t in post.get("tags", [])[:3])
     meta = ['<span class="m-date">%s</span>' % post["date"]]
@@ -683,7 +693,7 @@ def build_blog():
     depth = 0
     feat_html = ""
     for post in FEATURED:
-        p_url = "posts/%s.html" % post["slug"]
+        p_url = "post.html?slug=%s" % post["slug"]
         feat_html += """
       <article class="post featured">
         <div class="feat-flex">
@@ -708,24 +718,23 @@ def build_blog():
 
     cards = "".join(post_card(p, depth) for p in NORMAL)
 
+    # 静态生成时通常是空的（文章在云端），这块空态只是 JS 没跑起来时的兜底
+    feed_inner = feat_html + cards
+    if not feed_inner:
+        feed_inner = ('<div class="empty-tip">这里还没有文章。'
+                      '站长登录后在「站长管理 → 文章」里写第一篇，它就会出现在这儿。</div>')
+
     main = """
     <div class="main">
-
-      <div class="notice-bar">
-        <span class="badge">NOTICE</span>
-        <span>文章地址已固定为稳定别名，标题以后再改旧链接也不会失效</span>
-      </div>
 
       <div class="section-head">
         <h2>最新文章</h2>
         <span class="en">LATEST POSTS</span>
-        <span class="count">共 {total} 篇</span>
+        <span class="count" id="feed-count">共 {total} 篇</span>
       </div>
-      <div class="sort-note">置顶文章固定在最前，其余按发布时间倒序</div>
-{feat}{cards}
-{pager}
-    </div>""".format(total=len(LISTED), feat=feat_html, cards=cards,
-                      pager=pager(len(LISTED), depth))
+      <div class="sort-note">置顶固定在最前，其余按发布时间倒序</div>
+      <div id="feed-posts" data-view="all">{inner}</div>
+    </div>""".format(total=len(LISTED), inner=feed_inner)
 
     out = page("%s · 博客" % SITE["name"],
                "记录日常、照片与碎碎念的个人博客。", "blog", depth, main,
@@ -804,112 +813,56 @@ def build_projects():
 # ---------------------------------------------------------------------------
 # 文章详情
 # ---------------------------------------------------------------------------
-def build_posts():
-    order = sorted(PUBLISHED, key=dkey)          # 按发布时间升序，用于上下篇
-    for post in PUBLISHED:
-        idx = order.index(post)
-        prev_post = order[idx - 1] if idx > 0 else None
-        next_post = order[idx + 1] if idx < len(order) - 1 else None
+def build_post():
+    """文章详情页（post.html?slug=xxx）—— 全站只有这一个文章模板。
 
-        tags = "".join('<span class="chip">%s</span>' % html.escape(t)
-                       for t in post.get("tags", []))
+    正文不在这里拼：文章存在云端数据库里，随时能改，所以这一页只生成骨架
+    和一组带 id 的钩子，由 feed.js 按 ?slug= 把内容填进去。
 
-        meta = ['<span class="m-date">发布于 %s</span>' % post["date"],
-                '<span class="m-cat">分类：<a href="../category/%s.html">%s</a></span>'
-                % (cat_of(post)["slug"], post["category"]),
-                '<span>作者：%s</span>' % html.escape(SITE["author"]),
-                '<span>评论 %d</span>' % len(COMMENTS.get(post["slug"], []))]
-        if is_updated(post):
-            meta.append('<span class="m-upd">最后更新于 %s</span>' % post["updated"])
-
-        # 文中照片
-        photos = ""
-        if post.get("photos"):
-            cells = "".join(
-                '<div class="album-item"><div class="album-ph">%s</div>'
-                '<div class="album-cap">%s<span class="d">%s</span></div></div>'
-                % (html.escape(ph["id"]), html.escape(ph["cap"]), ph.get("date", ""))
-                for ph in post["photos"])
-            photos = """
-        <div class="article-photos">
-          <div class="sub-head">本篇照片</div>
-          <div class="album-grid">%s</div>
-        </div>""" % cells
-
-        # 上下篇
-        nav = []
-        if prev_post:
-            nav.append('<a href="%s.html"><span class="dir">上一篇</span>◀ %s</a>'
-                       % (prev_post["slug"], html.escape(prev_post["title"])))
-        else:
-            nav.append('<span class="pn-empty"><span class="dir">上一篇</span>没有了，这是最早的一篇</span>')
-        if next_post:
-            nav.append('<a class="pn-next" href="%s.html"><span class="dir">下一篇</span>%s ▶</a>'
-                       % (next_post["slug"], html.escape(next_post["title"])))
-        else:
-            nav.append('<span class="pn-empty pn-next"><span class="dir">下一篇</span>还没有更新的</span>')
-
-        # 评论
-        cmts = COMMENTS.get(post["slug"], [])
-        if cmts:
-            items = []
-            for c in cmts:
-                items.append(
-                    '<div class="comment"><div class="comment-head">'
-                    '<div class="comment-avatar"></div>'
-                    '<span class="comment-name">%s</span>'
-                    '<span class="comment-time">%s</span></div>'
-                    '<div class="comment-text">%s</div>%s</div>'
-                    % (html.escape(c["name"]), html.escape(c["time"]), html.escape(c["text"]),
-                       ('<div class="comment-reply"><span class="comment-name">%s</span> 回复：%s</div>'
-                        % (html.escape(SITE["author"]), html.escape(c["reply"]))) if c.get("reply") else ""))
-            cmt_body = "".join(items)
-        else:
-            cmt_body = '<div class="empty-tip">还没有评论，来说第一句。</div>'
-
-        # 未公开文章：页面照常生成，但明确告诉看到的人这是怎么回事
-        vis = ""
-        if post.get("visibility", "public") != "public":
-            vis = """
-      <div class="vis-note">
-        <span class="badge">UNLISTED</span>
-        <span>这一篇<b>没有公开</b>：它不在首页、分类、归档和相册里出现，
-        只有拿着链接的人能看到。想让它公开，把 <code>content.py</code> 里这篇的
-        <code>visibility</code> 改成 <code>public</code> 再重新构建。</span>
-      </div>"""
-
-        main = """
+    换来的是「改一篇文章不用重新构建、重新发布」；代价是正文要等 JS 到位。
+    这是把文章交给后台管理的必然结果——静态站自己没法知道站长刚写了个什么。
+    """
+    main = """
     <div class="main">
 
-      <div class="crumb">
-        <a href="../index.html">封面</a><span class="sep">›</span>
-        <a href="../blog.html">叁 博客</a><span class="sep">›</span>
-        <a href="../category/{cslug}.html">{cat}</a><span class="sep">›</span>
-        <span>{title}</span>
+      <div class="crumb" id="post-crumb">
+        <a href="index.html">封面</a><span class="sep">›</span>
+        <a href="blog.html">叁 博客</a><span class="sep">›</span>
+        <span>文章</span>
       </div>
-{vis}
 
-      <article class="article">
-        <h1 class="article-title">{title}</h1>
-        <div class="article-meta">{meta}</div>
-        <div class="article-body">{body}</div>
-{photos}
-        <div class="article-tags"><span class="label">标签：</span>{tags}</div>
+      <!-- 加载中 / 找不到 / 不公开，三种状态共用这一块 -->
+      <div class="cell" id="post-state">
+        <div class="cell-body">
+          <div class="empty-tip" id="post-state-tip">正在读取这篇文章…</div>
+        </div>
+      </div>
+
+      <div id="post-vis"></div>
+
+      <article class="article" id="post-article" hidden>
+        <h1 class="article-title" id="post-title"></h1>
+        <div class="article-meta" id="post-meta"></div>
+        <div class="article-body" id="post-body"></div>
+        <div id="post-photos"></div>
+        <div class="article-tags" id="post-tags"></div>
       </article>
 
-      <div class="post-nav">{nav}</div>
+      <div class="post-nav" id="post-nav" hidden></div>
 
-      <div class="cell" style="margin-top:14px;">
+      <!-- 评论：登录访客就能发（策略是 uid = auth.uid()，站长没特权）。
+           slug 等文章读出来之后由 feed.js 填，填好再让 cloud.js 接管。 -->
+      <div class="cell" id="comment-box" style="margin-top:14px;" hidden>
         <div class="cell-title tall bar-2">
-          <img class="pixel" src="../assets/t_reply.png" alt="评论">
-          <span class="en" id="comment-count">{ncmt} COMMENTS</span>
+          <img class="pixel" src="assets/t_reply.png" alt="评论">
+          <span class="en" id="comment-count">COMMENTS</span>
         </div>
-        <div class="cell-body" id="comment-list" data-slug="{pslug}">{cmt_body}</div>
+        <div class="cell-body" id="comment-list" data-slug=""></div>
       </div>
 
-      <div class="cell">
+      <div class="cell" id="comment-form-box" hidden>
         <div class="cell-title bar-5">
-          <img class="pixel" src="../assets/t_pub.png" alt="发表评论">
+          <img class="pixel" src="assets/t_pub.png" alt="发表评论">
           <span class="en">LEAVE A REPLY</span>
         </div>
         <div class="cell-body">
@@ -922,14 +875,14 @@ def build_posts():
               </p>
               <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
             </div>
-            <a class="btn gate-btn" id="comment-login" href="../login.html">登录 / 注册</a>
+            <a class="btn gate-btn" id="comment-login" href="login.html">登录 / 注册</a>
           </div>
 
           <!-- 已登录：只填内容，昵称从账号带出来 -->
           <form id="comment-form" novalidate hidden>
             <div class="me-line">
               我以 <b id="comment-me">—</b> 的身份评论
-              <a class="me-edit" href="../login.html">改昵称</a>
+              <a class="me-edit" href="login.html">改昵称</a>
             </div>
             <div class="form-row"><label for="cm-text">评论内容 <em>必填</em></label>
               <textarea id="cm-text" name="content" maxlength="800" placeholder="聊聊这篇文章…"></textarea></div>
@@ -942,20 +895,14 @@ def build_posts():
 
       <div class="scope-note">
         这里是<b>文章评论</b>，只讨论这一篇。想打招呼、换友链或找站长，请去
-        <a href="../guestbook.html">留言板</a>。
+        <a href="guestbook.html">留言板</a>。
       </div>
 
-    </div>""".format(cslug=cat_of(post)["slug"], cat=post["category"],
-                     title=html.escape(post["title"]), meta="".join(meta),
-                     body=md(post["body"]), photos=photos, tags=tags,
-                     nav="".join(nav), ncmt=len(cmts), cmt_body=cmt_body,
-                     pslug=post["slug"], vis=vis)
+    </div>"""
 
-        out = page("%s · %s" % (post["title"], SITE["name"]), post["excerpt"], "", 1, main)
-        write("posts/%s.html" % post["slug"], out)
-
-    for post in DRAFTS:
-        print("  跳过草稿：%s（%s）" % (post["title"], post["date"]))
+    out = page("文章 · %s" % SITE["name"],
+               "像素日常的一篇文章。", "", 0, main)
+    write("post.html", out)
 
 
 # ---------------------------------------------------------------------------
@@ -967,6 +914,8 @@ def build_categories():
         cards = "".join(post_card(p, 1, show_cat=False) for p in items)
         if not cards:
             cards = '<div class="empty-tip">这个分类下还没有文章。</div>'
+        cards = ('<div id="feed-posts" data-view="category" data-cat="%s">%s</div>'
+                 % (html.escape(cat["name"]), cards))
         main = """
     <div class="main">
 
@@ -975,7 +924,7 @@ def build_categories():
       <div class="section-head">
         <h2>分类：{name}</h2>
         <span class="en">CATEGORY</span>
-        <span class="count">共 {n} 篇</span>
+        <span class="count" id="feed-count">共 {n} 篇</span>
       </div>
       <div class="sort-note">{desc} · 按发布时间倒序</div>
 {cards}
@@ -998,7 +947,7 @@ def build_archive():
     for ym, items in sorted(groups.items(), reverse=True):
         rows = "".join(
             '<li><span class="a-date">%s</span>'
-            '<a class="a-title" href="posts/%s.html">%s</a>'
+            '<a class="a-title" href="post.html?slug=%s">%s</a>'
             '<span class="a-cat"><a href="category/%s.html">%s</a></span></li>'
             % (p["date"][5:], p["slug"], html.escape(p["title"]),
                cat_of(p)["slug"], p["category"])
@@ -1017,9 +966,10 @@ def build_archive():
 
       %s
 
-      <div class="sort-note" style="padding-top:0;">按发布时间倒序，同月内同样倒序 · 共 %d 篇</div>
-%s
-    </div>""" % (chapter_crumb("blog", "归档", 0), len(LISTED), "".join(blocks))
+      <div class="sort-note" style="padding-top:0;">按发布时间倒序，同月内同样倒序 · 共 <b id="feed-count">%d</b> 篇</div>
+      <div id="feed-archive">%s</div>
+    </div>""" % (chapter_crumb("blog", "归档", 0), len(LISTED),
+                 "".join(blocks) or '<div class="empty-tip">还没有文章可以归档。</div>')
 
     out = page("文章归档 · %s" % SITE["name"], "像素日常的全部文章，按月份归档。",
                "blog", 0, main)
@@ -1038,7 +988,7 @@ def build_album():
     for ym, items in sorted(groups.items(), reverse=True):
         items = sorted(items, key=lambda x: x.get("date", ""), reverse=True)
         cells = "".join(
-            '<a class="photo-card" href="posts/%s.html">'
+            '<a class="photo-card" href="post.html?slug=%s">'
             '<div class="album-ph">%s</div>'
             '<div class="album-cap">%s<span class="d">%s</span>'
             '<span class="d from">来自《%s》</span></div></a>'
@@ -1060,11 +1010,12 @@ def build_album():
       <div class="section-head">
         <h2>相册</h2>
         <span class="en">PHOTO INDEX</span>
-        <span class="count">共 %d 张</span>
+        <span class="count" id="feed-photo-count">共 %d 张</span>
       </div>
-      <div class="sort-note">这里是全站照片索引，点任意一张可回到它出自的那篇文章</div>
-%s
-    </div>""" % (len(PHOTOS), "".join(blocks))
+      <div class="sort-note">点任意一张看大图</div>
+      <div id="feed-album">%s</div>
+    </div>""" % (len(PHOTOS),
+                 "".join(blocks) or '<div class="empty-tip">相册还是空的。站长登录后在「站长管理 → 相册」里传第一张。</div>')
 
     out = page("相册 · %s" % SITE["name"], "像素日常的全站照片索引。", "album", 0, main,
                top=chapter_head("album", 0))
@@ -1192,9 +1143,34 @@ def build_guestbook():
 
 
 # ---------------------------------------------------------------------------
+# 可见范围：四档。文案在这里定义一次，后台下拉和前台提示都用它。
+# 真正的拦截在数据库行级策略里（见 posts / photos 两张表的 read 策略）。
+# ---------------------------------------------------------------------------
+# 四档可见范围。文章和照片共用同一套文案，所以别写「进首页、分类」这种
+# 只对文章成立的说法，改成两边都读得通的。
+# 顺序照旧，但静态 HTML 里把 private 标成 selected —— 万一 JS 没跑起来，
+# 默认落在最保守的一档，不会莫名其妙把东西放出去。
+VIS_OPTIONS = [
+    ("public", "公开 —— 所有人进来都能看到，会进列表"),
+    ("unlisted", "有链接可见 —— 不进任何列表，拿到链接的人能看"),
+    ("private", "仅自己可见 —— 只有你登录后能看到"),
+    ("draft", "草稿 —— 先存着，前台当它没发布"),
+]
+VIS_DEFAULT = "private"
+
+
+# ---------------------------------------------------------------------------
 # 站长管理后台（访客免登录；这里只给站长一个人用）
 # ---------------------------------------------------------------------------
 def build_admin():
+    cat_opts = "".join(
+        '<option value="%s">%s</option>' % (html.escape(c["name"]), html.escape(c["name"]))
+        for c in CATEGORIES)
+    vis_opts = "".join(
+        '<option value="%s"%s>%s</option>'
+        % (v, ' selected' if v == VIS_DEFAULT else "", label)
+        for v, label in VIS_OPTIONS)
+
     main = """
     <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>站长管理</span></div>
 
@@ -1338,6 +1314,8 @@ def build_admin():
             <div class="admin-tabs">
               <a href="#" data-panel="guestbook" class="active">留言板</a>
               <a href="#" data-panel="comments">文章评论</a>
+              <a href="#" data-panel="posts">文章</a>
+              <a href="#" data-panel="photos">相册</a>
               <a href="#" data-panel="private">私密内容</a>
             </div>
             <div class="admin-count" id="admin-count"></div>
@@ -1346,6 +1324,115 @@ def build_admin():
         </div>
 
         <div id="admin-list"></div>
+
+        <!-- ============ 文章：增删改查 + 可见范围 ============
+             数据在云端 posts 表。写操作只有站长能过（策略 pixel_is_admin()），
+             访客按可见范围读：public / unlisted 才读得到，private 和 draft 连查都查不到。 -->
+        <div id="posts-pane" hidden>
+          <div class="cell">
+            <div class="cell-title bar-4">
+              <img class="pixel" src="assets/t_write.png" alt="写文章">
+              <span class="en">WRITE A POST</span>
+            </div>
+            <div class="cell-body">
+              <div class="adm-editor">
+                <div class="form-row"><label for="po-title">标题 <em>必填</em></label>
+                  <input id="po-title" type="text" maxlength="120" placeholder="今天想写点什么"></div>
+
+                <div class="form-row"><label for="po-slug">链接别名 <em>必填</em></label>
+                  <input id="po-slug" type="text" maxlength="79" placeholder="post-20261014-a1b2">
+                  <div class="form-note">只用小写字母、数字和连字符。发布后再改，旧链接就失效了。</div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-row"><label for="po-cat">分类</label>
+                    <select id="po-cat">__CAT_OPTS__</select></div>
+                  <div class="form-row"><label for="po-vis">可见范围 <em>必填</em></label>
+                    <select id="po-vis">__VIS_OPTS__</select></div>
+                </div>
+                <div class="form-note" id="po-vis-note">
+                  可见范围决定谁能看到这篇：访客的数据库查询会被直接拦住，
+                  不是前端藏起来——写成「仅自己可见」的内容，别人就算会看代码也翻不出来。
+                </div>
+
+                <div class="form-row"><label for="po-tags">标签</label>
+                  <input id="po-tags" type="text" maxlength="120" placeholder="用逗号分开，比如：随笔, 拍照">
+                  <div class="form-note">列表里最多显示前三个。</div></div>
+
+                <div class="form-row"><label for="po-excerpt">摘要</label>
+                  <textarea id="po-excerpt" class="adm-excerpt" maxlength="200"
+                            placeholder="列表页显示的一两句话。不填就自动截正文开头。"></textarea></div>
+
+                <div class="form-row"><label for="po-body">正文 <em>必填</em></label>
+                  <textarea id="po-body" class="adm-body" maxlength="60000"
+                            placeholder="极简 Markdown：## 小标题、- 列表项、&gt; 引用、**粗体**、[文字](https://链接)"></textarea>
+                  <div class="form-note">空行分段。改完点「发布」，前台立刻就是新的。</div></div>
+
+                <div class="form-row-2">
+                  <div class="form-row"><label for="po-date">发布日期</label>
+                    <input id="po-date" type="date"></div>
+                  <div class="form-row"><label class="adm-check" for="po-featured">
+                    <input id="po-featured" type="checkbox"> 置顶到列表最前</label></div>
+                </div>
+
+                <div class="adm-form-actions">
+                  <button class="btn" id="po-save" type="button">发布</button>
+                  <button class="btn-mini" id="po-cancel" type="button" hidden>取消编辑</button>
+                  <span class="form-msg" id="po-msg" role="status"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="po-list"></div>
+        </div>
+
+        <!-- ============ 相册：上传照片 ============
+             照片在你本机压缩成两版再存进数据库：缩略图给网格，大图点开才读。
+             访客不用登录就能看（存放在公开可见的行里），但上传只有站长能做。 -->
+        <div id="photos-pane" hidden>
+          <div class="cell">
+            <div class="cell-title bar-1">
+              <img class="pixel" src="assets/t_upload.png" alt="上传照片">
+              <span class="en">ADD PHOTOS</span>
+            </div>
+            <div class="cell-body">
+              <div class="adm-editor">
+                <div class="form-row"><label for="ph-file">选照片 <em>必填</em></label>
+                  <input id="ph-file" type="file" accept="image/*" multiple>
+                  <div class="form-note">可以一次选多张。上传前在你本机压好（大图长边 1280、缩略图 360），
+                    原图不会上传，所以手机拍的大图也不会拖慢页面。</div></div>
+
+                <div class="form-row"><label for="ph-caption">说明</label>
+                  <input id="ph-caption" type="text" maxlength="200" placeholder="这张拍的是什么"></div>
+
+                <div class="form-row-2">
+                  <div class="form-row"><label for="ph-album">相册名</label>
+                    <input id="ph-album" type="text" maxlength="40" placeholder="比如：秋天的公园">
+                    <div class="form-note">留空也行，照片会直接进总相册。</div></div>
+                  <div class="form-row"><label for="ph-date">拍摄日期</label>
+                    <input id="ph-date" type="date"></div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-row"><label for="ph-post">挂到哪篇文章下</label>
+                    <select id="ph-post"><option value="">不挂，只放相册</option></select>
+                    <div class="form-note">挂上之后，那篇文章底部会多一块「本篇照片」。</div></div>
+                  <div class="form-row"><label for="ph-vis">可见范围</label>
+                    <select id="ph-vis">__VIS_OPTS__</select>
+                    <div class="form-note">默认停在「仅自己可见」——
+                      想让人看到，传之前先把它改成「公开」。传完再改也来得及，
+                      下面每张照片都能单独删。</div></div>
+                </div>
+
+                <div class="adm-form-actions">
+                  <button class="btn" id="ph-save" type="button">上传</button>
+                  <span class="form-msg" id="ph-msg" role="status"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="ph-list"></div>
+        </div>
 
         <!-- 私密内容：存在云端数据库，数据库层面只放行站长一个人，
              访客即使猜到这个页面、甚至直接调接口也拿不到 -->
@@ -1383,8 +1470,9 @@ def build_admin():
       </div>
     </div>
 """
+    main = main.replace("__CAT_OPTS__", cat_opts).replace("__VIS_OPTS__", vis_opts)
     out = bare_page("站长管理 · %s" % SITE["name"],
-                    "像素日常的站长后台：管理留言与评论。访客浏览本站无需登录。",
+                    "像素日常的站长后台：写文章、传照片、管留言与评论。访客浏览本站无需登录。",
                     "", 0, main, body_class="blog admin-page", tags=admin_tags(0))
     write("admin.html", swap_head_login(out, "blog.html", "返回博客"))
 
@@ -1676,7 +1764,7 @@ def main():
     build_home()
     build_blog()
     build_projects()
-    build_posts()
+    build_post()
     build_categories()
     build_archive()
     build_album()

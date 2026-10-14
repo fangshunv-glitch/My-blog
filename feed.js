@@ -1,0 +1,589 @@
+/*!
+ * 像素日常 · 内容渲染模块（feed.js）
+ * ==================================
+ * 文章和相册都存在云端数据库里，站长在后台随时增删改。这一层负责把数据变成页面：
+ *
+ *   1. 博客列表（blog.html）、分类页（category/*.html）、归档页（archive.html）
+ *   2. 文章详情页（post.html?slug=xxx）
+ *   3. 相册页（album.html），含点开看大图
+ *   4. 侧边栏分类/归档计数、页脚「文章 N 篇 · 照片 N 张」
+ *
+ * 设计原则：
+ *   1. **能不能看由数据库说了算**，不是这里过滤的。行级策略只放行
+ *      visibility in (public, unlisted) 给访客，private / draft 连查都查不到。
+ *      所以下面「只把 public 放进列表」只是显示规则，不是安全边界。
+ *   2. 静态生成的空壳是兜底：JS 没跑起来、或者云端连不上，
+ *      页面上会留一句说明，而不是变成一片空白。
+ *   3. 留言和评论不在这里 —— 那是 cloud.js 的活。本文件只负责「内容」。
+ *
+ * 依赖：先加载 SDK（全局 WorkBuddyCloud）、cloud-config.js、页面内联的 SITE_DATA。
+ */
+(function () {
+  'use strict';
+
+  var CONFIG = window.PIXEL_CLOUD_CONFIG || {};
+  var D = window.SITE_DATA || {};
+  var BASE = D.base || '';
+  var AUTHOR = D.author || '站长';
+  var CATS = D.cats || {};          // 分类名 → slug（build.py 注入）
+
+  var _sdk = null;
+  function sdk() {
+    if (_sdk) return _sdk;
+    var S = window.WorkBuddyCloud;
+    if (!S || typeof S.createWorkBuddyCloud !== 'function') {
+      throw new Error('SDK_MISSING');
+    }
+    _sdk = S.createWorkBuddyCloud(CONFIG);
+    return _sdk;
+  }
+  function db() { return sdk().database; }
+  function el(id) { return document.getElementById(id); }
+
+  function run(query) {
+    return Promise.resolve(query).then(function (res) {
+      if (res && res.error) throw res.error;
+      return res && res.data ? res.data : [];
+    });
+  }
+
+  function friendly(err) {
+    var m = (err && (err.message || err.error_description)) || '';
+    if (/SDK_MISSING/.test(m)) return '云端脚本没加载上，稍后刷新试试。';
+    if (/Failed to fetch|NetworkError|fetch/i.test(m)) return '网络好像不通，检查一下连接。';
+    return m || '出了点问题，稍后再试。';
+  }
+
+  // -------------------------------------------------------------------------
+  // 小工具
+  // -------------------------------------------------------------------------
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function escAttr(s) {
+    return esc(s).replace(/"/g, '&quot;');
+  }
+  function trunc(s, n) {
+    s = String(s == null ? '' : s).trim();
+    return s.length <= n ? s : s.slice(0, n) + '…';
+  }
+  function catLink(name) {
+    var slug = CATS[name];
+    if (!slug) return esc(name);
+    return '<a href="' + BASE + 'category/' + escAttr(slug) + '.html">' + esc(name) + '</a>';
+  }
+  function postUrl(slug) {
+    return BASE + 'post.html?slug=' + encodeURIComponent(slug);
+  }
+  function dayOf(v) {
+    // 数据库给的是 YYYY-MM-DD（date 类型），保险起见截前 10 位
+    return String(v == null ? '' : v).slice(0, 10);
+  }
+  function hhmm(v) {
+    var d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  // -------------------------------------------------------------------------
+  // 极简 Markdown → HTML（与 build.py 的 md() 对齐，所见即所得）
+  // -------------------------------------------------------------------------
+  function isWordChar(ch) {
+    return !!ch && ch.charCodeAt(0) < 128 && /[0-9A-Za-z]/.test(ch);
+  }
+
+  function mdInline(s) {
+    s = esc(s);
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\[(.+?)\]\((.+?)\)/g, function (m, t, u) {
+      // 只允许安全的链接形状，别让正文里塞进 javascript:
+      var href = /^(https?:\/\/|\/|#|mailto:)/.test(u) ? u : '#';
+      return '<a href="' + escAttr(href) + '">' + t + '</a>';
+    });
+    return s;
+  }
+
+  // 中文按行折行的段落，拼接时不插空格；英文单词之间补回来
+  function joinLines(buf) {
+    var out = '';
+    for (var i = 0; i < buf.length; i++) {
+      var seg = buf[i];
+      if (i && out && isWordChar(out.charAt(out.length - 1)) && isWordChar(seg.charAt(0))) {
+        out += ' ';
+      }
+      out += seg;
+    }
+    return out;
+  }
+
+  function md(text) {
+    var lines = String(text == null ? '' : text).replace(/^\n+/, '').replace(/\n+$/, '').split('\n');
+    var out = [], i = 0;
+    while (i < lines.length) {
+      var ln = lines[i].replace(/\s+$/, '');
+      if (!ln.trim()) { i++; continue; }
+
+      if (ln.indexOf('## ') === 0) {
+        out.push('<h3>' + mdInline(ln.slice(3).trim()) + '</h3>');
+        i++; continue;
+      }
+      if (ln.indexOf('> ') === 0) {
+        var qb = [];
+        while (i < lines.length && lines[i].indexOf('> ') === 0) {
+          qb.push(lines[i].slice(2).trim()); i++;
+        }
+        out.push('<blockquote>' + mdInline(joinLines(qb)) + '</blockquote>');
+        continue;
+      }
+      if (ln.indexOf('- ') === 0) {
+        var lb = [];
+        while (i < lines.length && lines[i].indexOf('- ') === 0) {
+          lb.push('<li>' + mdInline(lines[i].slice(2).trim()) + '</li>'); i++;
+        }
+        out.push('<ul>' + lb.join('') + '</ul>');
+        continue;
+      }
+      var pb = [];
+      while (i < lines.length && lines[i].trim()
+             && lines[i].indexOf('## ') !== 0
+             && lines[i].indexOf('> ') !== 0
+             && lines[i].indexOf('- ') !== 0) {
+        pb.push(lines[i].trim()); i++;
+      }
+      out.push('<p>' + mdInline(joinLines(pb)) + '</p>');
+    }
+    return out.join('\n');
+  }
+
+  // -------------------------------------------------------------------------
+  // 可见范围：给站长看的提示（访客根本读不到非公开内容）
+  // -------------------------------------------------------------------------
+  var VIS = {
+    public: '',
+    unlisted: '<div class="vis-note"><span class="badge">有链接可见</span>'
+      + '<span>这一篇<b>没有公开</b>：不在首页、分类、归档和相册里出现，'
+      + '只有拿着链接的人能看到。想让它公开，在后台把可见范围改成「公开」。</span></div>',
+    private: '<div class="vis-note"><span class="badge">仅自己可见</span>'
+      + '<span>这一篇<b>只有你自己能看到</b>。访客连数据都查不到，'
+      + '换成别的账号登录也读不出来。</span></div>',
+    draft: '<div class="vis-note"><span class="badge">草稿</span>'
+      + '<span>这是<b>草稿</b>，访客看不到。在这里预览一下没问题，'
+      + '确认好了回后台把可见范围改成「公开」。</span></div>'
+  };
+
+  // -------------------------------------------------------------------------
+  // 文章卡片
+  // -------------------------------------------------------------------------
+  function cardHTML(p, opts) {
+    opts = opts || {};
+    var url = postUrl(p.slug);
+    var meta = ['<span class="m-date">' + esc(dayOf(p.published_on)) + '</span>'];
+    if (opts.showCat !== false && p.category) {
+      meta.push('<span class="m-cat">分类：' + catLink(p.category) + '</span>');
+    }
+    var tags = String(p.tags || '').split(',').filter(function (t) { return t.trim(); });
+    var chips = tags.slice(0, 3).map(function (t) {
+      return '<span class="chip">' + esc(t.trim()) + '</span>';
+    }).join('');
+
+    return '<article class="post">'
+      + '<h3 class="post-title"><a href="' + escAttr(url) + '">' + esc(p.title) + '</a></h3>'
+      + '<div class="post-meta">' + meta.join('') + '</div>'
+      + (p.excerpt ? '<p class="post-excerpt">' + esc(p.excerpt) + '</p>' : '')
+      + '<div class="post-foot">'
+      + '<a class="more" href="' + escAttr(url) + '">阅读全文 <span class="arrow">▸</span></a>'
+      + '<span class="post-tags">' + chips + '</span>'
+      + '</div></article>';
+  }
+
+  function featuredHTML(p) {
+    var url = postUrl(p.slug);
+    return '<article class="post featured"><div class="feat-flex"><div class="feat-body">'
+      + '<h3 class="post-title"><a href="' + escAttr(url) + '">' + esc(p.title)
+      + '</a><span class="pill">置顶</span></h3>'
+      + '<div class="post-meta"><span class="m-date">' + esc(dayOf(p.published_on)) + '</span>'
+      + (p.category ? '<span class="m-cat">分类：' + catLink(p.category) + '</span>' : '')
+      + '</div>'
+      + (p.excerpt ? '<p class="post-excerpt">' + esc(p.excerpt) + '</p>' : '')
+      + '<div class="post-foot"><a class="more" href="' + escAttr(url) + '">阅读全文 ▸</a></div>'
+      + '</div><div class="thumb">PIXEL<br>TOP</div></div></article>';
+  }
+
+  function emptyTip(text) {
+    return '<div class="empty-tip">' + esc(text) + '</div>';
+  }
+
+  // -------------------------------------------------------------------------
+  // 各视图
+  // -------------------------------------------------------------------------
+  var ALL = [];        // 站长视角能读到的全部（访客只有 public + unlisted）
+  var PUBLIC = [];     // 真正对外公开的
+
+  function viewList() {
+    var box = el('feed-posts');
+    if (!box) return;
+    var mode = box.getAttribute('data-view') || 'all';
+    var cat = box.getAttribute('data-cat') || '';
+    var list = cat ? PUBLIC.filter(function (p) { return p.category === cat; }) : PUBLIC;
+
+    var count = el('feed-count');
+    if (count) count.textContent = '共 ' + list.length + ' 篇';
+
+    if (!list.length) {
+      box.innerHTML = emptyTip(cat ? '这个分类下还没有文章。' : '还没有文章。');
+      return;
+    }
+    var feat = list.filter(function (p) { return p.featured; });
+    var rest = list.filter(function (p) { return !p.featured; });
+    box.innerHTML = feat.map(featuredHTML).join('') + rest.map(function (p) { return cardHTML(p); }).join('');
+  }
+
+  function viewArchive() {
+    var box = el('feed-archive');
+    if (!box) return;
+    var count = el('feed-count');
+    if (count) count.textContent = PUBLIC.length;
+
+    if (!PUBLIC.length) {
+      box.innerHTML = emptyTip('还没有文章可以归档。');
+      return;
+    }
+    var groups = {};
+    PUBLIC.forEach(function (p) {
+      var ym = dayOf(p.published_on).slice(0, 7);
+      (groups[ym] = groups[ym] || []).push(p);
+    });
+    var months = Object.keys(groups).sort().reverse();
+    box.innerHTML = months.map(function (ym) {
+      var rows = groups[ym].map(function (p) {
+        return '<li><span class="a-date">' + esc(dayOf(p.published_on).slice(5)) + '</span>'
+          + '<a class="a-title" href="' + escAttr(postUrl(p.slug)) + '">' + esc(p.title) + '</a>'
+          + '<span class="a-cat">' + catLink(p.category) + '</span></li>';
+      }).join('');
+      return '<div class="cell" id="' + escAttr(ym) + '">'
+        + '<div class="cell-title bar-3">'
+        + '<img class="pixel" src="' + BASE + 'assets/t_arch.png" alt="文章归档">'
+        + '<span class="en">' + esc(ym.replace('-', ' / ')) + ' · ' + groups[ym].length + ' POSTS</span>'
+        + '</div><div class="cell-body"><ul class="archive-list">' + rows + '</ul></div></div>';
+    }).join('');
+  }
+
+  function viewCounts() {
+    var byCat = {}, byMonth = {};
+    PUBLIC.forEach(function (p) {
+      byCat[p.category] = (byCat[p.category] || 0) + 1;
+      var ym = dayOf(p.published_on).slice(0, 7);
+      byMonth[ym] = (byMonth[ym] || 0) + 1;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-cat-count]'), function (n) {
+      n.textContent = '(' + (byCat[n.getAttribute('data-cat-count')] || 0) + ')';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-arch-count]'), function (n) {
+      n.textContent = '(' + (byMonth[n.getAttribute('data-arch-count')] || 0) + ')';
+    });
+    var fp = el('foot-posts');
+    if (fp) fp.textContent = PUBLIC.length;
+  }
+
+  // -------------------------------------------------------------------------
+  // 文章详情
+  // -------------------------------------------------------------------------
+  function stateBox(tip, linkText, linkHref) {
+    var st = el('post-state'), t = el('post-state-tip');
+    if (t) {
+      t.innerHTML = esc(tip) + (linkText
+        ? ' <a href="' + escAttr(linkHref) + '">' + esc(linkText) + '</a>' : '');
+    }
+    if (st) st.hidden = false;
+  }
+
+  function viewPost() {
+    var article = el('post-article');
+    if (!article) return;
+
+    var m = /[?&]slug=([^&]*)/.exec(location.search);
+    var slug = m ? decodeURIComponent(m[1]) : '';
+    if (!slug) {
+      stateBox('这个地址少了文章编号（?slug=…）。', '回博客列表', BASE + 'blog.html');
+      return;
+    }
+
+    run(db().from('posts').select('*').eq('slug', slug).limit(1))
+      .then(function (rows) {
+        var p = rows && rows[0];
+        if (!p) {
+          // 三种可能：真没有，或者这是一篇 private / draft（策略拦住了，查不到）
+          stateBox('没找到这篇文章 —— 它可能被删掉了，或者没有公开。',
+                   '回博客列表', BASE + 'blog.html');
+          return;
+        }
+        paintPost(p);
+      }, function (err) {
+        stateBox('文章没能读出来：' + friendly(err), '回博客列表', BASE + 'blog.html');
+      });
+  }
+
+  function paintPost(p) {
+    var article = el('post-article');
+    var st = el('post-state');
+    if (!article) return;
+
+    document.title = p.title + ' · ' + (D.siteName || '博客');
+    if (st) st.hidden = true;
+    article.hidden = false;
+
+    if (p.category && el('post-crumb')) {
+      el('post-crumb').innerHTML = '<a href="' + BASE + 'index.html">封面</a>'
+        + '<span class="sep">›</span><a href="' + BASE + 'blog.html">叁 博客</a>'
+        + '<span class="sep">›</span>' + catLink(p.category)
+        + '<span class="sep">›</span><span>' + esc(trunc(p.title, 24)) + '</span>';
+    }
+
+    var visBox = el('post-vis');
+    if (visBox) visBox.innerHTML = VIS[p.visibility] || '';
+
+    el('post-title').textContent = p.title;
+
+    var meta = ['<span class="m-date">发布于 ' + esc(dayOf(p.published_on)) + '</span>'];
+    if (p.category) meta.push('<span class="m-cat">分类：' + catLink(p.category) + '</span>');
+    meta.push('<span>作者：' + esc(p.owner_name || AUTHOR) + '</span>');
+    if (p.updated_at && hhmm(p.updated_at).slice(0, 4) === dayOf(p.published_on).slice(0, 4)
+        && hhmm(p.updated_at) !== dayOf(p.published_on)) {
+      meta.push('<span class="m-upd">最后更新于 ' + esc(hhmm(p.updated_at)) + '</span>');
+    }
+    el('post-meta').innerHTML = meta.join('');
+
+    el('post-body').innerHTML = md(p.body);
+
+    var tags = String(p.tags || '').split(',').filter(function (t) { return t.trim(); });
+    el('post-tags').innerHTML = tags.length
+      ? '<span class="label">标签：</span>' + tags.map(function (t) {
+          return '<span class="chip">' + esc(t.trim()) + '</span>';
+        }).join('')
+      : '';
+
+    paintPostNav(p);
+    paintPostPhotos(p);
+    unlockComments(p.slug);
+  }
+
+  function paintPostNav(p) {
+    var box = el('post-nav');
+    if (!box) return;
+    var order = PUBLIC.slice().sort(function (a, b) {
+      return dayOf(a.published_on) < dayOf(b.published_on) ? -1 : 1;
+    });
+    var idx = -1;
+    for (var i = 0; i < order.length; i++) { if (order[i].slug === p.slug) { idx = i; break; } }
+    var prev = idx > 0 ? order[idx - 1] : null;
+    var next = (idx >= 0 && idx < order.length - 1) ? order[idx + 1] : null;
+
+    box.innerHTML = (prev
+        ? '<a href="' + escAttr(postUrl(prev.slug)) + '"><span class="dir">上一篇</span>◀ '
+          + esc(trunc(prev.title, 22)) + '</a>'
+        : '<span class="pn-empty"><span class="dir">上一篇</span>没有了，这是最早的一篇</span>')
+      + (next
+        ? '<a class="pn-next" href="' + escAttr(postUrl(next.slug)) + '"><span class="dir">下一篇</span>'
+          + esc(trunc(next.title, 22)) + ' ▶</a>'
+        : '<span class="pn-empty pn-next"><span class="dir">下一篇</span>还没有更新的</span>');
+    box.hidden = false;
+  }
+
+  function paintPostPhotos(p) {
+    var box = el('post-photos');
+    if (!box) return;
+    run(db().from('photos')
+      .select('id,caption,taken_on,thumb_data')
+      .eq('post_slug', p.slug).eq('visibility', 'public')
+      .order('taken_on', { ascending: true }).limit(60))
+      .then(function (rows) {
+        if (!rows.length) { box.innerHTML = ''; return; }
+        box.innerHTML = '<div class="article-photos"><div class="sub-head">本篇照片</div>'
+          + '<div class="album-grid">' + rows.map(function (ph) {
+              return '<div class="album-item">'
+                + '<div class="album-ph"><img src="' + escAttr(ph.thumb_data) + '" alt="'
+                + escAttr(ph.caption || '照片') + '"></div>'
+                + '<div class="album-cap">' + esc(ph.caption || '没有说明')
+                + '<span class="d">' + esc(dayOf(ph.taken_on)) + '</span></div></div>';
+            }).join('') + '</div></div>';
+      }, function () { box.innerHTML = ''; });
+  }
+
+  function unlockComments(slug) {
+    var box = el('comment-box'), form = el('comment-form-box'), list = el('comment-list');
+    if (list) list.setAttribute('data-slug', slug);
+    if (box) box.hidden = false;
+    if (form) form.hidden = false;
+    // cloud.js 负责评论区，但那时它还不知道 slug（文章是异步读出来的），
+    // 所以这里把 slug 填好之后再叫它一声。
+    if (window.PixelCloud && window.PixelCloud.initComments) {
+      window.PixelCloud.initComments(slug);
+    } else {
+      window.addEventListener('pixel:cloud-ready', function () {
+        if (window.PixelCloud && window.PixelCloud.initComments) {
+          window.PixelCloud.initComments(slug);
+        }
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 相册
+  // -------------------------------------------------------------------------
+  function viewAlbum() {
+    var box = el('feed-album');
+    if (!box) return;
+
+    // 委托挂在容器上，容器本身不会被 innerHTML 换掉，所以只挂一次。
+    // （挂在 .then() 里的话，每次重渲染都会多叠一层监听。）
+    if (!box.getAttribute('data-lb-bound')) {
+      box.setAttribute('data-lb-bound', '1');
+      box.addEventListener('click', onPhotoClick);
+    }
+
+    run(db().from('photos')
+      .select('id,album,post_slug,caption,taken_on,width,height,thumb_data')
+      .eq('visibility', 'public')
+      .order('taken_on', { ascending: false })
+      .order('sort', { ascending: true })
+      .limit(200))
+      .then(function (rows) {
+        var count = el('feed-photo-count');
+        if (count) count.textContent = '共 ' + rows.length + ' 张';
+        var fp = el('foot-photos');
+        if (fp) fp.textContent = rows.length;
+
+        if (!rows.length) {
+          box.innerHTML = emptyTip('相册还是空的。');
+          return;
+        }
+        box.innerHTML = '<div class="cell"><div class="cell-title bar-1">'
+          + '<img class="pixel" src="' + BASE + 'assets/t_wall.png" alt="照片墙">'
+          + '<span class="en">' + rows.length + ' PHOTOS</span></div>'
+          + '<div class="cell-body"><div class="album-grid">'
+          + rows.map(function (ph) {
+              var d = dayOf(ph.taken_on);
+              return '<button class="photo-card" type="button" data-id="' + escAttr(ph.id) + '">'
+                + '<div class="album-ph"><img src="' + escAttr(ph.thumb_data) + '" alt="'
+                + escAttr(ph.caption || '照片') + '"></div>'
+                + '<div class="album-cap">' + esc(ph.caption || '没有说明')
+                + '<span class="d">' + esc(d) + '</span>'
+                + (ph.album ? '<span class="d from">' + esc(ph.album) + '</span>' : '')
+                + '</div></button>';
+            }).join('')
+          + '</div></div></div>';
+      }, function (err) {
+        box.innerHTML = '<div class="empty-tip">相册没能读出来：' + esc(friendly(err)) + '</div>';
+      });
+  }
+
+  function onPhotoClick(e) {
+    var btn = e.target.closest ? e.target.closest('.photo-card') : null;
+    if (!btn) return;
+    openLightbox(btn.getAttribute('data-id'));
+  }
+
+  function openLightbox(id) {
+    var box = el('pixel-lightbox');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'pixel-lightbox';
+      box.id = 'pixel-lightbox';
+      box.innerHTML = '<button class="lb-close" type="button" aria-label="关闭">✕</button>'
+        + '<div class="lb-stage"><div class="lb-tip">正在读取大图…</div></div>';
+      document.body.appendChild(box);
+      box.addEventListener('click', function (ev) {
+        if (ev.target === box || (ev.target.className || '').indexOf('lb-close') >= 0) {
+          box.classList.remove('on');
+          document.body.style.overflow = '';
+        }
+      });
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') {
+          box.classList.remove('on');
+          document.body.style.overflow = '';
+        }
+      });
+    }
+    box.classList.add('on');
+    document.body.style.overflow = 'hidden';
+
+    var stage = box.querySelector('.lb-stage');
+    stage.innerHTML = '<div class="lb-tip">正在读取大图…</div>';
+
+    run(db().from('photos').select('id,caption,taken_on,image_data').eq('id', Number(id)).limit(1))
+      .then(function (rows) {
+        var ph = rows && rows[0];
+        if (!ph) { stage.innerHTML = '<div class="lb-tip">这张照片读不出来。</div>'; return; }
+        stage.innerHTML = '<img src="' + escAttr(ph.image_data) + '" alt="'
+          + escAttr(ph.caption || '照片') + '">'
+          + '<div class="lb-cap">' + esc(ph.caption || '没有说明')
+          + '<span class="d">' + esc(dayOf(ph.taken_on)) + '</span></div>';
+      }, function (err) {
+        stage.innerHTML = '<div class="lb-tip">' + esc(friendly(err)) + '</div>';
+      });
+  }
+
+  // -------------------------------------------------------------------------
+  // 启动
+  // -------------------------------------------------------------------------
+  function needsContent() {
+    return !!(el('feed-posts') || el('feed-archive') || el('feed-album') || el('post-article')
+      || document.querySelector('[data-cat-count]'));
+  }
+
+  function loadPosts() {
+    // 只拉需要的列：正文可能在几十 KB，列表页用不上
+    return run(db().from('posts')
+      .select('id,slug,title,excerpt,category,tags,visibility,featured,published_on,owner_name,updated_at')
+      .order('published_on', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(500));
+  }
+
+  function broadcast() {
+    // cloud.js 的「最近互动」要认得出文章标题，靠的就是这份映射
+    var map = {};
+    ALL.forEach(function (p) { map[p.slug] = { title: p.title, url: 'post.html?slug=' + p.slug }; });
+    window.PIXEL_POSTS = map;
+    window.PIXEL_POSTS_READY = true;
+    window.dispatchEvent(new CustomEvent('pixel:posts-ready'));
+  }
+
+  function boot() {
+    if (!needsContent()) return;
+
+    loadPosts().then(function (rows) {
+      ALL = rows || [];
+      PUBLIC = ALL.filter(function (p) { return p.visibility === 'public'; });
+
+      viewList();
+      viewArchive();
+      viewCounts();
+      broadcast();
+      viewPost();
+    }, function (err) {
+      // 读不到就保住静态兜底，只补一句人话
+      var note = '<div class="empty-tip">内容没能从云端读出来：' + esc(friendly(err))
+        + ' 刷新一下试试。</div>';
+      ['feed-posts', 'feed-archive', 'feed-album'].forEach(function (id) {
+        var box = el(id);
+        if (box) box.innerHTML = note;
+      });
+      if (el('post-article')) {
+        stateBox('文章没能读出来：' + friendly(err), '回博客列表', BASE + 'blog.html');
+      }
+      broadcast();
+    });
+
+    viewAlbum();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();

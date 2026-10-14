@@ -621,7 +621,7 @@
   function itemHTML(kind, row) {
     var from = '';
     if (kind === 'comments') {
-      var meta = POSTS[row.post_slug];
+      var meta = POST_MAP[row.post_slug] || POSTS[row.post_slug];
       var t = meta ? meta.title : row.post_slug;
       from = '<div class="adm-from">来自《'
         + (meta ? '<a href="' + esc(meta.url) + '">' + esc(t) + '</a>' : esc(t))
@@ -772,14 +772,404 @@
   function switchPanel(kind) {
     currentKind = kind;
     var isPrivate = kind === 'private';
-    show(el('admin-list'), !isPrivate);
-    show(el('admin-count'), !isPrivate);
+    var isPosts = kind === 'posts';
+    var isPhotos = kind === 'photos';
+    var isFeed = !isPrivate && !isPosts && !isPhotos;   // 留言板 / 文章评论共用一块列表
+
+    show(el('admin-list'), isFeed);
+    show(el('admin-count'), isFeed);
     show(el('private-pane'), isPrivate);
+    show(el('posts-pane'), isPosts);
+    show(el('photos-pane'), isPhotos);
+
     if (isPrivate) {
       loadPrivate();
+    } else if (isPosts) {
+      loadPosts();
+    } else if (isPhotos) {
+      loadPhotos();
     } else {
       loadItems(kind);
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // 文章：写、改、删，以及发布时选可见范围
+  // -------------------------------------------------------------------------
+  var edPostId = null;
+  var POST_ROWS = [];
+  var POST_MAP = {};        // slug → { title, url }，评论列表要用来显示「来自《…》」
+
+  var VIS_LABEL = {
+    public: '公开', unlisted: '有链接可见', private: '仅自己可见', draft: '草稿'
+  };
+  var VIS_CLASS = {
+    public: 'vb-public', unlisted: 'vb-unlisted', private: 'vb-private', draft: 'vb-draft'
+  };
+
+  function postRowHTML(row) {
+    var vis = row.visibility || 'draft';
+    return '<div class="adm-item" data-id="' + esc(row.id) + '">'
+      + '<div class="adm-head">'
+      + '<span class="adm-name">' + esc(row.title) + '</span>'
+      + '<span class="adm-badge ' + (VIS_CLASS[vis] || '') + '">' + esc(VIS_LABEL[vis] || vis) + '</span>'
+      + (row.featured ? '<span class="adm-badge">置顶</span>' : '')
+      + '<span class="adm-time">' + esc(String(row.published_on || '').slice(0, 10)) + '</span>'
+      + '</div>'
+      + '<div class="adm-from">' + esc(row.slug) + ' · ' + esc(row.category || '未分类')
+      + ' · ' + String(row.body || '').length + ' 字</div>'
+      + '<div class="adm-text">' + esc(row.excerpt || String(row.body || '').slice(0, 60)) + '</div>'
+      + '<div class="adm-tools">'
+      + '<a class="btn-mini" href="post.html?slug=' + encodeURIComponent(row.slug)
+      + '" target="_blank" rel="noopener">看页面</a>'
+      + '<button type="button" class="btn-mini" data-act="edit">编辑</button>'
+      + '<button type="button" class="btn-mini btn-danger" data-act="del">删除</button>'
+      + '</div></div>';
+  }
+
+  function loadPostMap() {
+    return run(db().from('posts').select('id,slug,title,category,visibility,published_on'))
+      .then(function (rows) {
+        (rows || []).forEach(function (r) {
+          POST_MAP[r.slug] = { title: r.title, url: 'post.html?slug=' + r.slug };
+        });
+      }, function () { /* 拿不到就算了，评论列表退回显示 slug */ });
+  }
+
+  // 相册里「挂到哪篇文章下」的下拉
+  function fillPostSelect(rows) {
+    var sel = el('ph-post');
+    if (!sel) return;
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">不挂，只放相册</option>' + (rows || []).map(function (r) {
+      return '<option value="' + esc(r.slug) + '">' + esc(r.title) + '</option>';
+    }).join('');
+    sel.value = cur || '';
+  }
+
+  function loadPosts() {
+    var box = el('po-list');
+    if (!box) return Promise.resolve();
+    return run(db().from('posts')
+      .select('id,slug,title,excerpt,body,category,tags,visibility,featured,published_on,created_at,updated_at')
+      .order('published_on', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(LIMIT)
+    ).then(function (rows) {
+      POST_ROWS = rows || [];
+      POST_MAP = {};
+      POST_ROWS.forEach(function (r) {
+        POST_MAP[r.slug] = { title: r.title, url: 'post.html?slug=' + r.slug };
+      });
+      box.innerHTML = POST_ROWS.length
+        ? POST_ROWS.map(postRowHTML).join('')
+        : '<div class="empty-tip">还没有文章。上面写第一篇吧。</div>';
+      fillPostSelect(POST_ROWS);
+      var c = el('admin-count');
+      if (c && currentKind === 'posts') c.textContent = '共 ' + POST_ROWS.length + ' 篇';
+    }, function (err) {
+      msg(el('po-msg'), errText(err), true);
+    });
+  }
+
+  function makeSlug() {
+    var d = new Date();
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    var rnd = Math.random().toString(36).slice(2, 6);
+    return 'post-' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + rnd;
+  }
+
+  function todayStr() {
+    var d = new Date();
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  }
+
+  function resetPostForm() {
+    edPostId = null;
+    el('po-title').value = '';
+    el('po-slug').value = makeSlug();
+    el('po-tags').value = '';
+    el('po-excerpt').value = '';
+    el('po-body').value = '';
+    el('po-date').value = todayStr();
+    el('po-featured').checked = false;
+    el('po-vis').value = 'draft';     // 默认草稿：先写，想好了再公开
+    show(el('po-cancel'), false);
+    el('po-save').textContent = '发布';
+  }
+
+  function bindPosts() {
+    var saveBtn = el('po-save');
+    var list = el('po-list');
+    if (!saveBtn || !list) return;
+    var msgBox = el('po-msg');
+
+    resetPostForm();
+
+    // 标题写完，别名还空着就顺手生成一个
+    el('po-title').addEventListener('blur', function () {
+      if (!(el('po-slug').value || '').trim()) el('po-slug').value = makeSlug();
+    });
+
+    saveBtn.addEventListener('click', function () {
+      var title = (el('po-title').value || '').trim();
+      var slug = (el('po-slug').value || '').trim().toLowerCase();
+      var body = el('po-body').value || '';
+      var vis = el('po-vis').value || 'draft';
+      var date = el('po-date').value || todayStr();
+
+      if (!title) { el('po-title').focus(); return msg(msgBox, '标题还没填。', true); }
+      if (title.length > 120) return msg(msgBox, '标题太长了，最多 120 个字。', true);
+      if (!slug) { el('po-slug').focus(); return msg(msgBox, '链接别名不能空着。', true); }
+      if (!/^[a-z0-9][a-z0-9-]{0,78}$/.test(slug)) {
+        el('po-slug').focus();
+        return msg(msgBox, '别名只能用小写字母、数字和连字符，且以字母或数字开头。', true);
+      }
+      if (!body.trim()) { el('po-body').focus(); return msg(msgBox, '正文还是空的。', true); }
+
+      var payload = {
+        title: title,
+        slug: slug,
+        excerpt: (el('po-excerpt').value || '').trim(),
+        body: body,
+        category: el('po-cat').value || '日常',
+        tags: (el('po-tags').value || '').trim(),
+        visibility: vis,
+        featured: !!el('po-featured').checked,
+        published_on: date
+      };
+      if (edPostId) payload.updated_at = new Date().toISOString();
+
+      saveBtn.disabled = true;
+      msg(msgBox, '正在保存…', false);
+
+      var q = edPostId
+        ? db().from('posts').update(payload).eq('id', edPostId)
+        : db().from('posts').insert(payload);
+
+      run(q.select()).then(function (rows) {
+        if (!rows || !rows.length) {
+          throw new Error('没保存成功 —— 可能这个别名已经被别的文章占用了。');
+        }
+        resetPostForm();
+        return loadPosts();
+      }).then(function () {
+        msg(msgBox, edPostId ? '已更新。' : ('已保存，可见范围：' + (VIS_LABEL[vis] || vis) + '。'), false);
+      }).catch(function (err) {
+        var text = errText(err);
+        if (String(err && err.code) === '23505' || /duplicate|unique/i.test(text)) {
+          text = '这个链接别名已经被占用了，换一个。';
+        }
+        msg(msgBox, text, true);
+      }).then(function () { saveBtn.disabled = false; });
+    });
+
+    el('po-cancel').addEventListener('click', function () {
+      resetPostForm();
+      msg(msgBox, '已取消编辑。', false);
+    });
+
+    list.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var item = btn.closest('.adm-item');
+      if (!item) return;
+      var id = item.getAttribute('data-id');
+      var act = btn.getAttribute('data-act');
+      var row = null;
+      for (var i = 0; i < POST_ROWS.length; i++) {
+        if (String(POST_ROWS[i].id) === String(id)) { row = POST_ROWS[i]; break; }
+      }
+      if (!row) return;
+
+      if (act === 'edit') {
+        edPostId = row.id;
+        el('po-title').value = row.title || '';
+        el('po-slug').value = row.slug || '';
+        el('po-body').value = row.body || '';
+        el('po-excerpt').value = row.excerpt || '';
+        el('po-cat').value = row.category || '日常';
+        el('po-tags').value = row.tags || '';
+        el('po-vis').value = row.visibility || 'draft';
+        el('po-date').value = String(row.published_on || '').slice(0, 10) || todayStr();
+        el('po-featured').checked = !!row.featured;
+        show(el('po-cancel'), true);
+        saveBtn.textContent = '更新';
+        msg(msgBox, '正在改《' + row.title + '》，改完点「更新」。', false);
+        if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      if (act === 'del') {
+        if (!window.confirm('删除《' + row.title + '》？删了就找不回来了。\n'
+                            + '只是暂时不想让人看的话，把可见范围改成「仅自己可见」或「草稿」更合适。')) return;
+        btn.disabled = true;
+        run(db().from('posts').delete().eq('id', id).select()).then(function (rows) {
+          if (!rows || !rows.length) throw new Error('没删掉，可能这条已经不在你名下了。');
+          if (String(edPostId) === String(id)) resetPostForm();
+          return loadPosts();
+        }).then(function () {
+          msg(msgBox, '已删除。', false);
+        }).catch(function (err) {
+          msg(msgBox, errText(err), true);
+        }).then(function () { btn.disabled = false; });
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // 相册：在本机压好再传
+  // -------------------------------------------------------------------------
+  function shrink(file, maxSide, quality) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        var ctx = cv.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        try {
+          resolve({ data: cv.toDataURL('image/jpeg', quality), width: img.width, height: img.height });
+        } catch (e) {
+          reject(new Error('压缩失败'));
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('这张图读不出来（格式可能不被浏览器支持）'));
+      };
+      img.src = url;
+    });
+  }
+
+  function photoRowHTML(row) {
+    var vis = row.visibility || 'private';
+    return '<div class="adm-item" data-id="' + esc(row.id) + '">'
+      + '<div class="adm-head">'
+      + '<span class="adm-name">' + esc(row.caption || '（没有说明）') + '</span>'
+      + '<span class="adm-badge ' + (VIS_CLASS[vis] || '') + '">' + esc(VIS_LABEL[vis] || vis) + '</span>'
+      + '<span class="adm-time">' + esc(String(row.taken_on || '').slice(0, 10)) + '</span>'
+      + '</div>'
+      + '<div class="adm-photo-row">'
+      + '<img class="adm-thumb" src="' + esc(row.thumb_data) + '" alt="">'
+      + '<div class="adm-from">'
+      + (row.album ? '相册：' + esc(row.album) + '<br>' : '')
+      + (row.post_slug ? '挂在《' + esc((POST_MAP[row.post_slug] || {}).title || row.post_slug) + '》下' : '只在相册里')
+      + '</div></div>'
+      + '<div class="adm-tools">'
+      + '<button type="button" class="btn-mini btn-danger" data-act="del">删除</button>'
+      + '</div></div>';
+  }
+
+  function loadPhotos() {
+    var box = el('ph-list');
+    if (!box) return Promise.resolve();
+    return run(db().from('photos')
+      .select('id,caption,album,post_slug,taken_on,visibility,thumb_data,created_at')
+      .order('taken_on', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(LIMIT)
+    ).then(function (rows) {
+      rows = rows || [];
+      box.innerHTML = rows.length
+        ? rows.map(photoRowHTML).join('')
+        : '<div class="empty-tip">相册还是空的。上面传第一张吧。</div>';
+      var c = el('admin-count');
+      if (c && currentKind === 'photos') c.textContent = '共 ' + rows.length + ' 张照片';
+    }, function (err) {
+      msg(el('ph-msg'), errText(err), true);
+    });
+  }
+
+  function bindPhotos() {
+    var btn = el('ph-save');
+    var list = el('ph-list');
+    if (!btn || !list) return;
+    var msgBox = el('ph-msg');
+
+    if (el('ph-date') && !el('ph-date').value) el('ph-date').value = todayStr();
+
+    btn.addEventListener('click', function () {
+      var input = el('ph-file');
+      var files = input && input.files ? Array.prototype.slice.call(input.files) : [];
+      if (!files.length) return msg(msgBox, '先选几张照片。', true);
+
+      var caption = (el('ph-caption').value || '').trim();
+      var album = (el('ph-album').value || '').trim();
+      var taken = el('ph-date').value || '';
+      var slug = el('ph-post').value || '';
+      var vis = el('ph-vis').value || 'private';
+
+      btn.disabled = true;
+      var done = 0, failed = [];
+      msg(msgBox, '正在处理 ' + files.length + ' 张…（第一张会慢一点）', false);
+
+      var chain = Promise.resolve();
+      files.forEach(function (f) {
+        chain = chain.then(function () {
+          return Promise.all([shrink(f, 1280, 0.78), shrink(f, 360, 0.7)])
+            .then(function (r) {
+              var big = r[0], small = r[1];
+              return run(db().from('photos').insert({
+                caption: caption,
+                album: album,
+                taken_on: taken || null,
+                post_slug: slug,
+                visibility: vis,
+                thumb_data: small.data,
+                image_data: big.data,
+                width: big.width,
+                height: big.height
+              }));
+            })
+            .then(function () {
+              done++;
+              msg(msgBox, '已传 ' + done + ' / ' + files.length + ' 张…', false);
+            }, function (err) {
+              failed.push(f.name + '（' + errText(err) + '）');
+            });
+        });
+      });
+
+      chain.then(function () {
+        input.value = '';
+        el('ph-caption').value = '';
+        return loadPhotos();
+      }).then(function () {
+        if (failed.length) {
+          msg(msgBox, '传上去 ' + done + ' 张，' + failed.length + ' 张没成功：'
+              + failed.join('；'), true);
+        } else {
+          msg(msgBox, '上传完成，共 ' + done + ' 张。相册页刷新一下就能看到。', false);
+        }
+      }).then(function () {
+        btn.disabled = false;
+      });
+    });
+
+    list.addEventListener('click', function (e) {
+      var del = e.target.closest('button[data-act="del"]');
+      if (!del) return;
+      var item = del.closest('.adm-item');
+      if (!item) return;
+      if (!window.confirm('删除这张照片？删了就找不回来了。')) return;
+      del.disabled = true;
+      var id = item.getAttribute('data-id');
+      run(db().from('photos').delete().eq('id', id).select()).then(function (rows) {
+        if (!rows || !rows.length) throw new Error('没删掉，可能这张已经不在你名下了。');
+        return loadPhotos();
+      }).then(function () {
+        msg(msgBox, '已删除。', false);
+      }).catch(function (err) {
+        msg(msgBox, errText(err), true);
+      }).then(function () { del.disabled = false; });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -918,6 +1308,9 @@
     bindClaim();
     bindAdminList();
     bindPrivate();
+    bindPosts();
+    bindPhotos();
+    loadPostMap();
 
     var tabs = document.querySelectorAll('[data-tab]');
     Array.prototype.forEach.call(tabs, function (t) {
