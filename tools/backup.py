@@ -31,9 +31,15 @@ visibility 为 public / unlisted 的行 —— 这是数据库强制的，绕不
   最新/           人类可读的当前快照：文章是 .md，照片是 .jpg
                   —— 不依赖任何脚本，直接用眼睛看、直接双击打开
   历史/日期/       纯文本逐日快照（不含图片本体），用来回溯「那天是什么样」
-  照片库/         按内容去重的照片池。云端删掉的照片在这里仍然留着，
-                  相当于一个只进不出的回收站
+                  —— **恢复脚本读的就是这一份**，图片按里面的 sha256 去取
+  照片库/大图/     按内容去重的照片池。云端删掉的照片在这里仍然留着，
+  照片库/缩略图/   相当于一个只进不出的回收站
   日志/backup.log 每次备份的流水
+
+想还原
+------
+  python tools/restore.py            → 生成 恢复/<日期>/恢复.sql，照着执行即可
+  细节见 备份/README.md 的「怎么恢复」一节。
 
 用法
 ----
@@ -338,9 +344,14 @@ def render_views(root: Path, box):
         big, ext = decode_data_url(ph.get("image_data"))
         sha = hashlib.sha256(big).hexdigest() if big else ""
 
+        thumb, text = decode_data_url(ph.get("thumb_data"))
+        tsha = hashlib.sha256(thumb).hexdigest() if thumb else ""
+
         if big:
-            # 去重池：同一张图不管挂在哪个相册，只存一份
-            pool = root / "照片库" / ("%s.%s" % (sha[:16], ext))
+            # 去重池：同一张图不管挂在哪个相册，只存一份。
+            # 大图和缩略图**各存一份** —— 恢复时两样都要原样写回表里。
+            # 只留大图的话，缩略图就只剩 最新/ 里那一份，而 最新/ 是每次重建的。
+            pool = root / "照片库" / "大图" / ("%s.%s" % (sha[:16], ext))
             if not pool.exists():
                 write_bytes(pool, big)
             # 可读副本按相册铺开
@@ -348,8 +359,10 @@ def render_views(root: Path, box):
             write_bytes(latest / "photos" / album / fname, big)
             per_album[album] = per_album.get(album, 0) + 1
 
-        thumb, text = decode_data_url(ph.get("thumb_data"))
         if thumb:
+            tpool = root / "照片库" / "缩略图" / ("%s.%s" % (tsha[:16], text))
+            if not tpool.exists():
+                write_bytes(tpool, thumb)
             write_bytes(latest / "photos" / "缩略图" / ("%s.%s" % (pid, text)), thumb)
 
         photo_index.append({
@@ -361,7 +374,12 @@ def render_views(root: Path, box):
             "尺寸": "%sx%s" % (ph.get("width") or "?", ph.get("height") or "?"),
             "大图": human(len(big)),
             "缩略图": human(len(thumb)),
-            "sha256": sha[:16],
+            "sha256": sha,
+            "大图扩展名": ext if big else "",
+            "大图字节": len(big),
+            "拇指 sha256": tsha,
+            "拇指扩展名": text if thumb else "",
+            "拇指字节": len(thumb),
             "文件": "%s-%s.%s" % (pid, safe_name(cap or ("照片%s" % pid)), ext) if big else "",
         })
 
@@ -459,8 +477,13 @@ def render_views(root: Path, box):
     return photo_index, stuck
 
 
-def write_history(root: Path, box, day: str):
-    """纯文本逐日快照。图片本体不进这里，只记指纹 —— 照片在 照片库/ 里。"""
+def write_history(root: Path, box, day: str, photo_index):
+    """纯文本逐日快照。图片本体不进这里，只记指纹 —— 照片在 照片库/ 里。
+
+    照片这块的字段和 photo_index 对齐，因为**恢复脚本读的就是这份快照**：
+    大图和缩略图各记一个完整 sha256，恢复时按指纹去 照片库/ 取回原图。
+    （早期版本只记了截断的 16 位、也没记缩略图，恢复脚本做了兼容。）
+    """
     d = root / "历史" / day
     d.mkdir(parents=True, exist_ok=True)
 
@@ -470,12 +493,18 @@ def write_history(root: Path, box, day: str):
                json.dumps(box["meta"], ensure_ascii=False, indent=2) + "\n")
     write_text(d / "遗留私密表.json",
                json.dumps(box["private_posts"], ensure_ascii=False, indent=2) + "\n")
+
+    fp = {p["id"]: p for p in photo_index}
     slim = []
     for ph in box["photos"]:
         item = {k: v for k, v in ph.items() if k not in ("image_data", "thumb_data")}
-        big, _ = decode_data_url(ph.get("image_data"))
-        item["大图字节"] = len(big)
-        item["sha256"] = hashlib.sha256(big).hexdigest() if big else ""
+        f = fp.get(ph.get("id")) or {}
+        item["大图 sha256"] = f.get("sha256") or ""
+        item["大图扩展名"] = f.get("大图扩展名") or ""
+        item["大图字节"] = f.get("大图字节") or 0
+        item["拇指 sha256"] = f.get("拇指 sha256") or ""
+        item["拇指扩展名"] = f.get("拇指扩展名") or ""
+        item["拇指字节"] = f.get("拇指字节") or 0
         slim.append(item)
     write_text(d / "照片.json",
                json.dumps(slim, ensure_ascii=False, indent=2) + "\n")
@@ -607,7 +636,7 @@ def main():
     try:
         day = t0.strftime("%Y-%m-%d")
         photo_index, stuck = render_views(root, box)
-        write_history(root, box, day)
+        write_history(root, box, day, photo_index)
 
         total_bytes = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
 
@@ -626,12 +655,13 @@ def main():
 
         # 照片池里到底攒了多少张
         pool = root / "照片库"
-        pool_n = len(list(pool.glob("*"))) if pool.exists() else 0
+        pool_n = len(list((pool / "大图").glob("*"))) if (pool / "大图").exists() else 0
+        pool_t = len(list((pool / "缩略图").glob("*"))) if (pool / "缩略图").exists() else 0
 
         log = root / "日志" / "backup.log"
-        line = "%s  文章%d 照片%d 评论%d 留言%d  最重大小 %s  照片池 %d 张%s\n" % (
+        line = "%s  文章%d 照片%d 评论%d 留言%d  最重大小 %s  照片池 %d+%d%s\n" % (
             t0.strftime("%Y-%m-%d %H:%M:%S"), counts["posts"], counts["photos"],
-            counts["post_comments"], counts["guestbook"], human(total_bytes), pool_n,
+            counts["post_comments"], counts["guestbook"], human(total_bytes), pool_n, pool_t,
             ("  变化：" + "; ".join("%s %s→%s" % (TABLE_CN.get(t, t), b, a)
                                    for t, b, a in changes)) if changes else "")
         log.parent.mkdir(parents=True, exist_ok=True)
@@ -643,7 +673,7 @@ def main():
     say("")
     say("  完成。用时 %.1f 秒" % ((now_local() - t0).total_seconds()))
     say("    最新快照  %s" % (root / "最新"))
-    say("    照片池    %d 张（云端删过的也留在这里）" % pool_n)
+    say("    照片池    大图 %d / 缩略图 %d（云端删过的也留在这里）" % (pool_n, pool_t))
     say("    合计占用  %s" % human(total_bytes))
     if stuck:
         say("")
