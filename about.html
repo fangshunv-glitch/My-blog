@@ -22,7 +22,7 @@
       <img class="pixel name" src="assets/t_sitename.png" alt="像素日常">
     </div>
     <div class="right">
-      今天是 <span id="today" class="date-line">2026-10-14</span><br>
+      今天是 <span id="today" class="date-line">2026-10-15</span><br>
       站长信箱：admin@xiangsuri.com
     </div>
     <a class="head-login" id="head-login" href="login.html">
@@ -134,7 +134,7 @@
     <nav class="foot-toc"><ol><li><a href="about.html"><span class="toc-name">关于</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">壹</span></a></li><li><a href="projects.html"><span class="toc-name">项目</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">贰</span></a></li><li><a href="blog.html"><span class="toc-name">博客</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">叁</span></a></li><li><a href="album.html"><span class="toc-name">相册</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">肆</span></a></li><li><a href="guestbook.html"><span class="toc-name">留言板</span><span class="toc-dots" aria-hidden="true"></span><span class="toc-num">伍</span></a></li></ol></nav>
     <div class="foot-line">
       © 2026 像素日常<br>
-      开站第 <b id="uptime">15</b> 天 · 文章 <b id="foot-posts">0</b> 篇 · 照片 <b id="foot-photos">0</b> 张<br>
+      开站第 <b id="uptime">16</b> 天 · 文章 <b id="foot-posts">0</b> 篇 · 照片 <b id="foot-photos">0</b> 张<br>
       <a href="archive.html">归档</a> · <a href="share.html">分享给朋友</a>
       · <a href="login.html">我的账号</a> · <a href="admin.html">站长管理</a><br>
       <span class="foot-url">本站地址：<a href="https://pixel-daily-blog.app.workbuddy.host/"><b>https://pixel-daily-blog.app.workbuddy.host/</b></a></span><br>
@@ -182,6 +182,28 @@
       window.addEventListener('resize', upd);
       upd();
     }
+
+    /* ⓘ 小提示。
+       写页面的过程中攒了不少「说明性文字」——那是需求，不是内容，
+       不该整段铺在界面占地方。收进一个圆点里，鼠标移上去或点一下才出来。
+       用点击切换而不是纯 :hover —— 手机上 hover 不可靠，
+       而且这些字一多，hover 容易看一半就飘走。 */
+    var openDot = null;
+    function closeDot() {
+      if (openDot) { openDot.classList.remove('on'); openDot = null; }
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      var dot = t && t.closest ? t.closest('.info-dot') : null;
+      if (!dot) { closeDot(); return; }
+      if (dot === openDot) { closeDot(); return; }
+      closeDot();
+      dot.classList.add('on');
+      openDot = dot;
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeDot();
+    });
   })();
 </script>
 <script>window.SITE_DATA = {"author": "清羽墨染", "siteName": "像素日常", "base": "", "siteUrl": "https://pixel-daily-blog.app.workbuddy.host/", "posts": {}, "cats": {"日常": "daily", "摄影": "photo", "数码": "digital", "建站": "site"}};</script>

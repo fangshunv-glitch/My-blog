@@ -91,6 +91,8 @@ TITLES = [
     # 「发表评论」那张（t_pub.png）别拿去当写文章的题头 —— 图上写的就是「发表评论」。
     ("写文章", 16, 2, "#FFFFFF", None, "t_write.png"),
     ("上传照片", 16, 2, "#FFFFFF", None, "t_upload.png"),
+    # 账号页是站长和访客共用的，题头别写「站长登录」—— 访客看了会以为走错地方。
+    ("我的账号", 16, 2, "#FFFFFF", None, "t_account.png"),
     ("私密内容", 16, 2, "#FFFFFF", None, "t_priv.png"),
     ("扫码打开", 16, 2, "#FFFFFF", None, "t_scan.png"),
     ("可以这么说", 16, 2, "#FFFFFF", None, "t_say.png"),

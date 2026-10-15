@@ -87,9 +87,39 @@
     return '操作没成功：' + (err.message || '未知错误');
   }
 
+  // SDK 的 parseUser() 只把 /me 返回里的 email 透出来，而这个环境的 /me
+  // 不带邮箱，所以 u.email 常常是空的。顺带翻一遍 raw 兜底。
   function pickEmail(u) {
     if (!u) return '';
-    return u.email || (u.user_metadata && u.user_metadata.email) || '';
+    var r = u.raw || {};
+    var m = u.user_metadata || {}, rm = r.user_metadata || {};
+    return u.email || r.email || m.email || rm.email || '';
+  }
+
+  // 再兜一层：直接解 access_token 的 payload。
+  // 走邮箱注册/登录拿到的 JWT 里通常带 email 声明。
+  function emailFromToken(token) {
+    var parts = String(token || '').split('.');
+    if (parts.length < 2) return '';
+    try {
+      var base = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (base.length % 4) base += '=';
+      var bin = atob(base);
+      var json = decodeURIComponent(bin.split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      var p = JSON.parse(json), m = p.user_metadata || {};
+      return p.email || m.email || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function sessionEmail() {
+    return Promise.resolve(auth().getSession()).then(function (res) {
+      var s = res && !res.error && res.data;
+      return s ? emailFromToken(s.access_token) : '';
+    }, function () { return ''; });
   }
 
   // 回跳地址只接受本站的绝对路径。
@@ -149,7 +179,7 @@
     document.body.setAttribute('data-stage', 'account');
 
     var em = el('me-email');
-    if (em) em.textContent = ME.email || '（未取到邮箱）';
+    if (em) em.textContent = ME.email || '你的账号';
     var nm = el('me-name');
     if (nm) nm.textContent = hasName ? ME.name : '还没取';
 
@@ -193,8 +223,14 @@
       if (!user) { showAuth(); return; }
       ME.email = pickEmail(user);
       return loadProfile().then(function (has) {
-        showAccount(has);
-        if (justActed && has) maybeLeave();
+        // 还是没邮箱就找 token 要——不然账号页会显示一句「未取到邮箱」，
+        // 看着像出错了，其实只是 SDK 没往外带。
+        if (ME.email) { showAccount(has); if (justActed && has) maybeLeave(); return; }
+        return sessionEmail().then(function (em) {
+          ME.email = em;
+          showAccount(has);
+          if (justActed && has) maybeLeave();
+        });
       });
     }).catch(function (err) {
       showAuth();

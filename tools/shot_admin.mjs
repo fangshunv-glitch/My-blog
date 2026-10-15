@@ -4,14 +4,15 @@
 // 所以直接用 shot.mjs 截不到。这里在截图前用 JS 把它们强制显形，
 // 只为看布局有没有崩，不代表权限逻辑。
 //
-// 用法：node tools/shot_admin.mjs <pane> [宽] [高] [输出文件]
+// 用法：node tools/shot_admin.mjs <pane> [宽] [高] [输出文件] [点开第几个 info-dot]
 //   pane: posts | photos
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const [pane = 'posts', w = '1200', h = '900', out = `adm_${pane}.png`] = process.argv.slice(2);
+const [pane = 'posts', w = '1200', h = '900', out = `adm_${pane}.png`,
+       dot = ''] = process.argv.slice(2);
 const CHROME = process.env.CHROME_PATH
   || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const PORT = Number(process.env.CDP_PORT || 9334);
@@ -89,6 +90,16 @@ try {
   await rpc(ws, 'Page.navigate', { url: URL });
   await sleep(2500);
   await rpc(ws, 'Runtime.evaluate', { expression: REVEAL });
+  // 需要看 ⓘ 弹层时，把第 N 个圆点点开（真点，走的是页面上那套委托）
+  if (dot !== '') {
+    await rpc(ws, 'Runtime.evaluate', {
+      expression: `(function(){
+        var d = document.querySelectorAll('.info-dot')[${Number(dot)}];
+        if (d) { d.scrollIntoView({ block: 'center' }); d.click(); }
+        return !!d;
+      })()`,
+    });
+  }
   await sleep(500);
 
   const shot = await rpc(ws, 'Page.captureScreenshot', { format: 'png' });
@@ -111,6 +122,15 @@ try {
                scrollW: d.scrollWidth, innerW: window.innerWidth,
                paneHidden: pane ? pane.hidden : null,
                paneH: pane ? Math.round(pane.getBoundingClientRect().height) : null,
+               infoDots: document.querySelectorAll('.info-dot').length,
+               // 弹层是 ::after，拿不到它的 rect；但它会撑大 scrollWidth，
+               // 所以上面的 overflow 就是它的越界检查。这里记一下圆点位置好判断方向。
+               dotAt: (function(){
+                 var on = document.querySelector('.info-dot.on');
+                 if (!on) return null;
+                 var r = on.getBoundingClientRect();
+                 return Math.round(r.left) + ',' + Math.round(r.top);
+               })(),
                spill: over.slice(0, 8) };
     })()`,
   });

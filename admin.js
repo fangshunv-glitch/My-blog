@@ -142,19 +142,25 @@
 
   function pickUid(u) {
     if (!u) return '';
-    return u.id || u.uid || u.sub || u.userId || '';
+    var r = u.raw || {};
+    return u.id || u.uid || u.sub || u.userId || r.sub || r.id || r.uid || '';
   }
 
+  // 邮箱比 uid 更容易丢：SDK 的 parseUser() 只把 /me 返回里的 email 透出来，
+  // 而这个环境的 /me 不带邮箱，所以 u.email 是空的。这里顺带翻一遍 raw，
+  // 万一哪天服务端把邮箱塞进 user_metadata，照样能读到。
   function pickEmail(u) {
     if (!u) return '';
-    return u.email || (u.user_metadata && u.user_metadata.email) || '';
+    var r = u.raw || {};
+    var m = u.user_metadata || {}, rm = r.user_metadata || {};
+    return u.email || r.email || m.email || rm.email || '';
   }
 
-  // 兜底：不同版本 SDK 的 user 对象字段名不完全一致。
-  // 万一对不上，直接从 access_token 的 payload 里读 sub —— JWT 里一定有它。
-  function uidFromToken(token) {
+  // 兜底：这个环境里 SDK 回的用户对象很贫瘠，uid 和邮箱都可能是空的，
+  // 那就直接从 access_token 的 payload 里读 —— JWT 里 sub 一定有。
+  function tokenPayload(token) {
     var parts = String(token || '').split('.');
-    if (parts.length < 2) return '';
+    if (parts.length < 2) return null;
     try {
       var base = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       while (base.length % 4) base += '=';
@@ -162,11 +168,21 @@
       var json = decodeURIComponent(bin.split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
       }).join(''));
-      var p = JSON.parse(json);
-      return p.sub || p.uid || p.user_id || '';
+      return JSON.parse(json);
     } catch (e) {
-      return '';
+      return null;
     }
+  }
+
+  function uidFromToken(token) {
+    var p = tokenPayload(token) || {};
+    return p.sub || p.uid || p.user_id || '';
+  }
+
+  function emailFromToken(token) {
+    var p = tokenPayload(token) || {};
+    var m = p.user_metadata || {};
+    return p.email || m.email || '';
   }
 
   function withUid(user, uid) {
@@ -176,6 +192,16 @@
       if (Object.prototype.hasOwnProperty.call(user, k)) u[k] = user[k];
     }
     u.id = uid;
+    return u;
+  }
+
+  function withEmail(user, email) {
+    if (pickEmail(user) || !email) return user;
+    var u = {}, k;
+    for (k in user) {
+      if (Object.prototype.hasOwnProperty.call(user, k)) u[k] = user[k];
+    }
+    u.email = email;
     return u;
   }
 
@@ -197,9 +223,14 @@
     show(el('panel-view'), true);
     document.body.setAttribute('data-stage', 'panel');
     var em = el('account-email');
-    if (em) em.textContent = ME.email || '（未取到邮箱）';
-    var uidBox = el('account-uid');
-    if (uidBox) uidBox.textContent = ME.uid || '云端不下发，不影响使用';
+    if (em) em.textContent = ME.email || '你的账号';
+    // UID 是排查时才用得上的技术信息，不占界面，收进旁边的 ⓘ 里。
+    var info = el('account-info');
+    if (info) {
+      info.setAttribute('data-info',
+        '云端账号编号（UID）：' + (ME.uid || '没取到')
+        + '。这串数字平时用不上，只有在出了问题、要对账号的时候才需要。');
+    }
     show(el('claim-card'), !ME.isAdmin);
     show(el('admin-panel'), ME.isAdmin);
     if (ME.isAdmin) switchPanel(currentKind || 'guestbook');
@@ -212,6 +243,12 @@
     ME.email = pickEmail(user);
     return run(db().from('site_admins').select('uid, email')).then(function (rows) {
       ME.isAdmin = !!(rows && rows.length);
+      // 最后一道兜底：站长那一行里本来就存着邮箱，SDK 不给就自己填上。
+      // 策略只放行自己那一行，所以读到的必然是自己的。
+      if (ME.isAdmin) {
+        if (!ME.email && rows[0].email) ME.email = rows[0].email;
+        if (!ME.uid && rows[0].uid) ME.uid = rows[0].uid;
+      }
       return ME.isAdmin;
     }, function () {
       ME.isAdmin = false;
@@ -528,9 +565,12 @@
   }
 
   function settle(user, session) {
-    // UID 取不到就从 token 里兜底，否则认领会卡住
-    if (!pickUid(user) && session && session.access_token) {
-      user = withUid(user, uidFromToken(session.access_token));
+    // 这个环境里 SDK 回的用户对象既没 id 也没邮箱，两个都从 access_token 兜一次底：
+    // uid 缺了「认领站长」会卡住，邮箱缺了后台顶栏会显示一句「未取到邮箱」。
+    var tok = session && session.access_token;
+    if (tok) {
+      if (!pickUid(user)) user = withUid(user, uidFromToken(tok));
+      if (!pickEmail(user)) user = withEmail(user, emailFromToken(tok));
     }
     return loadIdentity(user).then(function () {
       showPanel();

@@ -1584,6 +1584,63 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
   .adm-editor textarea.adm-body { min-height: 190px; }
 }
 
+/* ------------------------------------------------------------
+   ⓘ 小提示
+   ------------------------------------------------------------
+   说明性文字（「这一页是干什么的」「隐藏和删除的区别」这类）原本整段摆在
+   界面上，占地方又像在跟访客解释需求。收成一个圆点：鼠标移上去、或者点一下
+   （手机上只能点），才把原文弹出来。
+
+   用 <button> 而不是 <span> —— 回车/空格天然能触发 click，
+   键盘用户不用额外写代码就能打开。
+   ------------------------------------------------------------ */
+.info-dot {
+  position: relative;
+  z-index: 60;          /* 提一层，弹层才盖得住后面的 cell */
+  display: inline-block;
+  width: 15px; height: 15px;
+  margin-left: 6px; padding: 0;
+  font-family: inherit; font-size: 11px; font-weight: 700; line-height: 13px;
+  text-align: center;
+  color: #2F5D1A;
+  background: #E4F8CE;
+  border: 1px solid #2F5D1A;
+  border-radius: 50%;
+  cursor: help;
+  vertical-align: 1px;
+  -webkit-user-select: none; user-select: none;
+}
+.info-dot:hover, .info-dot.on { background: var(--yellow); color: #16300A; }
+.info-dot:focus-visible { outline: 2px solid var(--new); outline-offset: 1px; }
+
+/* 弹出层。
+   width:max-content + max-width 让它按内容宽，太长才换行。
+   **关闭时必须 display:none**，不能用 visibility:hidden —— 后者仍然参与布局，
+   一个 340px 宽的绝对定位盒挂在页面中间，会把整个文档撑宽，
+   实测 admin 页的最小布局宽度被它从 390 顶到 429（手机上看就是被缩放了）。 */
+.info-dot::after {
+  content: attr(data-info);
+  display: none;
+  position: absolute;
+  left: 0; top: calc(100% + 7px);
+  z-index: 60;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 60px));   /* 别捅出窗口右边 */
+  padding: 8px 10px;
+  font-size: 12px; font-weight: 400; line-height: 1.75;
+  text-align: left;
+  white-space: normal;
+  color: #2C4218;
+  background: #F7FFEC;
+  border: 1px solid #2F5D1A;
+  box-shadow: 3px 3px 0 rgba(22, 48, 10, .35);
+}
+.info-dot:hover::after, .info-dot.on::after { display: block; }
+
+/* 贴在内容管理 tab 行末尾那个：tab 是靠 border-bottom 站在线上的，
+   圆点得自己垂直居中，不然会跟着顶到上边。 */
+.admin-tabs .info-dot { align-self: center; margin-bottom: 6px; }
+
 /* ============================================================
    响应式：手机 / 平板
    —— 一律放在文件最后，靠顺序覆盖上面的桌面规则
@@ -1711,6 +1768,14 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
   /* 分享页 */
   .share-qr img.qr-img { width: 190px; }
   .share-url { font-size: 8px; }
+
+  /* ⓘ 提示：窄屏上贴着圆点弹没法保证不出界（圆点可能靠得很右），
+     改成从底部升上来的小卡片。fixed 定位不参与文档排版，绝对不会撑宽页面。 */
+  .info-dot::after {
+    position: fixed;
+    left: 10px; right: 10px; bottom: 10px; top: auto;
+    width: auto; max-width: none;
+  }
 
   .site-foot { padding: 13px 12px 16px; font-size: 11px; line-height: 1.9; }
   .site-foot .foot-url b { font-size: 7px; }

@@ -550,6 +550,28 @@ SCRIPT = """
       window.addEventListener('resize', upd);
       upd();
     }
+
+    /* ⓘ 小提示。
+       写页面的过程中攒了不少「说明性文字」——那是需求，不是内容，
+       不该整段铺在界面占地方。收进一个圆点里，鼠标移上去或点一下才出来。
+       用点击切换而不是纯 :hover —— 手机上 hover 不可靠，
+       而且这些字一多，hover 容易看一半就飘走。 */
+    var openDot = null;
+    function closeDot() {
+      if (openDot) { openDot.classList.remove('on'); openDot = null; }
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      var dot = t && t.closest ? t.closest('.info-dot') : null;
+      if (!dot) { closeDot(); return; }
+      if (dot === openDot) { closeDot(); return; }
+      closeDot();
+      dot.classList.add('on');
+      openDot = dot;
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeDot();
+    });
   })();
 </script>"""
 
@@ -1172,13 +1194,8 @@ def build_admin():
         for v, label in VIS_OPTIONS)
 
     main = """
-    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>站长管理</span></div>
-
-    <div class="scope-note" style="margin-top:0;">
-      <b>浏览博客不需要登录。</b>相册、归档、文章都直接打开——
-      这一页只是站长的后台，用来回复/隐藏/删除留言与评论。登录方式为邮箱。
-      访客自己的账号在 <a href="login.html">账号页</a>，和这里不冲突。
-    </div>
+    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>站长管理</span><button
+      type="button" class="info-dot" data-info="站长的后台：回复/隐藏/删除留言与评论，写文章、传照片。浏览博客本身不需要登录——相册、归档、文章都是直接打开的。">i</button></div>
 
     <!-- ============ 未登录 ============ -->
     <div id="auth-view" hidden>
@@ -1278,8 +1295,8 @@ def build_admin():
 
       <div class="adm-bar">
         <div class="adm-me">
-          已登录：<b id="account-email">—</b>
-          <span class="adm-uid">UID <code id="account-uid">—</code></span>
+          已登录：<b id="account-email">—</b><button
+            type="button" class="info-dot" id="account-info" data-info="正在读取账号信息…">i</button>
         </div>
         <button class="btn-mini" id="logout-btn" type="button">退出登录</button>
       </div>
@@ -1317,6 +1334,7 @@ def build_admin():
               <a href="#" data-panel="posts">文章</a>
               <a href="#" data-panel="photos">相册</a>
               <a href="#" data-panel="private">私密内容</a>
+              <button type="button" class="info-dot" data-info="「隐藏」之后访客看不到，但内容还在，随时能恢复；「删除」是真的删掉，找不回来。">i</button>
             </div>
             <div class="admin-count" id="admin-count"></div>
             <div class="form-msg" id="admin-msg" role="status"></div>
@@ -1463,10 +1481,6 @@ def build_admin():
           </div>
           <div id="pv-list"></div>
         </div>
-
-        <div class="scope-note">
-          「隐藏」之后访客看不到，但内容还在，随时能恢复；「删除」是真的删掉，找不回来。
-        </div>
       </div>
     </div>
 """
@@ -1488,18 +1502,14 @@ def build_admin():
 # ---------------------------------------------------------------------------
 def build_login():
     main = """
-    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>账号</span></div>
-
-    <div class="scope-note" style="margin-top:0;">
-      <b>浏览本站永远不需要登录。</b>相册、归档、文章都直接打开——
-      只有「留言」和「评论」要先对一下身份，这样每句话都挂在真实账号上，别人冒用不了。
-    </div>
+    <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>账号</span><button
+      type="button" class="info-dot" data-info="浏览本站永远不需要登录——相册、归档、文章都直接打开。只有留言和评论要先对一下身份，这样每句话都挂在真实账号上，别人冒用不了。">i</button></div>
 
     <!-- ============ 未登录 ============ -->
     <div id="guest-auth" hidden>
       <div class="cell">
         <div class="cell-title tall bar-7">
-          <img class="pixel" src="assets/t_login.png" alt="登录">
+          <img class="pixel" src="assets/t_account.png" alt="我的账号">
           <span class="en">SIGN IN</span>
         </div>
         <div class="cell-body">
