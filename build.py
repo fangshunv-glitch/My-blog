@@ -32,7 +32,8 @@ from datetime import date, datetime
 
 from content import (SITE, HOME, CHAPTERS, CATEGORIES, LINKS, POSTS, COMMENTS,
                      GUESTBOOK, GUESTBOOK_INTRO, ABOUT,
-                     PROJECTS, PROJECTS_LEDE, PROJECTS_INTRO, PROJECTS_NOTE)
+                     PROJECTS, PROJECTS_LEDE, PROJECTS_INTRO, PROJECTS_NOTE,
+                     RETIRED_SLUGS)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PER_PAGE = 5          # 首页每页文章数
@@ -1755,6 +1756,71 @@ def build_share():
 
 
 # ---------------------------------------------------------------------------
+# 已下线旧文章的跳转页
+#
+# 为什么需要这个：部署是覆盖式的，本地删掉的文件不会从线上消失。
+# posts/<slug>.html 那一批旧文章早就不生成了，但线上还挂着，
+# 旧书签和搜索引擎照样能打开——打开看到的是几个月前的旧版页面。
+#
+# 所以给 content.py 的 RETIRED_SLUGS 里每个 slug 生成一个跳转页去盖住它。
+# 页面刻意不用 bare_page()：它要立刻跳走，塞进整套站点头部、脚本、
+# 云端 SDK 纯属浪费，而且万一本机断网、SDK 加载失败，反而更难跳。
+# 所以做成自包含的最小页面，样式内联，配色跟站点保持一致。
+# ---------------------------------------------------------------------------
+RETIRED_PAGE = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 立刻跳到博客列表；noindex 让搜索引擎把这条旧地址清掉 -->
+<meta http-equiv="refresh" content="0; url=__TO__">
+<meta name="robots" content="noindex, nofollow">
+<title>这篇文章搬走了 · __NAME__</title>
+<style>
+  body { margin: 0; padding: 56px 20px; background: #E8F5DC; color: #24420F;
+         font: 15px/1.9 "Microsoft YaHei", "微软雅黑", sans-serif; text-align: center; }
+  .box { max-width: 420px; margin: 0 auto; padding: 26px 22px;
+         background: #F4FBEC; border: 2px solid #3B6B1E;
+         box-shadow: 4px 4px 0 rgba(22, 48, 10, .3); }
+  h1 { margin: 0 0 10px; font-size: 19px; letter-spacing: 1px; }
+  p { margin: 0 0 8px; color: #595959; font-size: 13px; }
+  a { color: #3E7B14; }
+  .go { display: inline-block; margin-top: 12px; padding: 9px 22px;
+        font-weight: 700; color: #16300A; background: #FFD400;
+        border: 1px solid #16300A; box-shadow: 3px 3px 0 #16300A;
+        text-decoration: none; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>这篇文章搬走了</h1>
+    <p>你要找的那一篇已经不在这里了，正在带你去博客列表。</p>
+    <p>没有自动跳转的话，点下面这个。</p>
+    <a class="go" href="__TO__">去博客列表</a>
+  </div>
+</body>
+</html>
+"""
+
+
+def build_retired():
+    """把线上残留的旧文章地址盖成跳转页。
+
+    posts/index.html 也一并生成：python 的 http.server 对没有 index 的目录
+    会直接把文件名列出来，那份目录列表不该被访客看到。
+    """
+    if not RETIRED_SLUGS:
+        return
+    for slug in RETIRED_SLUGS:
+        write("posts/%s.html" % slug,
+              RETIRED_PAGE.replace("__TO__", "../blog.html")
+                           .replace("__NAME__", SITE["name"]))
+    write("posts/index.html",
+          RETIRED_PAGE.replace("__TO__", "../blog.html")
+                      .replace("__NAME__", SITE["name"]))
+
+
+# ---------------------------------------------------------------------------
 def write(rel, content):
     path = os.path.join(ROOT, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -1783,6 +1849,7 @@ def main():
     build_share()
     build_admin()
     build_login()
+    build_retired()
     print("完成。")
 
 
