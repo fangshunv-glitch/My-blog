@@ -38,3 +38,6 @@ desktop.ini
 cloud-config.local.js
 .env
 .env.local
+
+# 工具运行时数据（定时任务记录、工作记忆等），跟站点本身无关
+.workbuddy/
