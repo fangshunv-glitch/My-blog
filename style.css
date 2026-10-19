@@ -717,6 +717,15 @@ body.blog { padding: 10px 0 0; }
   color: var(--muted);
   font-size: 12px;
 }
+/* 侧边栏的空态：格子还在，先把「这里现在是空的」说明白，别让人以为坏了 */
+.sidebar .side-empty {
+  padding: 8px 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
 .scope-note {
   margin-top: 14px;
   padding: 9px 12px;
@@ -729,6 +738,8 @@ body.blog { padding: 10px 0 0; }
 /* 列表项底部的标签 */
 .post-tags { margin-left: auto; }
 .post-tags .chip { margin: 0 0 0 5px; }
+/* 文章页的「复制本文链接」：跟标签同一行，靠右对齐 */
+.post-copy { margin-left: 8px; vertical-align: 1px; }
 
 /* 已更新标记 */
 .m-upd { color: #C2410C; }

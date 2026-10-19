@@ -377,15 +377,50 @@
     el('post-body').innerHTML = md(p.body);
 
     var tags = String(p.tags || '').split(',').filter(function (t) { return t.trim(); });
-    el('post-tags').innerHTML = tags.length
+    el('post-tags').innerHTML = (tags.length
       ? '<span class="label">标签：</span>' + tags.map(function (t) {
           return '<span class="chip">' + esc(t.trim()) + '</span>';
         }).join('')
-      : '';
+      : '')
+      + '<button class="btn-mini post-copy" type="button">复制本文链接</button>';
+
+    var copyBtn = el('post-tags').querySelector('.post-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        copyPostLink(location.origin + location.pathname
+          + '?slug=' + encodeURIComponent(p.slug), copyBtn);
+      });
+    }
 
     paintPostNav(p);
     paintPostPhotos(p);
     unlockComments(p.slug);
+  }
+
+  // 分享页那套思路搬到文章页：直接复制这一篇的地址，发群里比发首页更容易被点开。
+  function copyPostLink(url, btn) {
+    var label = btn.textContent;
+    function done(ok) {
+      btn.textContent = ok ? '已复制' : '复制没成功';
+      window.setTimeout(function () { btn.textContent = label; }, 1800);
+    }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      done(ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { done(true); }, fallback);
+    } else {
+      fallback();
+    }
   }
 
   function paintPostNav(p) {

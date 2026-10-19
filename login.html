@@ -32,7 +32,7 @@
   <div class="slogan">—— 把日子过成一格一格的像素 ——</div>
 
   <div class="nav">
-    <a href="index.html">首页</a><span class="sep">|</span><a href="about.html">关于</a><span class="sep">|</span><a href="projects.html">项目</a><span class="sep">|</span><a href="blog.html">博客</a><span class="sep">|</span><a href="album.html">相册</a><span class="sep">|</span><a href="guestbook.html">留言板</a>
+    <a href="index.html">封面</a><span class="sep">|</span><a href="about.html">关于</a><span class="sep">|</span><a href="projects.html">项目</a><span class="sep">|</span><a href="blog.html">博客</a><span class="sep">|</span><a href="album.html">相册</a><span class="sep">|</span><a href="guestbook.html">留言板</a>
   </div>
 
 <div class="wide-wrap">
@@ -48,88 +48,40 @@
           <span class="en">SIGN IN</span>
         </div>
         <div class="cell-body">
-          <div class="auth-tabs">
-            <a href="#" data-tab="login" class="active">登录</a>
-            <a href="#" data-tab="signup">注册</a>
-            <a href="#" data-tab="reset">忘记密码</a>
-          </div>
+          <div class="form-row"><label for="login-email">邮箱 <em>必填</em></label>
+            <input id="login-email" type="text" maxlength="120" autocomplete="email"
+                   placeholder="你的邮箱"></div>
 
-          <!-- 登录 -->
-          <div id="pane-login">
-            <form id="login-form" novalidate>
-              <div class="form-row"><label for="login-email">邮箱 <em>必填</em></label>
-                <input id="login-email" type="text" maxlength="120" autocomplete="username"
-                       placeholder="注册时用的邮箱"></div>
-              <div class="form-row"><label for="login-password">密码 <em>必填</em></label>
-                <input id="login-password" type="password" maxlength="72"
-                       autocomplete="current-password" placeholder="登录密码"></div>
-              <button class="btn" type="submit">登录</button>
-              <div class="form-msg" id="login-msg" role="status"></div>
-            </form>
-
-            <form id="login-code-form" novalidate hidden>
-              <div class="form-row"><label for="login-code">邮箱验证码 <em>必填</em></label>
-                <div class="code-line">
-                  <input id="login-code" type="text" maxlength="8" inputmode="numeric"
-                         autocomplete="one-time-code" placeholder="收到的数字">
-                  <button type="button" class="btn-mini" id="login-send-code">获取验证码</button>
-                </div>
+          <!-- 主路径：邮箱 + 验证码。第一次来会顺带建号，所以没有单独的「注册」。 -->
+          <form id="login-code-form" novalidate>
+            <div class="form-row"><label for="login-code">验证码 <em>必填</em></label>
+              <div class="code-line">
+                <input id="login-code" type="text" maxlength="8" inputmode="numeric"
+                       autocomplete="one-time-code" placeholder="收到的数字">
+                <button type="button" class="btn-mini" id="login-send-code">获取验证码</button>
               </div>
-              <button class="btn" type="submit">登录</button>
-              <div class="form-msg" id="login-code-msg" role="status"></div>
-            </form>
-
-            <div class="auth-alt">
-              记不住密码就走验证码，效果一样。
-              <a href="#" id="login-mode-toggle">改用邮箱验证码登录</a>
             </div>
-          </div>
-
-          <!-- 注册 -->
-          <div id="pane-signup" hidden>
-            <form id="signup-form" novalidate>
-              <div class="form-row"><label for="signup-email">邮箱 <em>必填</em></label>
-                <input id="signup-email" type="text" maxlength="120" autocomplete="email"
-                       placeholder="以后用这个邮箱登录"></div>
-              <div class="form-row"><label for="signup-code">邮箱验证码 <em>必填</em></label>
-                <div class="code-line">
-                  <input id="signup-code" type="text" maxlength="8" inputmode="numeric"
-                         autocomplete="one-time-code" placeholder="收到的数字">
-                  <button type="button" class="btn-mini" id="signup-send-code">获取验证码</button>
-                </div>
-              </div>
-              <div class="form-row"><label for="signup-password">设置密码 <em>至少 6 位</em></label>
-                <input id="signup-password" type="password" maxlength="72"
-                       autocomplete="new-password" placeholder="自己想一个"></div>
-              <button class="btn" type="submit">注册并登录</button>
-              <div class="form-msg" id="signup-msg" role="status"></div>
-            </form>
-            <div class="auth-alt">
-              顺序是：填邮箱 → 点「获取验证码」→ 收到码填进来 → 设个密码。
-              邮箱只用来登录，不会显示在留言旁边。
+            <button class="btn" type="submit">登录</button>
+            <div class="form-msg" id="login-code-msg" role="status"></div>
+            <div class="form-note">
+              第一次来的话，验证码填完就自动有了账号，不用另外注册。
+              邮箱只用来对身份，不会显示在留言旁边。
             </div>
-          </div>
+          </form>
 
-          <!-- 忘记密码 -->
-          <div id="pane-reset" hidden>
-            <form id="reset-form" novalidate>
-              <div class="form-row"><label for="reset-email">邮箱 <em>必填</em></label>
-                <input id="reset-email" type="text" maxlength="120" autocomplete="email"
-                       placeholder="注册时用的邮箱"></div>
-              <div class="form-row"><label for="reset-code">邮箱验证码 <em>必填</em></label>
-                <div class="code-line">
-                  <input id="reset-code" type="text" maxlength="8" inputmode="numeric"
-                         autocomplete="one-time-code" placeholder="收到的数字">
-                  <button type="button" class="btn-mini" id="reset-send-code">获取验证码</button>
-                </div>
-              </div>
-              <div class="form-row"><label for="reset-password">新密码 <em>至少 6 位</em></label>
-                <input id="reset-password" type="password" maxlength="72"
-                       autocomplete="new-password" placeholder="重新设一个"></div>
-              <button class="btn" type="submit">重设密码</button>
-              <div class="form-msg" id="reset-msg" role="status"></div>
-            </form>
-            <div class="auth-alt">顺序是：填邮箱 → 点「获取验证码」→ 收到码填进来 → 设新密码。</div>
+          <!-- 备选：密码登录。站长用得上，访客可以完全不管这一块。 -->
+          <form id="login-form" novalidate hidden>
+            <div class="form-row"><label for="login-password">密码 <em>必填</em></label>
+              <input id="login-password" type="password" maxlength="72"
+                     autocomplete="current-password" placeholder="登录密码"></div>
+            <button class="btn" type="submit">登录</button>
+            <div class="form-msg" id="login-msg" role="status"></div>
+            <div class="form-note">忘了密码也没关系，用上面的邮箱验证码一样能进。</div>
+          </form>
+
+          <div class="auth-alt">
+            <span id="login-mode-lead">以前设过密码？</span>
+            <a href="#" id="login-mode-toggle">用密码登录</a>
           </div>
         </div>
       </div>
@@ -188,7 +140,7 @@
       © 2026 像素日常<br>
       开站第 <b id="uptime">20</b> 天 · 文章 <b id="foot-posts">0</b> 篇 · 照片 <b id="foot-photos">0</b> 张<br>
       <a href="archive.html">归档</a> · <a href="share.html">分享给朋友</a>
-      · <a href="login.html">我的账号</a> · <a href="admin.html">站长管理</a><br>
+      · <a href="login.html">我的账号</a> · <a href="admin.html">站长入口</a><br>
       <span class="foot-url">本站地址：<a href="https://pixel-daily-blog.app.workbuddy.host/"><b>https://pixel-daily-blog.app.workbuddy.host/</b></a></span><br>
       <span class="px-en">FASTEST VIEWED AT 800x600</span>
       <div class="foot-hearts">

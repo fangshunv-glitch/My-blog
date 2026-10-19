@@ -179,8 +179,10 @@ def head(title, desc, depth):
 </head>""".format(title=html.escape(title), desc=html.escape(desc), p=up(depth))
 
 
+# 导航顺序跟着封面的目录走（壹 关于 / 贰 项目 / 叁 博客 / 肆 相册 / 伍 留言板），
+# 编号和位置对不上会显得乱。第一项是封面本身，不算章。
 NAV_ITEMS = [
-    ("home", "首页", "index.html"),
+    ("home", "封面", "index.html"),
     ("about", "关于", "about.html"),
     ("projects", "项目", "projects.html"),
     ("blog", "博客", "blog.html"),
@@ -269,7 +271,7 @@ def header(active, depth):
       站长信箱：{email}
     </div>
     <a class="head-login" id="head-login" href="{p}login.html">
-      <i class="dot" aria-hidden="true"></i><span class="txt">登录 / 注册</span>
+      <i class="dot" aria-hidden="true"></i><span class="txt">登录</span>
     </a>
   </div>
   <div class="slogan">—— {slogan} ——</div>
@@ -286,13 +288,13 @@ def header(active, depth):
 def swap_head_login(out, href, label):
     """改掉页眉右上角那颗按钮的去向。
 
-    账号页和站长后台本来就在处理身份，那里还摆一颗「登录 / 注册」只会被误点，
+    账号页和站长后台本来就在处理身份，那里还摆一颗「登录」只会被误点，
     所以这两页换成「返回博客」。其他页面保持原样，交给 cloud.js 按登录态改文案。
     """
     return (out
             .replace('<a class="head-login" id="head-login" href="login.html">',
                      '<a class="head-login is-in" id="head-login" href="%s">' % href, 1)
-            .replace('<span class="txt">登录 / 注册</span>',
+            .replace('<span class="txt">登录</span>',
                      '<span class="txt">%s</span>' % html.escape(label), 1))
 
 
@@ -316,6 +318,9 @@ def sidebar(depth, skip_me=False):
         % (up(depth, "archive.html"), ym, ym[:4], int(ym[5:7]), ym, len(v))
         for ym, v in sorted(months.items(), reverse=True)
     )
+    # 空站时这块是空的，不补一句会看着像坏了。
+    if not arch:
+        arch = '<li class="side-empty">文章按月分组之后，这里会长出归档。</li>'
 
     # 最近互动：文章评论 + 留言板合并，标明来源
     feed = []
@@ -346,9 +351,21 @@ def sidebar(depth, skip_me=False):
             '<div class="act-body">%s</div></li>'
             % (html.escape(it["name"]), badge, html.escape(it["time"][5:10]), body)
         )
+    if not acts:
+        acts = ['<li class="side-empty">还没有评论和留言。'
+                '登录之后在文章下面说话，这里会显示最近几条。</li>']
 
     links = "".join('<li><a href="%s">%s</a></li>' % (l["url"], html.escape(l["name"]))
                     for l in LINKS)
+    # 没有真的友链就整块不渲染 —— 摆一排指向 # 的假链接比空着更难看。
+    links_cell = "" if not LINKS else """
+      <div class="cell">
+        <div class="cell-title bar-7">
+          <img class="pixel" src="{p}assets/t_link.png" alt="友情链接">
+          <span class="en">LINKS</span>
+        </div>
+        <div class="cell-body"><ul class="link-list">{links}</ul></div>
+      </div>""".format(p=p, links=links)
 
     me = "" if skip_me else """
       <div class="cell">
@@ -396,15 +413,9 @@ def sidebar(depth, skip_me=False):
           <ul class="activity" id="recent-list">{acts}</ul>
         </div>
       </div>
-
-      <div class="cell">
-        <div class="cell-title bar-7">
-          <img class="pixel" src="{p}assets/t_link.png" alt="友情链接">
-          <span class="en">LINKS</span>
-        </div>
-        <div class="cell-body"><ul class="link-list">{links}</ul></div>
-      </div>
-    </div>""".format(p=p, me=me, cats=cats, arch=arch, acts="".join(acts), links=links)
+{links_cell}
+    </div>""".format(p=p, me=me, cats=cats, arch=arch, acts="".join(acts),
+                     links_cell=links_cell)
 
 
 def footer(depth, marquee=True):
@@ -433,7 +444,7 @@ def footer(depth, marquee=True):
       © 2026 {name}<br>
       开站第 <b id="uptime">{days}</b> 天 · 文章 <b id="foot-posts">{n_posts}</b> 篇 · 照片 <b id="foot-photos">{n_photos}</b> 张<br>
       <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
-      · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
+      · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长入口</a><br>
       <span class="foot-url">本站地址：<a href="{url}"><b>{url}</b></a></span><br>
       <span class="px-en">FASTEST VIEWED AT 800x600</span>
       <div class="foot-hearts">
@@ -903,7 +914,7 @@ def build_post():
               </p>
               <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
             </div>
-            <a class="btn gate-btn" id="comment-login" href="login.html">登录 / 注册</a>
+            <a class="btn gate-btn" id="comment-login" href="login.html">登录</a>
           </div>
 
           <!-- 已登录：只填内容，昵称从账号带出来 -->
@@ -1143,7 +1154,7 @@ def build_guestbook():
               </p>
               <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
             </div>
-            <a class="btn gate-btn" id="guestbook-login" href="login.html">登录 / 注册</a>
+            <a class="btn gate-btn" id="guestbook-login" href="login.html">登录</a>
           </div>
 
           <!-- 已登录：只填内容，昵称从账号带出来 -->
@@ -1277,7 +1288,7 @@ def build_admin():
               <button class="btn" type="submit">注册并登录</button>
               <div class="form-msg" id="signup-msg" role="status"></div>
             </form>
-            <div class="auth-alt">这个账号是站长本人用的。访客想留言，去账号页注册就行——两边是同一套账号体系。</div>
+            <div class="auth-alt">这个账号是站长本人用的。访客想留言，走账号页的邮箱验证码就行，不用注册。</div>
           </div>
 
           <!-- 忘记密码 -->
@@ -1538,88 +1549,40 @@ def build_login():
           <span class="en">SIGN IN</span>
         </div>
         <div class="cell-body">
-          <div class="auth-tabs">
-            <a href="#" data-tab="login" class="active">登录</a>
-            <a href="#" data-tab="signup">注册</a>
-            <a href="#" data-tab="reset">忘记密码</a>
-          </div>
+          <div class="form-row"><label for="login-email">邮箱 <em>必填</em></label>
+            <input id="login-email" type="text" maxlength="120" autocomplete="email"
+                   placeholder="你的邮箱"></div>
 
-          <!-- 登录 -->
-          <div id="pane-login">
-            <form id="login-form" novalidate>
-              <div class="form-row"><label for="login-email">邮箱 <em>必填</em></label>
-                <input id="login-email" type="text" maxlength="120" autocomplete="username"
-                       placeholder="注册时用的邮箱"></div>
-              <div class="form-row"><label for="login-password">密码 <em>必填</em></label>
-                <input id="login-password" type="password" maxlength="72"
-                       autocomplete="current-password" placeholder="登录密码"></div>
-              <button class="btn" type="submit">登录</button>
-              <div class="form-msg" id="login-msg" role="status"></div>
-            </form>
-
-            <form id="login-code-form" novalidate hidden>
-              <div class="form-row"><label for="login-code">邮箱验证码 <em>必填</em></label>
-                <div class="code-line">
-                  <input id="login-code" type="text" maxlength="8" inputmode="numeric"
-                         autocomplete="one-time-code" placeholder="收到的数字">
-                  <button type="button" class="btn-mini" id="login-send-code">获取验证码</button>
-                </div>
+          <!-- 主路径：邮箱 + 验证码。第一次来会顺带建号，所以没有单独的「注册」。 -->
+          <form id="login-code-form" novalidate>
+            <div class="form-row"><label for="login-code">验证码 <em>必填</em></label>
+              <div class="code-line">
+                <input id="login-code" type="text" maxlength="8" inputmode="numeric"
+                       autocomplete="one-time-code" placeholder="收到的数字">
+                <button type="button" class="btn-mini" id="login-send-code">获取验证码</button>
               </div>
-              <button class="btn" type="submit">登录</button>
-              <div class="form-msg" id="login-code-msg" role="status"></div>
-            </form>
-
-            <div class="auth-alt">
-              记不住密码就走验证码，效果一样。
-              <a href="#" id="login-mode-toggle">改用邮箱验证码登录</a>
             </div>
-          </div>
-
-          <!-- 注册 -->
-          <div id="pane-signup" hidden>
-            <form id="signup-form" novalidate>
-              <div class="form-row"><label for="signup-email">邮箱 <em>必填</em></label>
-                <input id="signup-email" type="text" maxlength="120" autocomplete="email"
-                       placeholder="以后用这个邮箱登录"></div>
-              <div class="form-row"><label for="signup-code">邮箱验证码 <em>必填</em></label>
-                <div class="code-line">
-                  <input id="signup-code" type="text" maxlength="8" inputmode="numeric"
-                         autocomplete="one-time-code" placeholder="收到的数字">
-                  <button type="button" class="btn-mini" id="signup-send-code">获取验证码</button>
-                </div>
-              </div>
-              <div class="form-row"><label for="signup-password">设置密码 <em>至少 6 位</em></label>
-                <input id="signup-password" type="password" maxlength="72"
-                       autocomplete="new-password" placeholder="自己想一个"></div>
-              <button class="btn" type="submit">注册并登录</button>
-              <div class="form-msg" id="signup-msg" role="status"></div>
-            </form>
-            <div class="auth-alt">
-              顺序是：填邮箱 → 点「获取验证码」→ 收到码填进来 → 设个密码。
-              邮箱只用来登录，不会显示在留言旁边。
+            <button class="btn" type="submit">登录</button>
+            <div class="form-msg" id="login-code-msg" role="status"></div>
+            <div class="form-note">
+              第一次来的话，验证码填完就自动有了账号，不用另外注册。
+              邮箱只用来对身份，不会显示在留言旁边。
             </div>
-          </div>
+          </form>
 
-          <!-- 忘记密码 -->
-          <div id="pane-reset" hidden>
-            <form id="reset-form" novalidate>
-              <div class="form-row"><label for="reset-email">邮箱 <em>必填</em></label>
-                <input id="reset-email" type="text" maxlength="120" autocomplete="email"
-                       placeholder="注册时用的邮箱"></div>
-              <div class="form-row"><label for="reset-code">邮箱验证码 <em>必填</em></label>
-                <div class="code-line">
-                  <input id="reset-code" type="text" maxlength="8" inputmode="numeric"
-                         autocomplete="one-time-code" placeholder="收到的数字">
-                  <button type="button" class="btn-mini" id="reset-send-code">获取验证码</button>
-                </div>
-              </div>
-              <div class="form-row"><label for="reset-password">新密码 <em>至少 6 位</em></label>
-                <input id="reset-password" type="password" maxlength="72"
-                       autocomplete="new-password" placeholder="重新设一个"></div>
-              <button class="btn" type="submit">重设密码</button>
-              <div class="form-msg" id="reset-msg" role="status"></div>
-            </form>
-            <div class="auth-alt">顺序是：填邮箱 → 点「获取验证码」→ 收到码填进来 → 设新密码。</div>
+          <!-- 备选：密码登录。站长用得上，访客可以完全不管这一块。 -->
+          <form id="login-form" novalidate hidden>
+            <div class="form-row"><label for="login-password">密码 <em>必填</em></label>
+              <input id="login-password" type="password" maxlength="72"
+                     autocomplete="current-password" placeholder="登录密码"></div>
+            <button class="btn" type="submit">登录</button>
+            <div class="form-msg" id="login-msg" role="status"></div>
+            <div class="form-note">忘了密码也没关系，用上面的邮箱验证码一样能进。</div>
+          </form>
+
+          <div class="auth-alt">
+            <span id="login-mode-lead">以前设过密码？</span>
+            <a href="#" id="login-mode-toggle">用密码登录</a>
           </div>
         </div>
       </div>

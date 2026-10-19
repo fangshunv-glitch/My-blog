@@ -232,14 +232,14 @@
         if (link) link.textContent = '去取昵称';
       } else {
         lines.innerHTML = gate.dataset.anonHtml;
-        if (link) link.textContent = '登录 / 注册';
+        if (link) link.textContent = '登录';
       }
     }
   }
 
   // -------------------------------------------------------------------------
   // 页眉右上角的账号入口
-  // —— 静态 HTML 里写的是「登录 / 注册」（JS 挂了也能点进账号页），
+  // —— 静态 HTML 里写的是「登录」（JS 挂了也能点进账号页），
   //    这里拿到会话后改文案：登录了显示自己的昵称，身份就摆在明面上。
   // -------------------------------------------------------------------------
   function paintHeadLogin() {
@@ -501,7 +501,12 @@
         });
       });
 
-      if (!feed.length) return;
+      if (!feed.length) {
+        // 空着会让人以为没加载出来。留一句话说明「是真的还没有」。
+        box.innerHTML = '<li class="side-empty">还没有评论和留言。'
+          + '登录之后在文章下面说话，这里会显示最近几条。</li>';
+        return;
+      }
 
       feed.sort(function (x, y) {
         return x.time < y.time ? 1 : (x.time > y.time ? -1 : 0);

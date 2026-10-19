@@ -1,5 +1,5 @@
 /*!
- * 像素日常 · 访客账号（登录 / 注册 / 取昵称）
+ * 像素日常 · 访客账号（邮箱验证码登录 / 取昵称）
  * ============================================
  * 留言和评论改成「先登录再发言」之后，访客需要一个入口。就是这一页。
  *
@@ -9,6 +9,12 @@
  *      客户端提交时连 uid 和昵称都不用带——数据库自己用 auth.uid() 和
  *      pixel_display_name() 填，带错了反而会被策略拒掉。
  *   3. 收不到验证码、昵称被占、会话失效，每种失败都要有一句人能看懂的中文。
+ *
+ * 页面上只有一个主路径：填邮箱 → 收验证码 → 登录。
+ * 「注册」在实现上是 verifyOtp 顺手建号，访客不需要知道这个概念，
+ * 所以界面上不出现。（后端要求新邮箱账号必须带密码，我们给一个随机的
+ * 扔掉的密码，别让这一步挡在访客面前——以后一律走验证码登录。）
+ * 密码登录留作备选，给站长和早先设过密码的账号用。
  *
  * 依赖：cloud-config.js → WorkBuddy Cloud SDK → 本文件，顺序不能变。
  */
@@ -23,10 +29,10 @@
   var ME = { uid: '', email: '', name: '' };
 
   var pending = null;      // { email, verificationId, isExistingUser }
-  var resetHandle = null;  // 找回密码专用句柄
   var nextUrl = '';        // 校验过的回跳地址
   var justActed = false;   // 刚登录 / 刚存完昵称，用于决定要不要立刻回跳
   var decided = false;     // 是否已经决定了显示哪一块界面
+  var MODE_KEY = 'pixel-login-mode';   // 上次用的是验证码还是密码
 
   // -------------------------------------------------------------------------
   // 小工具
@@ -74,7 +80,7 @@
       default: break;
     }
     switch (err.code) {
-      case '42501': return '服务器拒绝了这次操作。退出后用「邮箱 + 密码」重新登录一次再试。';
+      case '42501': return '服务器拒绝了这次操作。退出后用邮箱验证码重新登录一次再试。';
       case '23505': return '这个昵称已经有人用了，换一个。';
       case '23514': return '内容不符合要求（长度或状态不合法）。';
       case '23502': return '云端没认出你的登录状态。退出登录后重新登一次再试。';
@@ -218,6 +224,12 @@
       });
   }
 
+  // 两种登录方式共用一条提示位，但提示框得显示在当前看得见的那一栏。
+  function modeMsgId() {
+    return document.body.getAttribute('data-login-mode') === 'password'
+      ? 'login-msg' : 'login-code-msg';
+  }
+
   function refresh() {
     return currentUser().then(function (user) {
       if (!user) { showAuth(); return; }
@@ -234,7 +246,7 @@
       });
     }).catch(function (err) {
       showAuth();
-      msg(el('login-msg'), errText(err), true);
+      msg(el(modeMsgId()), errText(err), true);
     });
   }
 
@@ -287,10 +299,26 @@
     }));
   }
 
+  // 后端不接受「有邮箱、没密码」的新账号，所以新邮箱第一次验证时必须带一个
+  // 密码。这个密码访客不需要知道也不需要记住——他以后一律用验证码进来。
+  // 给个随机串把这道门槛绕过去，别让「设密码」挡在访客面前。
+  var PW_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
+  function throwawayPassword() {
+    var buf = new Uint8Array(18), i, s = 'px-';
+    try {
+      window.crypto.getRandomValues(buf);
+    } catch (e) {
+      for (i = 0; i < buf.length; i++) buf[i] = Math.floor(Math.random() * 256);
+    }
+    for (i = 0; i < buf.length; i++) s += PW_CHARS.charAt(buf[i] % PW_CHARS.length);
+    return s;
+  }
+
   // codeInputId 必须显式传进来：早先靠 msgId 做字符串反推，
   // 遇上命名不统一的元素就会算出一个不存在的 id，取 .value 当场抛异常，
   // 用户看到的就是「点了没反应」。
-  function verify(mailInputId, codeInputId, msgId, password) {
+  function verify(mailInputId, codeInputId, msgId) {
     var email = (el(mailInputId).value || '').trim();
     var box = el(msgId);
     if (!pending || pending.email !== email) {
@@ -313,7 +341,7 @@
       verificationId: pending.verificationId,
       isExistingUser: pending.isExistingUser,
       token: token,
-      password: pending.isExistingUser ? undefined : password
+      password: pending.isExistingUser ? undefined : throwawayPassword()
     }).then(function (res) {
       if (res.error) throw res.error;
       pending = null;
@@ -321,42 +349,30 @@
     });
   }
 
-  function switchTab(key, keepPending) {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (x) {
-      var k = x.getAttribute('data-tab');
-      x.classList.toggle('active', k === key);
-      var pane = el('pane-' + k);
-      if (pane) pane.hidden = (k !== key);
-    });
-    if (keepPending) return;
-    pending = null;
-    resetHandle = null;
-    msg(el('login-msg'), '', false);
-    msg(el('login-code-msg'), '', false);
-    msg(el('signup-msg'), '', false);
-    msg(el('reset-msg'), '', false);
-  }
-
   function setLoginMode(mode) {
     var byCode = mode === 'code';
     document.body.setAttribute('data-login-mode', byCode ? 'code' : 'password');
+    var lead = el('login-mode-lead');
+    if (lead) lead.textContent = byCode ? '以前设过密码？' : '不想输密码？';
     var toggle = el('login-mode-toggle');
-    if (toggle) toggle.textContent = byCode ? '改用密码登录' : '改用邮箱验证码登录';
+    if (toggle) toggle.textContent = byCode ? '用密码登录' : '改用邮箱验证码登录';
     show(el('login-form'), !byCode);
     show(el('login-code-form'), byCode);
     msg(el('login-msg'), '', false);
     msg(el('login-code-msg'), '', false);
   }
 
-  // 注册页发现邮箱已有账号 → 带着邮箱和刚收到的验证码切到登录页。
-  // 不点破「这个邮箱注册过」，避免变成账号探测器。
-  function handoffToLogin(email) {
-    var code = (el('signup-code').value || '').trim();
-    switchTab('login', true);
-    el('login-email').value = email;
-    if (code) el('login-code').value = code;
-    setLoginMode('code');
-    msg(el('login-code-msg'), '这个邮箱可以直接登录。验证码已经带过来了，点「登录」即可。', false);
+  // 默认用验证码。上次用过密码登录（站长多半是这样）就记住，不让他每次多点一下。
+  function defaultMode() {
+    try {
+      return window.localStorage.getItem(MODE_KEY) === 'password' ? 'password' : 'code';
+    } catch (e) {
+      return 'code';
+    }
+  }
+
+  function rememberMode(mode) {
+    try { window.localStorage.setItem(MODE_KEY, mode); } catch (e) { /* 隐私模式下忽略 */ }
   }
 
   // -------------------------------------------------------------------------
@@ -373,15 +389,6 @@
   // -------------------------------------------------------------------------
   // 表单绑定
   // -------------------------------------------------------------------------
-  function bindTabs() {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (x) {
-      x.addEventListener('click', guard('login-msg', function (e) {
-        e.preventDefault();
-        switchTab(x.getAttribute('data-tab'));
-      }));
-    });
-  }
-
   function bindLogin() {
     var form = el('login-form');
     if (form) {
@@ -397,6 +404,7 @@
         msg(box, '正在登录…', false);
         auth().signInWithPassword({ email: email, password: pwd }).then(function (res) {
           if (res.error) throw res.error;
+          rememberMode('password');
           return afterSignIn(res.data);
         }).catch(function (err) {
           msg(box, errText(err), true);
@@ -412,6 +420,8 @@
         e.preventDefault();
         var now = document.body.getAttribute('data-login-mode') === 'code' ? 'code' : 'password';
         setLoginMode(now === 'code' ? 'password' : 'code');
+        var mail = el('login-email');
+        if (mail && mail.focus) mail.focus();
       }));
     }
 
@@ -422,7 +432,10 @@
         var btn = codeForm.querySelector('button[type=submit]');
         if (btn) btn.disabled = true;
         verify('login-email', 'login-code', 'login-code-msg')
-          .then(afterSignIn)
+          .then(function (data) {
+            rememberMode('code');
+            return afterSignIn(data);
+          })
           .catch(function (err) {
             if (err && (err.message === 'NO_PENDING' || err.message === 'NO_TOKEN'
               || err.message === 'NO_TOKEN_FIELD')) return;
@@ -434,94 +447,6 @@
       }));
     }
     bindSendCode('login-send-code', 'login-email', 'login-code-msg');
-  }
-
-  function bindSignup() {
-    var form = el('signup-form');
-    if (!form) return;
-    bindSendCode('signup-send-code', 'signup-email', 'signup-msg');
-    form.addEventListener('submit', guard('signup-msg', function (e) {
-      e.preventDefault();
-      var box = el('signup-msg');
-      var pwd = el('signup-password').value || '';
-      var email = (el('signup-email').value || '').trim();
-      if (!pending || pending.email !== email) {
-        return msg(box, '先点「获取验证码」，拿当前邮箱的验证码。', true);
-      }
-      if (pending.isExistingUser) { handoffToLogin(email); return; }
-      if (!pwd || pwd.length < 6) return msg(box, '密码至少 6 位。', true);
-      var btn = form.querySelector('button[type=submit]');
-      btn.disabled = true;
-      msg(box, '正在创建账号…', false);
-      verify('signup-email', 'signup-code', 'signup-msg', pwd).then(function (data) {
-        msg(box, '账号建好了。', false);
-        return afterSignIn(data);
-      }).catch(function (err) {
-        if (err && (err.message === 'NO_PENDING' || err.message === 'NO_TOKEN'
-          || err.message === 'NO_TOKEN_FIELD')) return;
-        msg(box, errText(err), true);
-      }).then(function () {
-        btn.disabled = false;
-      });
-    }));
-  }
-
-  // 找回密码的验证码必须由 resetPasswordForEmail 发出：
-  // 它返回一个句柄，重设时带 nonce 用。拿登录用的 sendOtp 去发，
-  // 凭据用途对不上，重设必然失败。
-  function bindReset() {
-    var form = el('reset-form');
-    if (!form) return;
-
-    var sendBtn = el('reset-send-code');
-    if (sendBtn) {
-      sendBtn.addEventListener('click', guard('reset-msg', function () {
-        if (sendBtn.disabled) return;
-        var email = (el('reset-email').value || '').trim();
-        var box = el('reset-msg');
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          return msg(box, '先填一个正确的邮箱。', true);
-        }
-        sendBtn.disabled = true;
-        msg(box, '正在发送验证码…', false);
-        auth().resetPasswordForEmail(email).then(function (res) {
-          if (res.error) throw res.error;
-          resetHandle = res.data;
-          msg(box, '验证码已发到邮箱，去收一下。', false);
-          bindCountdown(sendBtn, 60);
-        }).catch(function (err) {
-          sendBtn.disabled = false;
-          msg(box, errText(err), true);
-        });
-      }));
-    }
-
-    form.addEventListener('submit', guard('reset-msg', function (e) {
-      e.preventDefault();
-      var box = el('reset-msg');
-      var email = (el('reset-email').value || '').trim();
-      var code = (el('reset-code').value || '').trim();
-      var next = el('reset-password').value || '';
-      if (!email) return msg(box, '邮箱还没填。', true);
-      if (!resetHandle) return msg(box, '先点「获取验证码」，拿当前邮箱的验证码。', true);
-      if (!code) return msg(box, '验证码还没填。', true);
-      if (!next || next.length < 6) return msg(box, '新密码至少 6 位。', true);
-      var btn = form.querySelector('button[type=submit]');
-      btn.disabled = true;
-      msg(box, '正在重设…', false);
-      Promise.resolve(resetHandle.updateUser({ nonce: code, password: next }))
-        .then(function (res) {
-          if (res && res.error) throw res.error;
-          resetHandle = null;
-          return afterSignIn(res && res.data);
-        })
-        .catch(function (err) {
-          msg(box, errText(err), true);
-        })
-        .then(function () {
-          btn.disabled = false;
-        });
-    }));
   }
 
   // 昵称：没有就插入，有就更新。
@@ -587,17 +512,14 @@
   // -------------------------------------------------------------------------
   function boot() {
     nextUrl = safeNext(qs('next'));
-    bindTabs();
     bindLogin();
-    bindSignup();
-    bindReset();
     bindNick();
     bindLogout();
-    setLoginMode('password');
+    setLoginMode(defaultMode());
 
     refresh().catch(function (err) {
       showAuth();
-      msg(el('login-msg'), errText(err), true);
+      msg(el(modeMsgId()), errText(err), true);
     });
 
     // 界面默认 hidden，靠 JS 显示。启动逻辑一旦中断就是一片空白，
@@ -605,7 +527,7 @@
     window.setTimeout(function () {
       if (decided) return;
       showAuth();
-      msg(el('login-msg'), '页面没能正常启动，刷新一次再试。', true);
+      msg(el(modeMsgId()), '页面没能正常启动，刷新一次再试。', true);
     }, 6000);
   }
 
