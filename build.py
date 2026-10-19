@@ -33,7 +33,7 @@ from datetime import date, datetime
 from content import (SITE, HOME, CHAPTERS, CATEGORIES, LINKS, POSTS, COMMENTS,
                      GUESTBOOK, GUESTBOOK_INTRO, ABOUT,
                      PROJECTS, PROJECTS_LEDE, PROJECTS_INTRO, PROJECTS_NOTE,
-                     RETIRED_SLUGS)
+                     RETIRED_SLUGS, EMOJI)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PER_PAGE = 5          # 首页每页文章数
@@ -579,7 +579,12 @@ SCRIPT = """
 
 def script_tag():
     y, m, d = SITE["since"].split("-")
-    return (SCRIPT.replace("{y}", str(int(y)))
+    # 表情名单从这里下发给前端：cloud.js 和 feed.js 靠它把 :smile: 换成图。
+    # 名单本身只在 content.py 里维护一份。
+    emoji_js = json.dumps([{"k": k, "n": n} for k, n in EMOJI],
+                          ensure_ascii=False, separators=(",", ":"))
+    return ('<script>window.PIXEL_EMOJI = %s;</script>\n' % emoji_js
+            + SCRIPT.replace("{y}", str(int(y)))
             .replace("{m}", str(int(m) - 1))
             .replace("{d}", str(int(d))))
 
@@ -1176,10 +1181,15 @@ def build_guestbook():
 VIS_OPTIONS = [
     ("public", "公开 —— 所有人进来都能看到，会进列表"),
     ("unlisted", "有链接可见 —— 不进任何列表，拿到链接的人能看"),
+    ("custom", "指定人可见 —— 只有你勾选的人登录后能看到"),
     ("private", "仅自己可见 —— 只有你登录后能看到"),
     ("draft", "草稿 —— 先存着，前台当它没发布"),
 ]
 VIS_DEFAULT = "private"
+
+# 照片的可见范围暂时不含「指定人」：照片是按相册成批翻的，
+# 一张张指定人容易乱。要发只给某几个人看的东西，写文章挂图更合适。
+PHOTO_VIS_OPTIONS = [o for o in VIS_OPTIONS if o[0] != "custom"]
 
 
 # ---------------------------------------------------------------------------
@@ -1193,6 +1203,10 @@ def build_admin():
         '<option value="%s"%s>%s</option>'
         % (v, ' selected' if v == VIS_DEFAULT else "", label)
         for v, label in VIS_OPTIONS)
+    photo_vis_opts = "".join(
+        '<option value="%s"%s>%s</option>'
+        % (v, ' selected' if v == VIS_DEFAULT else "", label)
+        for v, label in PHOTO_VIS_OPTIONS)
 
     main = """
     <div class="crumb"><a href="index.html">封面</a><span class="sep">›</span><span>站长管理</span><button
@@ -1374,6 +1388,15 @@ def build_admin():
                   不是前端藏起来——写成「仅自己可见」的内容，别人就算会看代码也翻不出来。
                 </div>
 
+                <div class="form-row" id="po-people" hidden>
+                  <label>给谁看</label>
+                  <div class="adm-people" id="po-people-list"></div>
+                  <div class="form-note" id="po-people-note">
+                    这里只列<b>用邮箱登录过本站、并且设过昵称</b>的人。
+                    想让谁进这个名单，让他先来登录一次就行。
+                  </div>
+                </div>
+
                 <div class="form-row"><label for="po-tags">标签</label>
                   <input id="po-tags" type="text" maxlength="120" placeholder="用逗号分开，比如：随笔, 拍照">
                   <div class="form-note">列表里最多显示前三个。</div></div>
@@ -1437,7 +1460,7 @@ def build_admin():
                     <select id="ph-post"><option value="">不挂，只放相册</option></select>
                     <div class="form-note">挂上之后，那篇文章底部会多一块「本篇照片」。</div></div>
                   <div class="form-row"><label for="ph-vis">可见范围</label>
-                    <select id="ph-vis">__VIS_OPTS__</select>
+                    <select id="ph-vis">__PHOTO_VIS_OPTS__</select>
                     <div class="form-note">默认停在「仅自己可见」——
                       想让人看到，传之前先把它改成「公开」。传完再改也来得及，
                       下面每张照片都能单独删。</div></div>
@@ -1486,6 +1509,7 @@ def build_admin():
     </div>
 """
     main = main.replace("__CAT_OPTS__", cat_opts).replace("__VIS_OPTS__", vis_opts)
+    main = main.replace("__PHOTO_VIS_OPTS__", photo_vis_opts)
     out = bare_page("站长管理 · %s" % SITE["name"],
                     "像素日常的站长后台：写文章、传照片、管留言与评论。访客浏览本站无需登录。",
                     "", 0, main, body_class="blog admin-page", tags=admin_tags(0))

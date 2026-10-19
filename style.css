@@ -1563,8 +1563,65 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
 /* 可见范围徽章：一眼分出轻重 */
 .adm-badge.vb-public { background: #4E9A21; }
 .adm-badge.vb-unlisted { background: #C79A16; }
+.adm-badge.vb-custom { background: #3A6EA5; }
 .adm-badge.vb-private { background: #A4622A; }
 .adm-badge.vb-draft { background: #8FA87A; }
+
+/* 「指定人可见」的选人框：一个人一枚小标签，勾上就算一个 */
+.adm-people {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 10px; margin-top: 6px;
+  border: 1px solid var(--line); background: #F7FAF0;
+}
+.adm-person {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 7px 12px 7px 9px;
+  border: 1px solid #C3D0AE; background: #FFFFFF;
+  font-size: 13px; cursor: pointer;
+}
+.adm-person:hover { border-color: var(--link); }
+.adm-person input { margin: 0; }
+.adm-person .p-name { color: #2B3A26; }
+.adm-person .p-tag {
+  margin-left: 5px; padding: 1px 5px;
+  background: var(--yellow); color: #2B3A26; font-size: 11px;
+}
+.adm-person .p-id { color: #93A487; font-size: 11px; }
+.adm-people-empty { color: #73876A; font-size: 13px; line-height: 1.8; }
+
+/* ---------------------------------------------------------------------------
+   表情包
+   --------------------------------------------------------------------------- */
+.emo {
+  width: 22px; height: 22px;
+  vertical-align: -5px;
+  image-rendering: pixelated;
+  margin: 0 1px;
+}
+
+.emo-bar { margin: -6px 0 10px; }
+.emo-toggle {
+  font: inherit; font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  background: #FFFFFF; color: var(--link);
+  cursor: pointer;
+}
+.emo-toggle:hover { border-color: var(--link); }
+.emo-caret { font-size: 10px; }
+.emo-panel {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-top: 6px; padding: 8px;
+  border: 1px solid var(--line);
+  background: #F7FAF0;
+}
+.emo-panel[hidden] { display: none; }
+.emo-item {
+  padding: 4px; border: 1px solid transparent; background: none;
+  cursor: pointer; line-height: 0;
+}
+.emo-item:hover { border-color: var(--link); background: #FFFFFF; }
+.emo-item img { width: 28px; height: 28px; image-rendering: pixelated; }
 
 /* 后台列表里的照片条 */
 .adm-photo-row { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0; }
@@ -1848,4 +1905,11 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
   }
   .marquee { display: none; }
   .px-readbar { display: none; }
+}
+
+/* 选人框在手机上：藏掉那串 uid 尾巴，一屏能多放两个名字 */
+@media (max-width: 640px) {
+  .adm-people { gap: 6px; padding: 8px; }
+  .adm-person { font-size: 12px; padding: 5px 8px; }
+  .adm-person .p-id { display: none; }
 }

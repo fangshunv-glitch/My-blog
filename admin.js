@@ -841,18 +841,88 @@
   var POST_MAP = {};        // slug → { title, url }，评论列表要用来显示「来自《…》」
 
   var VIS_LABEL = {
-    public: '公开', unlisted: '有链接可见', private: '仅自己可见', draft: '草稿'
+    public: '公开', unlisted: '有链接可见', custom: '指定人可见',
+    private: '仅自己可见', draft: '草稿'
   };
   var VIS_CLASS = {
-    public: 'vb-public', unlisted: 'vb-unlisted', private: 'vb-private', draft: 'vb-draft'
+    public: 'vb-public', unlisted: 'vb-unlisted', custom: 'vb-custom',
+    private: 'vb-private', draft: 'vb-draft'
   };
 
-  function postRowHTML(row) {
+  // -------------------------------------------------------------------------
+  // 「指定人可见」：站长勾选具体的人
+  //
+  // 名单从 pixel_site_members() 来 —— 那是个 security definer 函数，
+  // 内部用 pixel_is_admin() 把门，非站长调用只会拿到空数组。
+  // profiles 表本身只放行自己那一行，所以不能直接 select 别人。
+  // -------------------------------------------------------------------------
+  var MEMBERS = null;      // 可选人员，拉一次就缓存
+  var PICK_UIDS = [];      // 编辑已有文章时回填用的 uid
+
+  function loadPeople(force) {
+    if (MEMBERS && !force) return Promise.resolve(MEMBERS);
+    return run(db().rpc('pixel_site_members')).then(function (rows) {
+      MEMBERS = rows || [];
+      return MEMBERS;
+    }, function () { MEMBERS = []; return MEMBERS; });
+  }
+
+  function checkedUids() {
+    var box = el('po-people-list');
+    if (!box) return [];
+    return Array.prototype.slice.call(box.querySelectorAll('input:checked'))
+      .map(function (i) { return i.value; });
+  }
+
+  function paintPeople(selected) {
+    var box = el('po-people-list');
+    if (!box) return;
+    var pick = {};
+    (selected || []).forEach(function (u) { pick[String(u)] = true; });
+    if (!MEMBERS.length) {
+      box.innerHTML = '<div class="adm-people-empty">'
+        + '还没有别人登录过这个站。让对方来登录一次、设个昵称，这里就有人可选了。</div>';
+      return;
+    }
+    box.innerHTML = MEMBERS.map(function (m) {
+      var uid = String(m.m_uid);
+      var name = m.m_name || ('匿名 ' + uid.slice(-4));
+      return '<label class="adm-person">'
+        + '<input type="checkbox" value="' + esc(uid) + '"' + (pick[uid] ? ' checked' : '') + '>'
+        + '<span class="p-name">' + esc(name)
+        + (m.m_admin ? '<span class="p-tag">站长</span>' : '') + '</span>'
+        + '<span class="p-id">' + esc(uid.slice(-6)) + '</span>'
+        + '</label>';
+    }).join('');
+  }
+
+  // 切换到「指定人可见」时把名单画出来；切走就收起来。
+  // 重画前先记住当前勾了谁，免得来回切一次就丢一次。
+  function syncPeople() {
+    var on = (el('po-vis').value === 'custom');
+    show(el('po-people'), on);
+    if (!on) return Promise.resolve();
+    var keep = checkedUids();
+    return loadPeople().then(function () {
+      paintPeople(keep.length ? keep : PICK_UIDS);
+    });
+  }
+
+  function visBadge(row) {
     var vis = row.visibility || 'draft';
+    var text = VIS_LABEL[vis] || vis;
+    if (vis === 'custom') {
+      var n = (row.visible_uids || []).length;
+      text = n ? ('指定人可见 · ' + n + ' 人') : '指定人可见 · 没选人';
+    }
+    return '<span class="adm-badge ' + (VIS_CLASS[vis] || '') + '">' + esc(text) + '</span>';
+  }
+
+  function postRowHTML(row) {
     return '<div class="adm-item" data-id="' + esc(row.id) + '">'
       + '<div class="adm-head">'
       + '<span class="adm-name">' + esc(row.title) + '</span>'
-      + '<span class="adm-badge ' + (VIS_CLASS[vis] || '') + '">' + esc(VIS_LABEL[vis] || vis) + '</span>'
+      + visBadge(row)
       + (row.featured ? '<span class="adm-badge">置顶</span>' : '')
       + '<span class="adm-time">' + esc(String(row.published_on || '').slice(0, 10)) + '</span>'
       + '</div>'
@@ -891,7 +961,7 @@
     var box = el('po-list');
     if (!box) return Promise.resolve();
     return run(db().from('posts')
-      .select('id,slug,title,excerpt,body,category,tags,visibility,featured,published_on,created_at,updated_at')
+      .select('id,slug,title,excerpt,body,category,tags,visibility,visible_uids,featured,published_on,created_at,updated_at')
       .order('published_on', { ascending: false })
       .order('id', { ascending: false })
       .limit(LIMIT)
@@ -935,6 +1005,8 @@
     el('po-date').value = todayStr();
     el('po-featured').checked = false;
     el('po-vis').value = 'draft';     // 默认草稿：先写，想好了再公开
+    PICK_UIDS = [];
+    show(el('po-people'), false);
     show(el('po-cancel'), false);
     el('po-save').textContent = '发布';
   }
@@ -947,17 +1019,27 @@
 
     resetPostForm();
 
+    // 只有切到「指定人可见」时才把选人框拿出来
+    el('po-vis').addEventListener('change', function () { syncPeople(); });
+
     // 标题写完，别名还空着就顺手生成一个
     el('po-title').addEventListener('blur', function () {
       if (!(el('po-slug').value || '').trim()) el('po-slug').value = makeSlug();
     });
 
     saveBtn.addEventListener('click', function () {
+      var isEdit = !!edPostId;      // resetPostForm() 会把它清空，所以先记下来
       var title = (el('po-title').value || '').trim();
       var slug = (el('po-slug').value || '').trim().toLowerCase();
       var body = el('po-body').value || '';
       var vis = el('po-vis').value || 'draft';
       var date = el('po-date').value || todayStr();
+      var uids = vis === 'custom' ? checkedUids() : [];
+
+      // 名单是空的（还没人来登录过）就不拦着，但名单非空时必须勾一个
+      if (vis === 'custom' && !uids.length && MEMBERS && MEMBERS.length) {
+        return msg(msgBox, '「指定人可见」至少勾一个人，不然这篇谁都看不到。', true);
+      }
 
       if (!title) { el('po-title').focus(); return msg(msgBox, '标题还没填。', true); }
       if (title.length > 120) return msg(msgBox, '标题太长了，最多 120 个字。', true);
@@ -976,6 +1058,7 @@
         category: el('po-cat').value || '日常',
         tags: (el('po-tags').value || '').trim(),
         visibility: vis,
+        visible_uids: uids,
         featured: !!el('po-featured').checked,
         published_on: date
       };
@@ -995,7 +1078,15 @@
         resetPostForm();
         return loadPosts();
       }).then(function () {
-        msg(msgBox, edPostId ? '已更新。' : ('已保存，可见范围：' + (VIS_LABEL[vis] || vis) + '。'), false);
+        var tail;
+        if (vis === 'custom') {
+          tail = uids.length
+            ? ('可见范围：只有你勾的 ' + uids.length + ' 个人登录后能看到。')
+            : '还没勾人，这篇目前只有你自己能看到。';
+        } else {
+          tail = '可见范围：' + (VIS_LABEL[vis] || vis) + '。';
+        }
+        msg(msgBox, (isEdit ? '已更新。' : '已保存。') + tail, false);
       }).catch(function (err) {
         var text = errText(err);
         if (String(err && err.code) === '23505' || /duplicate|unique/i.test(text)) {
@@ -1032,6 +1123,8 @@
         el('po-cat').value = row.category || '日常';
         el('po-tags').value = row.tags || '';
         el('po-vis').value = row.visibility || 'draft';
+        PICK_UIDS = (row.visible_uids || []).slice();
+        syncPeople();
         el('po-date').value = String(row.published_on || '').slice(0, 10) || todayStr();
         el('po-featured').checked = !!row.featured;
         show(el('po-cancel'), true);

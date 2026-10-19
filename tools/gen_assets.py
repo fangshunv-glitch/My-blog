@@ -13,12 +13,17 @@
     PIXEL_FONT=/System/Library/Fonts/Songti.ttc python tools/gen_assets.py
 """
 import os
+import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
 FONT = os.environ.get("PIXEL_FONT") or r"C:\Windows\Fonts\simsun.ttc"
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 os.makedirs(OUT, exist_ok=True)
+
+# 表情名单的唯一来源在 content.py —— 那边加一行，这里就多生成一张
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from content import EMOJI  # noqa: E402
 
 
 def text_to_matrix(text, grid=16, threshold=128):
@@ -378,4 +383,216 @@ def draw_qr(path, url, box=6, border=3):
 
 
 draw_qr(os.path.join(OUT, "qr_site.png"), "https://pixel-daily-blog.app.workbuddy.host/")
+
+
+# ---------------- 表情包 ----------------
+# 16×16 点阵，NEAREST 放大 4 倍 → 64px。
+# 全部由代码画出来，不读字体也不读素材，所以重跑一定得到同一张图。
+EMOJI_SIZE = 16
+EMOJI_SCALE = 4
+EMOJI_COLORS = {
+    0: (0, 0, 0, 0),           # 透明
+    1: (255, 212, 0, 255),     # 脸：站点黄
+    2: (43, 58, 38, 255),      # 边框和五官
+    3: (255, 255, 255, 255),   # 高光
+    4: (237, 125, 49, 255),    # 橙：花瓣、爱心
+    5: (142, 199, 89, 255),    # 绿
+    6: (90, 150, 214, 255),    # 蓝：泪、汗
+}
+
+
+def _blank():
+    return [[0] * EMOJI_SIZE for _ in range(EMOJI_SIZE)]
+
+
+def _put(g, pts, v=2):
+    for x, y in pts:
+        if 0 <= x < EMOJI_SIZE and 0 <= y < EMOJI_SIZE:
+            g[y][x] = v
+
+
+def _box(g, x, y, w, h, v=2):
+    for dy in range(h):
+        _put(g, [(x + dx, y + dy) for dx in range(w)], v)
+
+
+def _face():
+    """黄脸 + 一圈深色边。半径 7.2，中心 (7.5, 7.5)。"""
+    g = _blank()
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            d = (x - 7.5) ** 2 + (y - 7.5) ** 2
+            if d <= 51:
+                g[y][x] = 2 if d > 38 else 1
+    return g
+
+
+def _e_smile():
+    g = _face()
+    _box(g, 4, 5, 2, 2)
+    _box(g, 10, 5, 2, 2)
+    _put(g, [(x, 10) for x in range(5, 11)])
+    _put(g, [(4, 9), (11, 9)])
+    return g
+
+
+def _e_laugh():
+    g = _face()
+    _put(g, [(4, 6), (5, 5), (6, 5), (9, 5), (10, 5), (11, 6)])
+    _box(g, 5, 9, 6, 3)
+    _put(g, [(6, 9), (7, 9), (8, 9), (9, 9)], 3)
+    return g
+
+
+def _e_love():
+    g = _face()
+    heart = [".#.#.", "#####", "#####", ".###.", "..#.."]
+    for ox in (2, 8):
+        for i, row in enumerate(heart):
+            for j, ch in enumerate(row):
+                if ch == "#":
+                    _put(g, [(ox + j, 4 + i)], 4)
+    _put(g, [(x, 11) for x in range(6, 10)])
+    _put(g, [(5, 10), (10, 10)])
+    return g
+
+
+def _e_cry():
+    g = _face()
+    _put(g, [(4, 6), (5, 5), (6, 5), (9, 5), (10, 5), (11, 6)])
+    _put(g, [(4, 7), (4, 8), (11, 7), (11, 8)], 6)
+    _put(g, [(6, 12), (7, 11), (8, 11), (9, 12)])
+    return g
+
+
+def _e_surprise():
+    g = _face()
+    _box(g, 4, 5, 2, 2)
+    _box(g, 10, 5, 2, 2)
+    _put(g, [(4, 5), (10, 5)], 3)
+    _put(g, [(7, 9), (8, 9), (6, 10), (9, 10),
+             (6, 11), (9, 11), (7, 12), (8, 12)])
+    return g
+
+
+def _e_sweat():
+    g = _face()
+    _box(g, 4, 5, 2, 2)
+    _box(g, 10, 5, 2, 2)
+    _put(g, [(x, 11) for x in range(6, 10)])
+    _put(g, [(12, 2), (11, 3), (12, 3), (13, 3), (12, 4)], 6)
+    return g
+
+
+def _e_angry():
+    g = _face()
+    _put(g, [(3, 4), (4, 4), (5, 5), (10, 5), (11, 4), (12, 4)])
+    _box(g, 4, 7, 2, 1)
+    _box(g, 10, 7, 2, 1)
+    _put(g, [(5, 12), (6, 11), (7, 11), (8, 11), (9, 11), (10, 12)], 2)
+    return g
+
+
+def _e_sleepy():
+    g = _face()
+    _put(g, [(4, 6), (5, 6), (6, 6), (9, 6), (10, 6), (11, 6)])
+    _put(g, [(7, 11), (8, 11)])
+    _put(g, [(11, 1), (12, 1), (13, 1), (12, 2), (11, 3), (12, 3), (13, 3)])
+    return g
+
+
+def _e_cool():
+    g = _face()
+    _box(g, 3, 5, 10, 2)
+    _put(g, [(4, 5), (9, 5)], 3)
+    _put(g, [(x, 10) for x in range(5, 11)])
+    _put(g, [(4, 9), (11, 9)])
+    return g
+
+
+def _e_heart():
+    g = _blank()
+    art = [
+        "..##...##..",
+        ".####.####.",
+        "###########",
+        "###########",
+        "###########",
+        ".#########.",
+        "..#######..",
+        "...#####...",
+        "....###....",
+        ".....#.....",
+    ]
+    for i, row in enumerate(art):
+        for j, ch in enumerate(row):
+            if ch == "#":
+                _put(g, [(j + 2, i + 3)], 4)
+    return g
+
+
+def _e_flower():
+    g = _blank()
+    _box(g, 6, 6, 4, 4, 1)
+    for x in range(6, 10):
+        _box(g, x, 3, 1, 2, 4)
+        _box(g, x, 11, 1, 2, 4)
+    for y in range(6, 10):
+        _box(g, 3, y, 2, 1, 4)
+        _box(g, 11, y, 2, 1, 4)
+    _box(g, 7, 7, 2, 2, 2)
+    return g
+
+
+def _e_star():
+    g = _blank()
+    art = [
+        "....#....",
+        "...###...",
+        "..#####..",
+        "#########",
+        ".#######.",
+        "..#####..",
+        ".##...##.",
+    ]
+    for i, row in enumerate(art):
+        for j, ch in enumerate(row):
+            if ch == "#":
+                _put(g, [(j + 3, i + 4)], 1)
+    return g
+
+
+EMOJI_PAINTERS = {
+    "smile": _e_smile, "laugh": _e_laugh, "love": _e_love, "cry": _e_cry,
+    "surprise": _e_surprise, "sweat": _e_sweat, "angry": _e_angry,
+    "sleepy": _e_sleepy, "cool": _e_cool, "heart": _e_heart,
+    "flower": _e_flower, "star": _e_star,
+}
+
+
+def draw_emoji(key, path, scale=EMOJI_SCALE):
+    g = EMOJI_PAINTERS[key]()
+    img = Image.new("RGBA", (EMOJI_SIZE * scale, EMOJI_SIZE * scale), (0, 0, 0, 0))
+    px = img.load()
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            c = EMOJI_COLORS[g[y][x]]
+            if c[3] == 0:
+                continue
+            for dy in range(scale):
+                for dx in range(scale):
+                    px[x * scale + dx, y * scale + dy] = c
+    img.save(path)
+    return path
+
+
+EMOJI_DIR = os.path.join(OUT, "emoji")
+os.makedirs(EMOJI_DIR, exist_ok=True)
+_missing = [k for k, _ in EMOJI if k not in EMOJI_PAINTERS]
+if _missing:
+    raise SystemExit("content.EMOJI 里有画不出来的表情：%s" % "、".join(_missing))
+for _key, _name in EMOJI:
+    draw_emoji(_key, os.path.join(EMOJI_DIR, _key + ".png"))
+print("emoji ->", len(EMOJI), "个")
+
 print("done")

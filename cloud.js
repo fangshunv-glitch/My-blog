@@ -67,6 +67,30 @@
       .replace(/'/g, '&#39;');
   }
 
+  // -------------------------------------------------------------------------
+  // 表情
+  // -------------------------------------------------------------------------
+  // 名单由 build.py 从 content.py 注入到 window.PIXEL_EMOJI。
+  // 写法是 :smile: 这种短代码，渲染时换成 assets/emoji/<k>.png。
+  var EMO_INDEX = {};
+  (function () {
+    var list = window.PIXEL_EMOJI || [];
+    for (var i = 0; i < list.length; i++) EMO_INDEX[list[i].k] = list[i].n;
+  })();
+
+  function emoImg(key, title) {
+    return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png"'
+      + ' alt="' + esc(title) + '" title="' + esc(title) + '" loading="lazy">';
+  }
+
+  // 顺序很重要：先 esc 再做替换。反过来的话用户写个 <img onerror=...>
+  // 就能直接插进页面了。
+  function emo(text) {
+    return esc(text).replace(/:([a-z][a-z_]{1,15}):/g, function (m, key) {
+      return EMO_INDEX[key] ? emoImg(key, EMO_INDEX[key]) : m;
+    });
+  }
+
   function pad(n) {
     return (n < 10 ? '0' : '') + n;
   }
@@ -246,10 +270,10 @@
       + '<span class="comment-name">' + esc(row.name) + '</span>'
       + '<span class="comment-time">' + esc(fmtTime(row.created_at)) + '</span>'
       + '</div>'
-      + '<div class="comment-text">' + esc(row.content) + '</div>';
+      + '<div class="comment-text">' + emo(row.content) + '</div>';
     if (row.reply) {
       out += '<div class="comment-reply"><span class="comment-name">'
-        + esc(AUTHOR) + '</span> 回复：' + esc(row.reply) + '</div>';
+        + esc(AUTHOR) + '</span> 回复：' + emo(row.reply) + '</div>';
     }
     return out + '</div>';
   }
@@ -289,9 +313,70 @@
     box.className = 'form-msg ' + (isError ? 'is-error' : 'is-ok');
   }
 
+  // -------------------------------------------------------------------------
+  // 表情面板：在输入框下面挂一排小图，点了就把 :key: 插到光标处
+  // -------------------------------------------------------------------------
+  function mountEmoji(form) {
+    if (!form || form.querySelector('.emo-bar')) return;
+    var ta = form.querySelector('[name=content]');
+    var list = window.PIXEL_EMOJI || [];
+    if (!ta || !list.length) return;
+
+    var bar = document.createElement('div');
+    bar.className = 'emo-bar';
+
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'emo-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.innerHTML = '表情 <span class="emo-caret">▼</span>';
+
+    var panel = document.createElement('div');
+    panel.className = 'emo-panel';
+    panel.hidden = true;
+    panel.innerHTML = list.map(function (it) {
+      return '<button type="button" class="emo-item" data-k="' + esc(it.k)
+        + '" title="' + esc(it.n) + '">' + emoImg(it.k, it.n) + '</button>';
+    }).join('');
+
+    panel.addEventListener('click', function (ev) {
+      var b = ev.target.closest ? ev.target.closest('.emo-item') : null;
+      if (!b) return;
+      ev.preventDefault();
+      var code = ':' + b.getAttribute('data-k') + ':';
+      var s = ta.selectionStart;
+      var e2 = ta.selectionEnd;
+      if (typeof s === 'number' && typeof e2 === 'number') {
+        ta.value = ta.value.slice(0, s) + code + ta.value.slice(e2);
+        ta.selectionStart = ta.selectionEnd = s + code.length;
+      } else {
+        ta.value += code;
+      }
+      ta.focus();
+    });
+
+    toggle.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+    });
+
+    // 点到面板外面就收起来
+    document.addEventListener('click', function (ev) {
+      if (panel.hidden || bar.contains(ev.target)) return;
+      panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    });
+
+    bar.appendChild(toggle);
+    bar.appendChild(panel);
+    ta.parentNode.insertBefore(bar, ta.nextSibling);
+  }
+
   function bindForm(opt) {
     var form = el(opt.formId);
     if (!form) return;
+
+    mountEmoji(form);
 
     var btn = form.querySelector('button[type=submit]');
     var busy = false;

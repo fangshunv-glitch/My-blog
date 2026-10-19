@@ -64,6 +64,18 @@
   function escAttr(s) {
     return esc(s).replace(/"/g, '&quot;');
   }
+
+  // 表情名单由 build.py 从 content.py 注入，这里只建索引。
+  var EMO = {};
+  (function () {
+    var l = window.PIXEL_EMOJI || [];
+    for (var i = 0; i < l.length; i++) EMO[l[i].k] = l[i].n;
+  })();
+
+  function emoTag(key) {
+    return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png"'
+      + ' alt="' + escAttr(EMO[key]) + '" title="' + escAttr(EMO[key]) + '" loading="lazy">';
+  }
   function trunc(s, n) {
     s = String(s == null ? '' : s).trim();
     return s.length <= n ? s : s.slice(0, n) + '…';
@@ -101,6 +113,10 @@
       // 只允许安全的链接形状，别让正文里塞进 javascript:
       var href = /^(https?:\/\/|\/|#|mailto:)/.test(u) ? u : '#';
       return '<a href="' + escAttr(href) + '">' + t + '</a>';
+    });
+    // :smile: → 表情小图。放在最后，因为前面已经把 HTML 转义过了。
+    s = s.replace(/:([a-z][a-z_]{1,15}):/g, function (m, key) {
+      return EMO[key] ? emoTag(key) : m;
     });
     return s;
   }
@@ -165,6 +181,9 @@
     unlisted: '<div class="vis-note"><span class="badge">有链接可见</span>'
       + '<span>这一篇<b>没有公开</b>：不在首页、分类、归档和相册里出现，'
       + '只有拿着链接的人能看到。想让它公开，在后台把可见范围改成「公开」。</span></div>',
+    // 指定人可见：不给提示。这里只会有被授权的人才读得到，
+    // 对他说「这篇只给几个人看」等于废话；站长看后台的徽标就够了。
+    custom: '',
     private: '<div class="vis-note"><span class="badge">仅自己可见</span>'
       + '<span>这一篇<b>只有你自己能看到</b>。访客连数据都查不到，'
       + '换成别的账号登录也读不出来。</span></div>',
@@ -557,7 +576,11 @@
 
     loadPosts().then(function (rows) {
       ALL = rows || [];
-      PUBLIC = ALL.filter(function (p) { return p.visibility === 'public'; });
+      // 「指定人可见」也算进列表：能读到它，就说明 RLS 认了这个人。
+      // 没被授权的人连行都拿不到，所以这里多带上 custom 不会漏。
+      PUBLIC = ALL.filter(function (p) {
+        return p.visibility === 'public' || p.visibility === 'custom';
+      });
 
       viewList();
       viewArchive();
