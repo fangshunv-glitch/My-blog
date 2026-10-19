@@ -1924,3 +1924,170 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
   .adm-person { font-size: 12px; padding: 5px 8px; }
   .adm-person .p-id { display: none; }
 }
+
+/* ============================================================
+   UE 补漏：键盘可达性 / 交互反馈 / 阅读节奏 / 手指热区
+   ============================================================
+   这一块只补「没做对、或者根本没做」的地方，不动视觉语言：
+   不加圆角、不加阴影渐变、不改配色，新增的框线一律用站点已有的
+   橙（--new）和黄（--yellow）——像素风本来就靠硬边框说话。
+
+   触发条件全部用 :focus-visible 而不是 :focus，
+   这样鼠标点击不会冒出多余的框，只有键盘 Tab 才出现。
+   ============================================================ */
+
+/* ---------- 1. 键盘焦点 ----------
+   原来全站只有 ⓘ 圆点有 :focus-visible。键盘用户 Tab 到导航、
+   按钮、输入框时完全看不出光标在哪儿，等于半个站不可达。 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--new);
+  outline-offset: 2px;
+}
+/* 深绿页眉 / 页脚上橙框偏暗，换成站点黄，对比更清楚 */
+.site-head a:focus-visible,
+.site-foot a:focus-visible,
+.welcome-inner a:focus-visible { outline-color: var(--yellow); }
+
+/* ---------- 2. 输入框的焦点 ----------
+   原先为了去掉浏览器默认框写了 outline:none，之后只靠边框
+   从深绿变浅绿（#3B6B1E → #8EC759）——这一步几乎看不出来。
+   现在把边框换成橙的，再补一条 2px 实框，鼠标键盘都能确认。 */
+.form-row input:focus-visible,
+.form-row textarea:focus-visible,
+.search-box input:focus-visible,
+.adm-editor input:focus-visible,
+.adm-editor textarea:focus-visible,
+.adm-reply-box textarea:focus-visible {
+  outline: 2px solid var(--new);
+  outline-offset: 0;
+  border-color: var(--new);
+  background: #FFFDF6;
+}
+::placeholder { color: var(--muted); opacity: 1; }
+
+/* ---------- 3. 按下反馈 ----------
+   .head-login 有 :active（位移 + 阴影收缩），主按钮却只有 :hover。
+   点下去没有任何回应，会让人以为没点上。语言跟页眉按钮保持一致。 */
+.btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, .28), inset -2px -2px 0 rgba(255, 255, 255, .26);
+}
+.btn-mini:active { background: #5A9E2F; border-color: #3E7B14; color: #FFFFFF; }
+.btn-danger:active { background: #C2410C; border-color: #8A2C08; color: #FFFFFF; }
+.pager a:active, .search-box button:active { transform: translate(1px, 1px); background: #5A9E2F; color: #FFFFFF; }
+.enter-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: inset 4px 4px 0 rgba(0, 0, 0, .28), inset -4px -4px 0 rgba(255, 255, 255, .3);
+}
+button { cursor: pointer; }
+button[disabled] { cursor: default; }
+
+/* ---------- 4. 正文里的链接不能只靠颜色 ----------
+   正文色 #2C4218 和链接色 #3E7B14 对比很接近，
+   写在段落里的链接几乎看不出来。导航类链接有位置语境不用管，
+   正文和关于页的行内链接补一条下划线（比字浅，不抢眼）。 */
+.article-body a,
+.about-body a {
+  text-decoration: underline;
+  text-decoration-color: #A8CE86;
+  text-underline-offset: 3px;
+}
+.article-body a:hover,
+.about-body a:hover { text-decoration-color: currentColor; }
+
+/* 当前页：原来只有颜色，加一条下划线做第二重区分 */
+.nav a.active { text-decoration: underline; text-underline-offset: 4px; }
+
+/* ---------- 5. 阅读节奏（只动桌面，手机规则在文件末尾覆盖） ---------- */
+@media (min-width: 641px) {
+  /* 14px 的正文字号在 1000px 宽的老式版面上偏小，跟手机的 16px 差太远 */
+  .article-body { font-size: 15px; }
+  .about-body, .about-grid .about-lede { font-size: 15px; }
+  /* 段间距原来 14px，不到一行高（15×2=30）的一半，段落黏在一起 */
+  .article-body p { margin-bottom: 18px; }
+  .about-body p, .about-body ul { margin-bottom: 14px; }
+}
+.article-body > :last-child,
+.about-body > :last-child { margin-bottom: 0 !important; }
+
+/* ---------- 6. 文章里的代码块 / 表格 ----------
+   正文是 Markdown 渲染的，一旦出现代码块或表格，之前没有任何样式：
+   默认等宽字排版乱、宽的表格直接把页面撑出横向滚动条。
+   配色沿用计数器那套黑底数码绿，不引入新颜色。 */
+.article-body pre {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  background: var(--lcd-bg);
+  color: var(--lcd-fg);
+  border: 2px inset #6E8F4E;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.article-body code {
+  font-family: "Courier New", monospace;
+  font-size: .92em;
+  background: #EAF6DC;
+  border: 1px solid var(--line-soft);
+  padding: 0 4px;
+}
+.article-body pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
+.article-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0 0 18px;
+  font-size: 14px;
+}
+.article-body th, .article-body td {
+  border: 1px solid var(--line-soft);
+  padding: 6px 9px;
+  text-align: left;
+}
+.article-body th { background: var(--panel); color: var(--header); }
+
+/* 图片原来只限了 max-width，没管 height ——
+   带 width/height 属性的图会被压扁。这条优先级最低，
+   后面所有 .xxx img { height: Npx } 的具体规则照旧生效。 */
+img { height: auto; }
+
+/* ---------- 7. 选中文字 ---------- */
+::selection { background: var(--yellow); color: #16300A; }
+
+/* ---------- 8. 锚点跳转 ----------
+   归档按月份分组，从侧边栏点进来是跳到 #2026-10 这种锚点：
+   滚动留一点余量，落点再标一下，不然不知道跳到哪儿了。 */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+.cell[id] { scroll-margin-top: 14px; }
+.cell[id]:target { border-color: var(--new); }
+
+/* ---------- 9. 手指热区（手机） ---------- */
+@media (max-width: 640px) {
+  /* 「阅读全文」「了解更多」这类只有一行小字的热区不到 24px 高 */
+  .more, .me-more a, .me-edit, .crumb a, .post-copy, .auth-alt a, .back-to-blog {
+    display: inline-block;
+    padding: 7px 3px;
+  }
+  .tagcloud a, .chip { padding: 4px 9px; }
+  /* 8px 时实测 38px 高，离 44 还差一点，再抬 2px */
+  .btn-mini { padding: 10px 14px; }
+  /* 关于页正文跟着文章正文一起放到 16px，段间距也跟着放大 */
+  .about-body, .about-grid .about-lede { font-size: 16px; }
+  .about-body p, .about-body ul { margin-bottom: 16px; }
+  /* 侧边栏列表项上下各 4px，手指容易点错行 */
+  .cat-list li, .arch-list li, .link-list li,
+  .activity li, .archive-list li, .stat-row { padding-top: 7px; padding-bottom: 7px; }
+  /* ⓘ 圆点 15px 在手机上太小，按不准 */
+  .info-dot { width: 22px; height: 22px; line-height: 20px; font-size: 13px; }
+  .adm-tools .btn-mini, .adm-reply-actions .btn-mini { padding: 8px 14px; }
+}
