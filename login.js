@@ -90,7 +90,19 @@
     if (err.message && /fetch|network|Failed/i.test(err.message)) {
       return '连不上云端——检查网络后重试。';
     }
-    return '操作没成功：' + (err.message || '未知错误');
+    // 这一条专指旧版 login.js：它给新邮箱发验证码时没带密码，后端当场拒绝。
+    // 浏览器缓存了旧脚本才会出现，刷新一次拿到带版本号的新脚本就好。
+    if (err.message && /signUp with email requires a password/i.test(err.message)) {
+      return '页面还是上一版的脚本，刷新一下再登录（按 Ctrl+F5 更快）。';
+    }
+    var raw = err.message || '';
+    // 纯英文的多半是 SDK / 后端抛的实现细节，不该摊在访客面前。
+    // 原文留在控制台里，排障时还能看见。
+    if (raw && !/[\u4e00-\u9fa5]/.test(raw)) {
+      if (window.console && console.warn) console.warn('[login]', raw);
+      return '操作没成功。刷新一下再试；一直这样的话，去留言板说一声。';
+    }
+    return '操作没成功：' + (raw || '未知错误');
   }
 
   // SDK 的 parseUser() 只把 /me 返回里的 email 透出来，而这个环境的 /me
@@ -341,7 +353,12 @@
       verificationId: pending.verificationId,
       isExistingUser: pending.isExistingUser,
       token: token,
-      password: pending.isExistingUser ? undefined : throwawayPassword()
+      // 无条件带上密码。老账号走的是「验证码换会话」那条分支，后端压根不看
+      // 这个字段；新账号则必须有它——后端明写「没有密码的邮箱账号永远没法
+      // 用密码登录，所以直接拒绝创建」。早先这里写成按 isExistingUser 判断，
+      // 一旦那个标记不准（或前端跑的是旧脚本）就会撞上这句拒绝。
+      // 访客不需要知道这个密码，以后一律用验证码进门。
+      password: throwawayPassword()
     }).then(function (res) {
       if (res.error) throw res.error;
       pending = null;

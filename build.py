@@ -23,6 +23,7 @@ CHAPTERS 驱动，加一章只要往那张表里加一行。文章列表在 blog
 
 用法：  python build.py
 """
+import hashlib
 import html
 import json
 import os
@@ -1808,12 +1809,63 @@ def build_retired():
 
 
 # ---------------------------------------------------------------------------
+# 静态资源版本号
+#
+# 部署是覆盖式的：文件名不变、内容变了，浏览器会继续拿缓存里的旧版。
+# login.js 已经踩过一次 —— 线上明明是「邮箱 + 验证码」那一版，访客跑的
+# 却还是上一版，点登录直接报一句英文的实现细节错误。
+#
+# 给引用加 ?v=<内容哈希前 8 位>：内容一变 URL 就变，缓存自然失效；
+# 内容没变则 URL 不变，缓存照旧命中，不多一次请求。
+_ASSET_V = {}
+
+_ASSET_REF = re.compile(
+    r'((?:href|src)=")((?:\.\./)*(?:style\.css|cloud-config\.js|feed\.js'
+    r'|cloud\.js|admin\.js|login\.js|vendor/workbuddy-cloud\.global\.js))(")')
+
+
+def _asset_version(rel):
+    if rel not in _ASSET_V:
+        try:
+            with open(os.path.join(ROOT, rel), "rb") as f:
+                _ASSET_V[rel] = hashlib.sha256(f.read()).hexdigest()[:8]
+        except OSError:
+            _ASSET_V[rel] = ""
+    return _ASSET_V[rel]
+
+
+def stamp_assets(content):
+    """把页面里对本站静态资源的引用改成带版本号的。"""
+    def sub(m):
+        raw = m.group(2)
+        rel = raw.rsplit("../", 1)[-1]          # 剥掉 ../ 前缀，回到仓库根相对路径
+        v = _asset_version(rel)
+        return m.group(1) + raw + ("?v=" + v if v else "") + m.group(3)
+    return _ASSET_REF.sub(sub, content)
+
+
 def write(rel, content):
     path = os.path.join(ROOT, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    if rel.endswith(".html"):
+        content = stamp_assets(content)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
     print("  生成 %s" % rel)
+
+
+def stamp_manual():
+    """welcome.html 是手工维护的，不经过 write()，单独补一次资源版本号。"""
+    p = os.path.join(ROOT, "welcome.html")
+    if not os.path.isfile(p):
+        return
+    with open(p, encoding="utf-8") as f:
+        src = f.read()
+    out = stamp_assets(src)
+    if out != src:
+        with open(p, "w", encoding="utf-8", newline="\n") as f:
+            f.write(out)
+        print("  更新 welcome.html 的资源版本号")
 
 
 def main():
@@ -1837,6 +1889,7 @@ def main():
     build_admin()
     build_login()
     build_retired()
+    stamp_manual()
     print("完成。")
 
 
