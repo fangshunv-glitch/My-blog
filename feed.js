@@ -486,6 +486,11 @@
   // -------------------------------------------------------------------------
   // 相册
   // -------------------------------------------------------------------------
+  // 列表只取 thumb_data（一张约 27KB），原图（300KB 上下）等真要看了再单独取
+  // 那一张 —— 不然进一次相册就要下几十兆。
+  var ALBUM = [];    // 与网格顺序一致的完整列表，供大图左右切换
+  var LB_I = -1;     // 当前在看第几张
+
   function viewAlbum() {
     var box = el('feed-album');
     if (!box) return;
@@ -504,24 +509,25 @@
       .order('sort', { ascending: true })
       .limit(200))
       .then(function (rows) {
+        ALBUM = rows || [];
         var count = el('feed-photo-count');
-        if (count) count.textContent = '共 ' + rows.length + ' 张';
+        if (count) count.textContent = '共 ' + ALBUM.length + ' 张';
         var fp = el('foot-photos');
-        if (fp) fp.textContent = rows.length;
+        if (fp) fp.textContent = ALBUM.length;
 
-        if (!rows.length) {
+        if (!ALBUM.length) {
           box.innerHTML = emptyTip('相册还是空的。');
           return;
         }
         box.innerHTML = '<div class="cell"><div class="cell-title bar-1">'
           + '<img class="pixel" src="' + BASE + 'assets/t_wall.png" alt="照片墙">'
-          + '<span class="en">' + rows.length + ' PHOTOS</span></div>'
+          + '<span class="en">' + ALBUM.length + ' PHOTOS</span></div>'
           + '<div class="cell-body"><div class="album-grid">'
-          + rows.map(function (ph) {
+          + ALBUM.map(function (ph, i) {
               var d = dayOf(ph.taken_on);
-              return '<button class="photo-card" type="button" data-id="' + escAttr(ph.id) + '">'
+              return '<button class="photo-card" type="button" data-i="' + i + '">'
                 + '<div class="album-ph"><img src="' + escAttr(ph.thumb_data) + '" alt="'
-                + escAttr(ph.caption || '照片') + '"></div>'
+                + escAttr(ph.caption || '照片') + '" loading="lazy"></div>'
                 + '<div class="album-cap">' + esc(ph.caption || '没有说明')
                 + '<span class="d">' + esc(d) + '</span>'
                 + (ph.album ? '<span class="d from">' + esc(ph.album) + '</span>' : '')
@@ -536,48 +542,182 @@
   function onPhotoClick(e) {
     var btn = e.target.closest ? e.target.closest('.photo-card') : null;
     if (!btn) return;
-    openLightbox(btn.getAttribute('data-id'));
+    openLightbox(Number(btn.getAttribute('data-i')));
   }
 
-  function openLightbox(id) {
+  // 大图查看器：左图右信息、左右翻页、底部缩略图条（照 QQ 空间相册那套排的）。
+  // 不用模态库，纯 DOM + 事件；样式全在 style.css 的 .pixel-lightbox 段落。
+  function ensureLightbox() {
     var box = el('pixel-lightbox');
-    if (!box) {
-      box = document.createElement('div');
-      box.className = 'pixel-lightbox';
-      box.id = 'pixel-lightbox';
-      box.innerHTML = '<button class="lb-close" type="button" aria-label="关闭">✕</button>'
-        + '<div class="lb-stage"><div class="lb-tip">正在读取大图…</div></div>';
-      document.body.appendChild(box);
-      box.addEventListener('click', function (ev) {
-        if (ev.target === box || (ev.target.className || '').indexOf('lb-close') >= 0) {
-          box.classList.remove('on');
-          document.body.style.overflow = '';
-        }
-      });
-      document.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape') {
-          box.classList.remove('on');
-          document.body.style.overflow = '';
-        }
-      });
-    }
+    if (box) return box;
+
+    box = document.createElement('div');
+    box.className = 'pixel-lightbox';
+    box.id = 'pixel-lightbox';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', '照片大图');
+    box.innerHTML =
+      '<div class="lb-shell">'
+      + '<div class="lb-bar">'
+      +   '<span class="lb-album"></span>'
+      +   '<span class="lb-count"></span>'
+      +   '<button class="lb-close" type="button" aria-label="关闭">✕</button>'
+      + '</div>'
+      + '<div class="lb-body">'
+      +   '<div class="lb-view">'
+      +     '<button class="lb-nav lb-prev" type="button" aria-label="上一张">‹</button>'
+      +     '<div class="lb-stage"></div>'
+      +     '<button class="lb-nav lb-next" type="button" aria-label="下一张">›</button>'
+      +   '</div>'
+      +   '<aside class="lb-side">'
+      +     '<div class="lb-cap"></div>'
+      +     '<div class="lb-meta"></div>'
+      +     '<div class="lb-from"></div>'
+      +     '<div class="lb-hint">← → 翻页 · Esc 关闭</div>'
+      +     '<div class="lb-strip"></div>'
+      +   '</aside>'
+      + '</div>'
+      + '</div>';
+    document.body.appendChild(box);
+
+    box.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t.closest) return;
+      if (t === box || t.closest('.lb-close')) { closeLightbox(); return; }
+      if (t.closest('.lb-prev')) { showPhoto(LB_I - 1); return; }
+      if (t.closest('.lb-next')) { showPhoto(LB_I + 1); return; }
+      var th = t.closest('.lb-strip button');
+      if (th) showPhoto(Number(th.getAttribute('data-i')));
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      if (!box.classList.contains('on')) return;
+      if (ev.key === 'Escape') { closeLightbox(); }
+      else if (ev.key === 'ArrowLeft') { ev.preventDefault(); showPhoto(LB_I - 1); }
+      else if (ev.key === 'ArrowRight') { ev.preventDefault(); showPhoto(LB_I + 1); }
+    });
+
+    // 手机上左右划
+    var tx = 0, ty = 0;
+    box.addEventListener('touchstart', function (ev) {
+      if (ev.touches.length !== 1) return;
+      tx = ev.touches[0].clientX; ty = ev.touches[0].clientY;
+    }, { passive: true });
+    box.addEventListener('touchend', function (ev) {
+      var t = ev.changedTouches[0];
+      if (!t) return;
+      var dx = t.clientX - tx, dy = t.clientY - ty;
+      if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        showPhoto(LB_I + (dx < 0 ? 1 : -1));
+      }
+    });
+
+    return box;
+  }
+
+  function openLightbox(i) {
+    if (!ALBUM.length) return;
+    var box = ensureLightbox();
     box.classList.add('on');
     document.body.style.overflow = 'hidden';
 
-    var stage = box.querySelector('.lb-stage');
-    stage.innerHTML = '<div class="lb-tip">正在读取大图…</div>';
+    // 缩略图条只在第一次打开时建，之后照片变动由 viewAlbum 重渲染时重置
+    var strip = box.querySelector('.lb-strip');
+    if (strip.getAttribute('data-n') !== String(ALBUM.length)) {
+      strip.setAttribute('data-n', String(ALBUM.length));
+      strip.innerHTML = ALBUM.map(function (p, k) {
+        return '<button type="button" data-i="' + k + '" aria-label="第 ' + (k + 1) + ' 张">'
+          + '<img src="' + escAttr(p.thumb_data) + '" alt="" loading="lazy"></button>';
+      }).join('');
+    }
+    showPhoto(i);
+  }
 
-    run(db().from('photos').select('id,caption,taken_on,image_data').eq('id', Number(id)).limit(1))
+  function closeLightbox() {
+    var box = el('pixel-lightbox');
+    if (!box) return;
+    box.classList.remove('on');
+    document.body.style.overflow = '';
+    LB_I = -1;       // 图留在 DOM 里，下次打开不用重下；但正在加载的那张作废
+  }
+
+  function photoFull(i) {
+    var ph = ALBUM[i];
+    if (!ph) return Promise.resolve('');
+    if (ph.full !== undefined) return Promise.resolve(ph.full);
+    return run(db().from('photos').select('image_data').eq('id', Number(ph.id)).limit(1))
       .then(function (rows) {
-        var ph = rows && rows[0];
-        if (!ph) { stage.innerHTML = '<div class="lb-tip">这张照片读不出来。</div>'; return; }
-        stage.innerHTML = '<img src="' + escAttr(ph.image_data) + '" alt="'
-          + escAttr(ph.caption || '照片') + '">'
-          + '<div class="lb-cap">' + esc(ph.caption || '没有说明')
-          + '<span class="d">' + esc(dayOf(ph.taken_on)) + '</span></div>';
-      }, function (err) {
-        stage.innerHTML = '<div class="lb-tip">' + esc(friendly(err)) + '</div>';
-      });
+        ph.full = (rows && rows[0] && rows[0].image_data) || '';
+        return ph.full;
+      }, function () { return ''; });
+  }
+
+  function showPhoto(i) {
+    if (!ALBUM.length) return;
+    var n = ALBUM.length;
+    i = ((i % n) + n) % n;          // 首尾循环：第一张再往左就是最后一张
+    LB_I = i;
+    var ph = ALBUM[i];
+    var box = el('pixel-lightbox');
+    if (!box) return;
+
+    // 只有一张照片时不摆翻页键和「1 / 1」——点了也是同一张，纯属噪声
+    if (n < 2) box.classList.add('lb-single'); else box.classList.remove('lb-single');
+
+    box.querySelector('.lb-album').textContent = ph.album || '照片';
+    box.querySelector('.lb-count').textContent = (i + 1) + ' / ' + n;
+    box.querySelector('.lb-hint').textContent =
+      n < 2 ? 'Esc 关闭' : '← → 翻页 · Esc 关闭';
+
+    box.querySelector('.lb-cap').textContent = ph.caption || '没有说明';
+    var meta = [];
+    if (ph.taken_on) meta.push(['拍摄', dayOf(ph.taken_on)]);
+    if (ph.width && ph.height) meta.push(['像素', ph.width + ' × ' + ph.height]);
+    if (ph.album) meta.push(['相册', ph.album]);
+    box.querySelector('.lb-meta').innerHTML = meta.map(function (m) {
+      return '<div class="lb-meta-row"><span class="k">' + esc(m[0])
+        + '</span><span class="v">' + esc(m[1]) + '</span></div>';
+    }).join('');
+
+    // 来源文章只认前台已经公开的标题；映射不到就不给链接，免得把未公开的标题带出来
+    var from = box.querySelector('.lb-from');
+    var map = (window.SITE_DATA && window.SITE_DATA.posts) || {};
+    var post = map[ph.post_slug];
+    from.innerHTML = post
+      ? '<a href="' + escAttr(postUrl(ph.post_slug)) + '">出自《' + esc(post.title) + '》→</a>'
+      : '';
+
+    var ths = box.querySelectorAll('.lb-strip button');
+    for (var k = 0; k < ths.length; k++) {
+      if (k === i) ths[k].classList.add('on'); else ths[k].classList.remove('on');
+    }
+    var cur = ths[i];
+    if (cur && cur.scrollIntoView) {
+      cur.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+
+    // 先把缩略图糊上去顶着，原图到了再淡入 —— 不然要空一两秒
+    var stage = box.querySelector('.lb-stage');
+    stage.innerHTML =
+      '<img class="lb-thumb" src="' + escAttr(ph.thumb_data) + '" alt="">'
+      + '<img class="lb-full" alt="' + escAttr(ph.caption || '照片') + '">';
+
+    var full = stage.querySelector('.lb-full');
+    var mine = i;
+    photoFull(i).then(function (src) {
+      if (LB_I !== mine) return;    // 已经翻走了，别把旧图贴上来
+      if (!src) { full.classList.add('fail'); return; }
+      full.onload = function () { full.classList.add('ready'); };
+      full.src = src;
+    });
+
+    // 这张看稳了再把前后两张的原图拉回来，翻页就不用等
+    window.setTimeout(function () {
+      if (LB_I !== mine) return;
+      photoFull((mine + 1) % n);
+      photoFull(((mine - 1 + n) % n));
+    }, 900);
   }
 
   // -------------------------------------------------------------------------
