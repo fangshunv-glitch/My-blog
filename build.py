@@ -115,6 +115,36 @@ def _join(buf):
     return out
 
 
+def _inline_lines(buf):
+    """一个段落里的若干行：行尾写反斜杠就硬换行，否则照旧拼成一句。
+
+    写散文诗那种一行一个意象的东西时，靠空行分段会把间距拉得太开，
+    所以留了这个口子 —— 行尾加一个反斜杠，渲染成 <br>。
+
+    注意 content.py 里要写成两个反斜杠（源码字面转义），
+    因为在 Python 字符串里单个反斜杠加换行会被当成续行吃掉。
+    """
+    parts, cur = [], []
+    for seg in buf:
+        seg = seg.rstrip()
+        hard = seg.endswith("\\")
+        if hard:
+            seg = seg[:-1].rstrip()
+        cur.append(seg)
+        if hard:
+            parts.append(_join(cur))
+            cur = []
+    if cur:
+        parts.append(_join(cur))
+    return "<br>".join(parts)
+
+
+def escape_lines(text):
+    """纯文本多行 → 保留换行的 HTML。先逐行转义再拼 <br>，不给注入留口子。"""
+    rows = text.strip("\n").split("\n")
+    return "<br>".join(html.escape(x) for x in rows)
+
+
 def md(text):
     lines = text.strip("\n").split("\n")
     out, i = [], 0
@@ -146,7 +176,7 @@ def md(text):
                 and not lines[i].startswith(("## ", "> ", "- ")):
             buf.append(lines[i].strip())
             i += 1
-        out.append("<p>%s</p>" % _inline(_join(buf)))
+        out.append("<p>%s</p>" % _inline_lines(buf))
     return "\n".join(out)
 
 
@@ -1097,11 +1127,11 @@ def build_about():
 
       <div class="about-foot-note">{foot}</div>
 
-    </div>""".format(lede=html.escape(ABOUT["lede"]), blocks="\n".join(blocks),
+    </div>""".format(lede=escape_lines(ABOUT["lede"]), blocks="\n".join(blocks),
                      foot=html.escape(ABOUT["foot_note"]))
 
     out = page("关于 · %s" % SITE["name"],
-               "关于站长清羽墨染，以及这个博客的来历。", "about", 0, main, skip_me=True,
+               "关于站长清羽墨染：几座城，一个阳台，一些没说完的话。", "about", 0, main, skip_me=True,
                top=chapter_head("about", 0))
     write("about.html", out)
 

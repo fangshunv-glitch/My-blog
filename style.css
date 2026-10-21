@@ -869,16 +869,18 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
   image-rendering: pixelated;
   background: #DFF5C8;
 }
-.about-grid .about-lede { font-size: 14px; line-height: 2; }
+.about-grid .about-lede { font-size: 14px; line-height: 1.9; }
 .about-h {
   font-size: 15px; color: var(--header);
   margin: 20px 0 8px;
   padding-left: 9px;
   border-left: 4px solid #8EC759;
 }
-.about-body { font-size: 14px; line-height: 2; color: #2C4218; }
-.about-body p { margin: 0 0 12px; }
-.about-body ul { margin: 0 0 12px; padding-left: 20px; }
+/* 关于页现在是散文诗的排法：一行一个意象，靠空行分组。
+   所以**段距必须大于行距**，否则组与组糊成一片（原来行距 28px、段距才 12px）。 */
+.about-body { font-size: 14px; line-height: 1.9; color: #2C4218; }
+.about-body p { margin: 0 0 26px; }
+.about-body ul { margin: 0 0 26px; padding-left: 20px; }
 .about-list { list-style: none; margin: 0; padding: 0; }
 .about-list li {
   display: flex; gap: 10px;
@@ -2139,7 +2141,7 @@ button[disabled] { cursor: default; }
   .about-body, .about-grid .about-lede { font-size: 15px; }
   /* 段间距原来 14px，不到一行高（15×2=30）的一半，段落黏在一起 */
   .article-body p { margin-bottom: 18px; }
-  .about-body p, .about-body ul { margin-bottom: 14px; }
+  .about-body p, .about-body ul { margin-bottom: 24px; }
 }
 .article-body > :last-child,
 .about-body > :last-child { margin-bottom: 0 !important; }
@@ -2212,7 +2214,7 @@ html { scroll-behavior: smooth; }
   .btn-mini { padding: 10px 14px; }
   /* 关于页正文跟着文章正文一起放到 16px，段间距也跟着放大 */
   .about-body, .about-grid .about-lede { font-size: 16px; }
-  .about-body p, .about-body ul { margin-bottom: 16px; }
+  .about-body p, .about-body ul { margin-bottom: 22px; }
   /* 侧边栏列表项上下各 4px，手指容易点错行 */
   .cat-list li, .arch-list li, .link-list li,
   .activity li, .archive-list li, .stat-row { padding-top: 7px; padding-bottom: 7px; }
