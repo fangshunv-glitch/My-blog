@@ -12,7 +12,7 @@
     guestbook.html           留言板
     archive.html             文章归档
     post.html?slug=<slug>    文章详情（内容从云端读，见 feed.js）
-    category/<slug>.html     分类列表
+    category.html?c=<slug>   分类列表（分类由站长在后台维护）
     share.html               分享给朋友
     admin.html / login.html  站长后台 / 访客账号
 
@@ -30,9 +30,10 @@ import os
 import re
 import shutil
 from datetime import date, datetime
+from urllib.parse import quote
 
-from content import (SITE, HOME, CHAPTERS, CATEGORIES, LINKS, POSTS, COMMENTS,
-                     GUESTBOOK, GUESTBOOK_INTRO, ABOUT,
+from content import (SITE, HOME, CHAPTERS, LEGACY_CATEGORY_SLUGS, LINKS, POSTS,
+                     COMMENTS, GUESTBOOK, GUESTBOOK_INTRO, ABOUT,
                      PROJECTS, PROJECTS_LEDE, PROJECTS_INTRO, PROJECTS_NOTE,
                      RETIRED_SLUGS, EMOJI)
 
@@ -42,8 +43,14 @@ PER_PAGE = 5          # 首页每页文章数
 # ---------------------------------------------------------------------------
 # 数据整理
 # ---------------------------------------------------------------------------
-CAT_BY_NAME = {c["name"]: c for c in CATEGORIES}
-CAT_BY_SLUG = {c["slug"]: c for c in CATEGORIES}
+# 分类现在存在云端 categories 表里，站长在后台随时增删改，构建期是看不到的。
+# 这里只留一份「旧分类名 → 旧 slug」的提示表，给静态兜底链接和旧地址跳转页用。
+CAT_SLUG = {name: slug for slug, name in LEGACY_CATEGORY_SLUGS.items()}
+
+
+def cat_href(name, depth=0):
+    """分类页地址。分类页已经变成 category.html?c=<slug> 这一个动态页面。"""
+    return up(depth) + "category.html?c=" + quote(CAT_SLUG.get(name, name))
 
 
 def dkey(p):
@@ -332,13 +339,9 @@ def swap_head_login(out, href, label):
 def sidebar(depth, skip_me=False):
     p = up(depth)
 
-    # 分类
-    cats = "".join(
-        '<li><a href="%s">%s</a><span class="n" data-cat-count="%s">(%d)</span></li>'
-        % (up(depth, "category/%s.html" % c["slug"]), c["name"],
-           html.escape(c["name"]), cat_count(c["name"]))
-        for c in CATEGORIES
-    )
+    # 分类：名单存在云端，站长在后台随时增删改，构建期拿不到。
+    # 这里只留一个空壳，由 feed.js 读出来再填；JS 没跑起来时也不至于是一片空白。
+    cats = '<li class="side-empty">分类正在读…</li>'
 
     # 归档（按年月分组）
     months = {}
@@ -424,7 +427,7 @@ def sidebar(depth, skip_me=False):
           <img class="pixel" src="{p}assets/t_cat.png" alt="文章分类">
           <span class="en">CATEGORY</span>
         </div>
-        <div class="cell-body"><ul class="cat-list">{cats}</ul></div>
+        <div class="cell-body"><ul class="cat-list" id="cat-list">{cats}</ul></div>
       </div>
 
       <div class="cell">
@@ -432,7 +435,7 @@ def sidebar(depth, skip_me=False):
           <img class="pixel" src="{p}assets/t_arch.png" alt="文章归档">
           <span class="en">ARCHIVE</span>
         </div>
-        <div class="cell-body"><ul class="arch-list">{arch}</ul></div>
+        <div class="cell-body"><ul class="arch-list" id="arch-list">{arch}</ul></div>
       </div>
 
       <div class="cell">
@@ -475,7 +478,7 @@ def footer(depth, marquee=True):
       © 2026 {name}<br>
       开站第 <b id="uptime">{days}</b> 天 · 文章 <b id="foot-posts">{n_posts}</b> 篇 · 照片 <b id="foot-photos">{n_photos}</b> 张<br>
       <a href="{p}archive.html">归档</a> · <a href="{p}share.html">分享给朋友</a>
-      · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长入口</a><br>
+      · <a href="{p}login.html">我的账号</a> · <a href="{p}admin.html">站长管理</a><br>
       <span class="foot-url">本站地址：<a href="{url}"><b>{url}</b></a></span><br>
       <span class="px-en">FASTEST VIEWED AT 800x600</span>
       <div class="foot-hearts">
@@ -511,9 +514,6 @@ def site_data(depth, all_posts=False):
         "base": up(depth),
         "siteUrl": SITE["url"],
         "posts": posts,
-        # 分类名 → 分类页 slug。文章在数据库里存的是名字，
-        # 前台要拿它拼出 category/xxx.html 的链接（见 feed.js）。
-        "cats": {c["name"]: c["slug"] for c in CATEGORIES},
     }
     return '<script>window.SITE_DATA = %s;</script>' % json.dumps(data, ensure_ascii=False)
 
@@ -659,7 +659,10 @@ def bare_page(title, desc, active, depth, main, body_class="blog", tags="",
 
 
 def cat_of(post):
-    return CAT_BY_NAME[post["category"]]
+    """静态文章的分类链接。POSTS 现在是空的（文章全在云端写），
+    这条线只在有人重新往 content.py 里写文章时才会走。"""
+    return {"slug": CAT_SLUG.get(post["category"], post["category"]),
+            "name": post["category"]}
 
 
 # ---------------------------------------------------------------------------
@@ -673,7 +676,7 @@ def post_card(post, depth, show_cat=True, show_excerpt=True):
     meta = ['<span class="m-date">%s</span>' % post["date"]]
     if show_cat:
         meta.append('<span class="m-cat">分类：<a href="%s">%s</a></span>'
-                    % (p + "category/%s.html" % cat_of(post)["slug"], post["category"]))
+                    % (p + "category.html?c=" + quote(cat_of(post)["slug"]), post["category"]))
     meta.append('<span>评论 %d</span>' % len(COMMENTS.get(post["slug"], [])))
     if is_updated(post):
         meta.append('<span class="m-upd">已更新</span>')
@@ -773,7 +776,7 @@ def build_blog():
             </h3>
             <div class="post-meta">
               <span class="m-date">{date}</span>
-              <span class="m-cat">分类：<a href="category/{cslug}.html">{cat}</a></span>
+              <span class="m-cat">分类：<a href="category.html?c={cslug}">{cat}</a></span>
               <span>评论 {ncmt}</span>
             </div>
             <p class="post-excerpt">{excerpt}</p>
@@ -783,7 +786,7 @@ def build_blog():
         </div>
       </article>""".format(
             url=p_url, title=html.escape(post["title"]), date=post["date"],
-            cslug=cat_of(post)["slug"], cat=post["category"],
+            cslug=quote(cat_of(post)["slug"]), cat=post["category"],
             ncmt=len(COMMENTS.get(post["slug"], [])), excerpt=html.escape(post["excerpt"]))
 
     cards = "".join(post_card(p, depth) for p in NORMAL)
@@ -792,7 +795,7 @@ def build_blog():
     feed_inner = feat_html + cards
     if not feed_inner:
         feed_inner = ('<div class="empty-tip">这里还没有文章。'
-                      '站长登录后在「站长管理 → 文章」里写第一篇，它就会出现在这儿。</div>')
+                      '第一篇正在路上，过阵子再来看看。</div>')
 
     main = """
     <div class="main">
@@ -979,30 +982,57 @@ def build_post():
 # 分类页
 # ---------------------------------------------------------------------------
 def build_categories():
-    for cat in CATEGORIES:
-        items = [p for p in LISTED if p["category"] == cat["name"]]
-        cards = "".join(post_card(p, 1, show_cat=False) for p in items)
-        if not cards:
-            cards = '<div class="empty-tip">这个分类下还没有文章。</div>'
-        cards = ('<div id="feed-posts" data-view="category" data-cat="%s">%s</div>'
-                 % (html.escape(cat["name"]), cards))
-        main = """
+    """分类页 —— 全站只有这一个，地址是 category.html?c=<slug>。
+
+    分类名单存在云端 categories 表里，站长在后台自己增删改，构建期根本看不到，
+    所以这里只生成骨架，由 feed.js 按 ?c= 读出分类、再筛出它下面的文章。
+    这样加一个分类不用重新构建、也不用重新发布。
+
+    另外给早期那批 category/daily.html 之类的地址补一个跳转页，
+    免得旧链接、别人存的书签变成 404。
+    """
+    main = """
     <div class="main">
 
-      {crumb}
+      <div class="crumb" id="cat-crumb">
+        <a href="index.html">封面</a><span class="sep">›</span>
+        <a href="blog.html">叁 博客</a><span class="sep">›</span>
+        <span id="cat-crumb-now">分类</span>
+      </div>
 
       <div class="section-head">
-        <h2>分类：{name}</h2>
+        <h2 id="cat-title">正在读这个分类…</h2>
         <span class="en">CATEGORY</span>
-        <span class="count" id="feed-count">共 {n} 篇</span>
+        <span class="count" id="feed-count"></span>
       </div>
-      <div class="sort-note">{desc} · 按发布时间倒序</div>
-{cards}
-    </div>""".format(name=cat["name"], n=len(items), desc=html.escape(cat["desc"]),
-                     cards=cards, crumb=chapter_crumb("blog", "分类：" + cat["name"], 1))
-        out = page("分类：%s · %s" % (cat["name"], SITE["name"]),
-                   cat["desc"], "blog", 1, main)
-        write("category/%s.html" % cat["slug"], out)
+      <div class="sort-note" id="cat-desc">分类和说明都是站长在后台自己写的。</div>
+
+      <div id="feed-posts" data-view="category">
+        <div class="empty-tip">文章正在从云端读出来…</div>
+      </div>
+    </div>"""
+
+    out = page("分类 · %s" % SITE["name"], "像素日常的文章分类。", "blog", 0, main)
+    write("category.html", out)
+
+    for slug, name in LEGACY_CATEGORY_SLUGS.items():
+        to = "../category.html?c=" + quote(slug)
+        stub = (
+            '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n'
+            '<title>分类：%s · %s</title>\n'
+            '<link rel="canonical" href="%s">\n'
+            '<meta http-equiv="refresh" content="0; url=%s">\n'
+            '<meta name="robots" content="noindex">\n'
+            '<style>body{font-family:"Microsoft YaHei",sans-serif;background:#F5F2E8;'
+            'color:#3A3A3A;text-align:center;padding:80px 20px}a{color:#3E7B14}</style>\n'
+            '</head>\n<body>\n<p>分类页换了地址，正在带你去 '
+            '<a href="%s">分类：%s</a>…</p>\n'
+            '<script>location.replace("%s");</script>\n'
+            '</body>\n</html>\n'
+            % (html.escape(name), html.escape(SITE["name"]), to, to, to,
+               html.escape(name), to)
+        )
+        write("category/%s.html" % slug, stub)
 
 
 # ---------------------------------------------------------------------------
@@ -1018,9 +1048,9 @@ def build_archive():
         rows = "".join(
             '<li><span class="a-date">%s</span>'
             '<a class="a-title" href="post.html?slug=%s">%s</a>'
-            '<span class="a-cat"><a href="category/%s.html">%s</a></span></li>'
+            '<span class="a-cat"><a href="category.html?c=%s">%s</a></span></li>'
             % (p["date"][5:], p["slug"], html.escape(p["title"]),
-               cat_of(p)["slug"], p["category"])
+               quote(cat_of(p)["slug"]), p["category"])
             for p in sorted(items, key=dkey, reverse=True))
         blocks.append("""
       <div class="cell" id="%s">
@@ -1238,9 +1268,8 @@ PHOTO_VIS_OPTIONS = [o for o in VIS_OPTIONS if o[0] != "custom"]
 # 站长管理后台（访客免登录；这里只给站长一个人用）
 # ---------------------------------------------------------------------------
 def build_admin():
-    cat_opts = "".join(
-        '<option value="%s">%s</option>' % (html.escape(c["name"]), html.escape(c["name"]))
-        for c in CATEGORIES)
+    # 分类名单在云端，这里先给个占位，admin.js 开机会把它填满。
+    cat_opts = '<option value="">正在读分类…</option>'
     vis_opts = "".join(
         '<option value="%s"%s>%s</option>'
         % (v, ' selected' if v == VIS_DEFAULT else "", label)
@@ -1358,22 +1387,16 @@ def build_admin():
         <button class="btn-mini" id="logout-btn" type="button">退出登录</button>
       </div>
 
-      <!-- 还没认领成站长 -->
-      <div class="cell" id="claim-card" hidden>
+      <!-- 不是站长：这里什么都不给，只留一句看得懂的话 -->
+      <div class="cell" id="not-admin-card" hidden>
         <div class="cell-title bar-1">
-          <img class="pixel" src="assets/t_claim.png" alt="认领站长">
-          <span class="en">CLAIM OWNER</span>
+          <img class="pixel" src="assets/t_claim.png" alt="没有权限">
+          <span class="en">NO ACCESS</span>
         </div>
         <div class="cell-body">
-          <p class="adm-p">这个账号还不是本站的站长，所以看不到后台内容。</p>
-          <p class="adm-p">如果这个博客就是你自己的，点下面这个按钮把当前账号认领为站长——
-            只有<b>第一个</b>认领的账号会成为站长，之后别人再点也不会生效。</p>
-          <button class="btn" id="claim-btn" type="button">认领成为站长</button>
-          <div class="form-msg" id="claim-msg" role="status"></div>
-          <div class="form-note">
-            认领是数据库自己判定的，不需要你手动填任何东西。
-            假如提示「云端没认出你的登录状态」，退出后用「邮箱 + 密码」重新登录一次再来。
-          </div>
+          <p class="adm-p">这个账号不是本站的站长，所以看不到后台内容。</p>
+          <p class="adm-p">想看内容的话回<a href="index.html">封面</a>，
+            有话想说就去<a href="guestbook.html">留言板</a>。</p>
         </div>
       </div>
 
@@ -1389,6 +1412,7 @@ def build_admin():
               <a href="#" data-panel="guestbook" class="active">留言板</a>
               <a href="#" data-panel="comments">文章评论</a>
               <a href="#" data-panel="posts">文章</a>
+              <a href="#" data-panel="cats">分类</a>
               <a href="#" data-panel="photos">相册</a>
               <a href="#" data-panel="private">私密内容</a>
               <button type="button" class="info-dot" data-info="「隐藏」之后访客看不到，但内容还在，随时能恢复；「删除」是真的删掉，找不回来。">i</button>
@@ -1492,7 +1516,8 @@ def build_admin():
                 <div class="form-row-2">
                   <div class="form-row"><label for="ph-album">相册名</label>
                     <input id="ph-album" type="text" maxlength="40" placeholder="比如：秋天的公园">
-                    <div class="form-note">留空也行，照片会直接进总相册。</div></div>
+                    <div class="form-note" id="ph-album-note">留空就归到「散片」。
+                      挂了文章的照片一律进「博客相册」，不跟别的照片混。</div></div>
                   <div class="form-row"><label for="ph-date">拍摄日期</label>
                     <input id="ph-date" type="date"></div>
                 </div>
@@ -1516,6 +1541,36 @@ def build_admin():
             </div>
           </div>
           <div id="ph-list"></div>
+        </div>
+
+        <!-- ============ 分类：站长自己维护 ============
+             卡在云端 categories 表里，前台分类页 category.html?c=<slug> 现读现筛，
+             所以加一个分类不用重新构建页面，也不用重新发布。 -->
+        <div id="cats-pane" hidden>
+          <div class="cell">
+            <div class="cell-title bar-5">
+              <img class="pixel" src="assets/t_cat.png" alt="分类">
+              <span class="en">CATEGORIES</span>
+            </div>
+            <div class="cell-body">
+              <p class="adm-p">分类归你自己管：加一个、改个名、不要了删掉，
+                前台立刻跟着变。改名字的时候，已经挂在这个分类下的文章会一起跟着搬过去。</p>
+              <div class="adm-editor">
+                <div class="form-row-2">
+                  <div class="form-row"><label for="ct-name">分类名 <em>必填</em></label>
+                    <input id="ct-name" type="text" maxlength="12" placeholder="比如：读书"></div>
+                  <div class="form-row"><label for="ct-desc">一句话说明</label>
+                    <input id="ct-desc" type="text" maxlength="40" placeholder="这个分类装什么"></div>
+                </div>
+                <div class="adm-form-actions">
+                  <button class="btn" id="ct-save" type="button">添加分类</button>
+                  <button class="btn-mini" id="ct-cancel" type="button" hidden>取消改名</button>
+                  <span class="form-msg" id="ct-msg" role="status"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="ct-list"></div>
         </div>
 
         <!-- 私密内容：存在云端数据库，数据库层面只放行站长一个人，

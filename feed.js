@@ -25,7 +25,16 @@
   var D = window.SITE_DATA || {};
   var BASE = D.base || '';
   var AUTHOR = D.author || '站长';
-  var CATS = D.cats || {};          // 分类名 → slug（build.py 注入）
+
+  // 分类名单存在云端 categories 表里，站长在后台自己增删改 ——
+  // 所以 CATS（名字 → slug）是页面打开后从云端读回来的，不再由 build.py 注入。
+  var CATS = {};
+  var CAT_ROWS = [];
+
+  // 博客相册：发帖时顺带传的照片统一收进这个名字的相册，
+  // 不跟站长在相册页另外建的相册（比如「披萨猫专属」）混在一起。
+  var BLOG_ALBUM = '博客';
+  var LOOSE_ALBUM = '散片';
 
   var _sdk = null;
   function sdk() {
@@ -80,10 +89,15 @@
     s = String(s == null ? '' : s).trim();
     return s.length <= n ? s : s.slice(0, n) + '…';
   }
+  function catUrl(slug) {
+    return BASE + 'category.html?c=' + encodeURIComponent(slug);
+  }
   function catLink(name) {
+    if (!name) return '';
     var slug = CATS[name];
+    // 分类被改名或删掉之后，老文章身上的旧分类名就没 slug 了 —— 那就别给假链接
     if (!slug) return esc(name);
-    return '<a href="' + BASE + 'category/' + escAttr(slug) + '.html">' + esc(name) + '</a>';
+    return '<a href="' + escAttr(catUrl(slug)) + '">' + esc(name) + '</a>';
   }
   function postUrl(slug) {
     return BASE + 'post.html?slug=' + encodeURIComponent(slug);
@@ -98,6 +112,14 @@
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  // 站长在后台登录成功过，admin.js 会留一个记号。前台只拿它决定
+  // 「要不要显示编辑入口」—— 真正的门在 admin.html 和数据库策略上，
+  // 改这个记号最多让人看到一个点进去会被拦住的按钮。
+  function isAdminHint() {
+    try { return localStorage.getItem('pixel_is_admin') === '1'; }
+    catch (e) { return false; }
+  }
 
   // -------------------------------------------------------------------------
   // 极简 Markdown → HTML（与 build.py 的 md() 对齐，所见即所得）
@@ -245,9 +267,15 @@
     if (!box) return;
     var mode = box.getAttribute('data-view') || 'all';
     var cat = box.getAttribute('data-cat') || '';
-    var list = cat ? PUBLIC.filter(function (p) { return p.category === cat; }) : PUBLIC;
-
     var count = el('feed-count');
+
+    // 分类不存在：prepareCategoryPage 已经把话说清楚了，这里别再盖一层空提示
+    if (mode === 'missing') {
+      if (count) count.textContent = '';
+      return;
+    }
+
+    var list = cat ? PUBLIC.filter(function (p) { return p.category === cat; }) : PUBLIC;
     if (count) count.textContent = '共 ' + list.length + ' 篇';
 
     if (!list.length) {
@@ -290,20 +318,103 @@
   }
 
   function viewCounts() {
-    var byCat = {}, byMonth = {};
+    var byMonth = {};
     PUBLIC.forEach(function (p) {
-      byCat[p.category] = (byCat[p.category] || 0) + 1;
       var ym = dayOf(p.published_on).slice(0, 7);
       byMonth[ym] = (byMonth[ym] || 0) + 1;
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-cat-count]'), function (n) {
-      n.textContent = '(' + (byCat[n.getAttribute('data-cat-count')] || 0) + ')';
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-arch-count]'), function (n) {
       n.textContent = '(' + (byMonth[n.getAttribute('data-arch-count')] || 0) + ')';
     });
     var fp = el('foot-posts');
     if (fp) fp.textContent = PUBLIC.length;
+  }
+
+  // -------------------------------------------------------------------------
+  // 分类：名单在云端，侧边栏由这里填
+  // -------------------------------------------------------------------------
+  function loadCats() {
+    // 读不到就当没有分类：文章照样能看，只是侧边栏那块空着，不阻塞别的。
+    return run(db().from('categories').select('id,slug,name,descr,sort')
+      .order('sort', { ascending: true })
+      .order('id', { ascending: true })
+    ).then(function (rows) {
+      CAT_ROWS = rows || [];
+      CATS = {};
+      CAT_ROWS.forEach(function (c) { CATS[c.name] = c.slug; });
+    }, function () {
+      CAT_ROWS = [];
+      CATS = {};
+    });
+  }
+
+  function paintCatList() {
+    var box = el('cat-list');
+    if (!box) return;
+    if (!CAT_ROWS.length) {
+      box.innerHTML = '<li class="side-empty">还没有分类。站长在后台「分类」里加一个就会出现。</li>';
+      return;
+    }
+    box.innerHTML = CAT_ROWS.map(function (c) {
+      var n = 0;
+      for (var i = 0; i < PUBLIC.length; i++) {
+        if (PUBLIC[i].category === c.name) n++;
+      }
+      return '<li><a href="' + escAttr(catUrl(c.slug)) + '">' + esc(c.name)
+        + '</a><span class="n">(' + n + ')</span></li>';
+    }).join('');
+  }
+
+  // 侧边栏的归档也交给云端数据来填：文章都在后台写，
+  // 静态那一份（来自 content.py）是空的，不填就永远显示「还没有归档」。
+  function paintArchList() {
+    var box = el('arch-list');
+    if (!box) return;
+    var byMonth = {};
+    PUBLIC.forEach(function (p) {
+      var ym = dayOf(p.published_on).slice(0, 7);
+      if (ym) byMonth[ym] = (byMonth[ym] || 0) + 1;
+    });
+    var keys = Object.keys(byMonth).sort().reverse();
+    if (!keys.length) {
+      box.innerHTML = '<li class="side-empty">文章按月分组之后，这里会长出归档。</li>';
+      return;
+    }
+    box.innerHTML = keys.map(function (ym) {
+      return '<li><a href="' + escAttr(BASE + 'archive.html#' + ym) + '">'
+        + ym.slice(0, 4) + ' 年 ' + Number(ym.slice(5, 7)) + ' 月</a>'
+        + '<span class="n">(' + byMonth[ym] + ')</span></li>';
+    }).join('');
+  }
+
+  // 分类页（category.html?c=<slug>）：标题、说明、面包屑都按 ?c= 现填。
+  // 分类不存在（被改名或删了）就明确说一句，别让人对着空白猜。
+  function prepareCategoryPage() {
+    var box = el('feed-posts');
+    if (!box || box.getAttribute('data-view') !== 'category') return;
+
+    var m = /[?&]c=([^&]*)/.exec(location.search);
+    var slug = m ? decodeURIComponent(m[1]) : '';
+    var found = null;
+    for (var i = 0; i < CAT_ROWS.length; i++) {
+      if (CAT_ROWS[i].slug === slug) { found = CAT_ROWS[i]; break; }
+    }
+
+    var t = el('cat-title'), d = el('cat-desc'), crumb = el('cat-crumb-now');
+    if (!found) {
+      box.setAttribute('data-view', 'missing');
+      box.innerHTML = '';
+      if (t) t.textContent = slug ? '找不到这个分类' : '没说要看哪个分类';
+      if (d) d.innerHTML = '它可能被改过名字，或者已经删掉了 —— 去'
+        + ' <a href="' + escAttr(BASE + 'blog.html') + '">博客列表</a> 看全部文章。';
+      return;
+    }
+
+    if (t) t.textContent = '分类：' + found.name;
+    if (d) d.textContent = (found.descr || '这个分类下的全部文章') + ' · 按发布时间倒序';
+    if (crumb) crumb.textContent = found.name;
+    document.title = found.name + ' · ' + (D.siteName || '博客');
+    box.setAttribute('data-cat', found.name);
   }
 
   // -------------------------------------------------------------------------
@@ -382,7 +493,13 @@
           return '<span class="chip">' + esc(t.trim()) + '</span>';
         }).join('')
       : '')
-      + '<button class="btn-mini post-copy" type="button">复制本文链接</button>';
+      + '<button class="btn-mini post-copy" type="button">复制本文链接</button>'
+      // 站长在后台登录过：文章页直接给一个「编辑本篇」的入口，
+      // 点了进后台并自动把这一篇调出来，省得再从列表里翻。
+      + (isAdminHint()
+        ? '<a class="btn-mini post-edit" href="'
+          + escAttr(BASE + 'admin.html?edit=' + encodeURIComponent(p.slug)) + '">编辑本篇</a>'
+        : '');
 
     var copyBtn = el('post-tags').querySelector('.post-copy');
     if (copyBtn) {
@@ -488,8 +605,44 @@
   // -------------------------------------------------------------------------
   // 列表只取 thumb_data（一张约 27KB），原图（300KB 上下）等真要看了再单独取
   // 那一张 —— 不然进一次相册就要下几十兆。
-  var ALBUM = [];    // 与网格顺序一致的完整列表，供大图左右切换
-  var LB_I = -1;     // 当前在看第几张
+  //
+  // 照片是分相册的：发帖时顺带传的照片统一进「博客」相册，不跟别的照片混。
+  // 页面上按相册分栏看，大图左右翻也只在当前这个相册里翻。
+  var ALBUM_ALL = [];   // 从云端取回的全部照片
+  var ALBUM = [];       // 当前相册里的照片（与网格顺序一致，供大图左右切换）
+  var ALBUM_KEY = '';   // 当前看的是哪个相册；空字符串 = 全部
+  var LB_I = -1;        // 当前在看第几张
+
+  // 一张照片算在哪个相册：
+  //   挂在某篇文章下 → 「博客」（发帖时带的照片都归这儿）
+  //   自己填了相册名 → 就用那个名字
+  //   什么都没填     → 「散片」
+  function albumOf(ph) {
+    if (ph.post_slug) return BLOG_ALBUM;
+    return ph.album || LOOSE_ALBUM;
+  }
+
+  function albumMeta() {
+    var count = {}, names = [];
+    ALBUM_ALL.forEach(function (ph) {
+      var a = albumOf(ph);
+      if (!count[a]) { count[a] = 0; names.push(a); }
+      count[a]++;
+    });
+    // 「博客」永远排第一，其余按张数从多到少
+    names.sort(function (a, b) {
+      if (a === BLOG_ALBUM) return -1;
+      if (b === BLOG_ALBUM) return 1;
+      return count[b] - count[a];
+    });
+    return { names: names, count: count };
+  }
+
+  function albumTab(key, label, n) {
+    return '<button type="button" class="album-tab' + (key === ALBUM_KEY ? ' on' : '')
+      + '" data-album="' + escAttr(key) + '">' + esc(label)
+      + '<span class="n">' + n + '</span></button>';
+  }
 
   function viewAlbum() {
     var box = el('feed-album');
@@ -500,6 +653,7 @@
     if (!box.getAttribute('data-lb-bound')) {
       box.setAttribute('data-lb-bound', '1');
       box.addEventListener('click', onPhotoClick);
+      box.addEventListener('click', onAlbumTab);
     }
 
     run(db().from('photos')
@@ -509,34 +663,76 @@
       .order('sort', { ascending: true })
       .limit(200))
       .then(function (rows) {
-        ALBUM = rows || [];
-        var count = el('feed-photo-count');
-        if (count) count.textContent = '共 ' + ALBUM.length + ' 张';
+        ALBUM_ALL = rows || [];
         var fp = el('foot-photos');
-        if (fp) fp.textContent = ALBUM.length;
+        if (fp) fp.textContent = ALBUM_ALL.length;
 
-        if (!ALBUM.length) {
+        if (!ALBUM_ALL.length) {
+          var c0 = el('feed-photo-count');
+          if (c0) c0.textContent = '';
           box.innerHTML = emptyTip('相册还是空的。');
           return;
         }
-        box.innerHTML = '<div class="cell"><div class="cell-title bar-1">'
-          + '<img class="pixel" src="' + BASE + 'assets/t_wall.png" alt="照片墙">'
-          + '<span class="en">' + ALBUM.length + ' PHOTOS</span></div>'
-          + '<div class="cell-body"><div class="album-grid">'
-          + ALBUM.map(function (ph, i) {
-              var d = dayOf(ph.taken_on);
-              return '<button class="photo-card" type="button" data-i="' + i + '">'
-                + '<div class="album-ph"><img src="' + escAttr(ph.thumb_data) + '" alt="'
-                + escAttr(ph.caption || '照片') + '" loading="lazy"></div>'
-                + '<div class="album-cap">' + esc(ph.caption || '没有说明')
-                + '<span class="d">' + esc(d) + '</span>'
-                + (ph.album ? '<span class="d from">' + esc(ph.album) + '</span>' : '')
-                + '</div></button>';
-            }).join('')
-          + '</div></div></div>';
+        // 正在看的相册要是照片被删空了，退回「全部」
+        if (ALBUM_KEY && albumMeta().names.indexOf(ALBUM_KEY) < 0) ALBUM_KEY = '';
+        renderAlbum();
       }, function (err) {
         box.innerHTML = '<div class="empty-tip">相册没能读出来：' + esc(friendly(err)) + '</div>';
       });
+  }
+
+  function onAlbumTab(e) {
+    var btn = e.target.closest ? e.target.closest('.album-tab') : null;
+    if (!btn) return;
+    ALBUM_KEY = btn.getAttribute('data-album') || '';
+    renderAlbum();
+  }
+
+  function renderAlbum() {
+    var box = el('feed-album');
+    if (!box) return;
+
+    var meta = albumMeta();
+    ALBUM = ALBUM_KEY
+      ? ALBUM_ALL.filter(function (ph) { return albumOf(ph) === ALBUM_KEY; })
+      : ALBUM_ALL.slice();
+    LB_I = -1;
+
+    var count = el('feed-photo-count');
+    if (count) count.textContent = ALBUM_KEY
+      ? (ALBUM_KEY + ' · ' + ALBUM.length + ' 张')
+      : ('共 ' + ALBUM.length + ' 张');
+
+    // 只有一个相册时，那排切换键没有意义，不占地方
+    var tabs = meta.names.length > 1
+      ? '<div class="album-tabs">'
+        + albumTab('', '全部', ALBUM_ALL.length)
+        + meta.names.map(function (n) { return albumTab(n, n === BLOG_ALBUM ? '博客相册' : n, meta.count[n]); }).join('')
+        + (isAdminHint()
+          ? '<a class="album-manage" href="' + escAttr(BASE + 'admin.html?pane=photos') + '">管理照片</a>'
+          : '')
+        + '</div>'
+      : (isAdminHint()
+        ? '<div class="album-tabs"><span class="album-tabs-hint">' + esc(meta.names[0] || '') + '</span>'
+          + '<a class="album-manage" href="' + escAttr(BASE + 'admin.html?pane=photos') + '">管理照片</a></div>'
+        : '');
+
+    box.innerHTML = '<div class="cell"><div class="cell-title bar-1">'
+      + '<img class="pixel" src="' + BASE + 'assets/t_wall.png" alt="照片墙">'
+      + '<span class="en">' + ALBUM.length + ' PHOTOS</span></div>'
+      + '<div class="cell-body">' + tabs + '<div class="album-grid">'
+      + ALBUM.map(function (ph, i) {
+          var d = dayOf(ph.taken_on);
+          var a = albumOf(ph);
+          return '<button class="photo-card" type="button" data-i="' + i + '">'
+            + '<div class="album-ph"><img src="' + escAttr(ph.thumb_data) + '" alt="'
+            + escAttr(ph.caption || '照片') + '" loading="lazy"></div>'
+            + '<div class="album-cap">' + esc(ph.caption || '没有说明')
+            + '<span class="d">' + esc(d) + '</span>'
+            + '<span class="d from">' + esc(a) + '</span>'
+            + '</div></button>';
+        }).join('')
+      + '</div></div></div>';
   }
 
   function onPhotoClick(e) {
@@ -665,7 +861,7 @@
     // 只有一张照片时不摆翻页键和「1 / 1」——点了也是同一张，纯属噪声
     if (n < 2) box.classList.add('lb-single'); else box.classList.remove('lb-single');
 
-    box.querySelector('.lb-album').textContent = ph.album || '照片';
+    box.querySelector('.lb-album').textContent = albumOf(ph);
     box.querySelector('.lb-count').textContent = (i + 1) + ' / ' + n;
     box.querySelector('.lb-hint').textContent =
       n < 2 ? 'Esc 关闭' : '← → 翻页 · Esc 关闭';
@@ -674,7 +870,7 @@
     var meta = [];
     if (ph.taken_on) meta.push(['拍摄', dayOf(ph.taken_on)]);
     if (ph.width && ph.height) meta.push(['像素', ph.width + ' × ' + ph.height]);
-    if (ph.album) meta.push(['相册', ph.album]);
+    meta.push(['相册', albumOf(ph)]);
     box.querySelector('.lb-meta').innerHTML = meta.map(function (m) {
       return '<div class="lb-meta-row"><span class="k">' + esc(m[0])
         + '</span><span class="v">' + esc(m[1]) + '</span></div>';
@@ -725,7 +921,7 @@
   // -------------------------------------------------------------------------
   function needsContent() {
     return !!(el('feed-posts') || el('feed-archive') || el('feed-album') || el('post-article')
-      || document.querySelector('[data-cat-count]'));
+      || el('cat-list') || el('arch-list') || el('cat-title'));
   }
 
   function loadPosts() {
@@ -749,7 +945,11 @@
   function boot() {
     if (!needsContent()) return;
 
-    loadPosts().then(function (rows) {
+    // 先读分类再读文章：文章卡片上的分类链接、侧边栏那份名单都靠它。
+    // loadCats() 自己吞掉错误，读不到不影响下面继续拉文章。
+    loadCats().then(function () {
+      return loadPosts();
+    }).then(function (rows) {
       ALL = rows || [];
       // 「指定人可见」也算进列表：能读到它，就说明 RLS 认了这个人。
       // 没被授权的人连行都拿不到，所以这里多带上 custom 不会漏。
@@ -757,9 +957,12 @@
         return p.visibility === 'public' || p.visibility === 'custom';
       });
 
+      prepareCategoryPage();
       viewList();
       viewArchive();
       viewCounts();
+      paintCatList();
+      paintArchList();
       broadcast();
       viewPost();
     }, function (err) {
@@ -773,6 +976,9 @@
       if (el('post-article')) {
         stateBox('文章没能读出来：' + friendly(err), '回博客列表', BASE + 'blog.html');
       }
+      prepareCategoryPage();
+      paintCatList();
+      paintArchList();
       broadcast();
     });
 

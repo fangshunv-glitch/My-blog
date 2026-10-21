@@ -231,18 +231,36 @@
         '云端账号编号（UID）：' + (ME.uid || '没取到')
         + '。这串数字平时用不上，只有在出了问题、要对账号的时候才需要。');
     }
-    show(el('claim-card'), !ME.isAdmin);
     show(el('admin-panel'), ME.isAdmin);
-    if (ME.isAdmin) switchPanel(currentKind || 'guestbook');
+    show(el('not-admin-card'), !ME.isAdmin);
+    if (!ME.isAdmin) return;
+
+    loadCats();     // 文章表单里的分类下拉靠它，先读着
+
+    var wantEdit = queryParam('edit');
+    var wantPane = queryParam('pane');
+    if (wantEdit) {
+      switchPanel('posts');
+      openPostBySlug(wantEdit);
+    } else {
+      switchPanel(wantPane || currentKind || 'guestbook');
+    }
   }
 
   // 判断「我是不是站长」：site_admins 的行级策略只放行自己那一行，
   // 所以能查到行 == 我是管理员。不用前端比对任何 uid。
+  // 前台（post.html / album.html）靠这个记号决定要不要露出「编辑本篇」这类入口。
+  // 它只是个显示开关：真正的门在数据库策略上，改了它顶多看到一个点进去被拦的按钮。
+  function rememberAdmin() {
+    try { localStorage.setItem('pixel_is_admin', ME.isAdmin ? '1' : '0'); } catch (e) {}
+  }
+
   function loadIdentity(user) {
     ME.uid = pickUid(user);
     ME.email = pickEmail(user);
     return run(db().from('site_admins').select('uid, email')).then(function (rows) {
       ME.isAdmin = !!(rows && rows.length);
+      rememberAdmin();
       // 最后一道兜底：站长那一行里本来就存着邮箱，SDK 不给就自己填上。
       // 策略只放行自己那一行，所以读到的必然是自己的。
       if (ME.isAdmin) {
@@ -252,6 +270,7 @@
       return ME.isAdmin;
     }, function () {
       ME.isAdmin = false;
+      rememberAdmin();
       return false;
     });
   }
@@ -590,54 +609,6 @@
     });
   }
 
-  // --- 认领站长 ---
-  //
-  // 认领走数据库函数 pixel_claim_admin()，不再从前端拼一条 insert。
-  //
-  // 原因：直接插入的话，uid 必须正好等于服务端认定的 auth.uid()，而行级策略
-  // 就是拿它比对的。前端只能从 SDK 返回的 user 对象或 JWT 里「猜」这个 uid，
-  // 猜错就被策略静默挡掉——用户看到的就是「点了认领没反应」。
-  // 这个环境里 SDK 返回的用户对象恰好就没有可用的 id，所以必然会错。
-  // 交给函数之后，uid 由数据库自己用 auth.uid() 填，前端根本不需要知道它是什么。
-  function bindClaim() {
-    var btn = el('claim-btn');
-    if (!btn) return;
-    var box = el('claim-msg');
-    btn.addEventListener('click', guard('claim-msg', function () {
-      btn.disabled = true;
-      msg(box, '正在认领…', false);
-      run(db().rpc('pixel_claim_admin', { p_email: ME.email || '' }))
-        .then(function (data) {
-          var status = asStatus(data);
-
-          if (status === 'ok' || status === 'already') {
-            return loadIdentity({ id: ME.uid, email: ME.email }).then(function () {
-              if (ME.isAdmin) {
-                msg(box, '认领成功，正在进入后台…', false);
-                showPanel();
-              } else {
-                msg(box, '数据库已经记下了，但权限没回读到。刷新一次页面就行。', true);
-              }
-            });
-          }
-          if (status === 'taken') {
-            return msg(box, '这台博客已经有站长了，而且不是你当前登录的这个账号。', true);
-          }
-          if (status === 'no-auth') {
-            return msg(box, '云端没认出你的登录状态（auth.uid() 是空的）。'
-              + '先退出登录，用「邮箱 + 密码」重新登录一次，再来认领。', true);
-          }
-          msg(box, '认领返回了意外的结果：' + (status || '(空值)'), true);
-        })
-        .catch(function (err) {
-          msg(box, errText(err), true);
-        })
-        .then(function () {
-          btn.disabled = false;
-        });
-    }));
-  }
-
   // -------------------------------------------------------------------------
   // 管理面板：留言板 / 文章评论
   // -------------------------------------------------------------------------
@@ -808,19 +779,22 @@
     });
   }
 
-  // 三个 tab 之间的切换
+  // tab 之间的切换
   function switchPanel(kind) {
     currentKind = kind;
     var isPrivate = kind === 'private';
     var isPosts = kind === 'posts';
     var isPhotos = kind === 'photos';
-    var isFeed = !isPrivate && !isPosts && !isPhotos;   // 留言板 / 文章评论共用一块列表
+    var isCats = kind === 'cats';
+    // 留言板 / 文章评论共用一块列表
+    var isFeed = !isPrivate && !isPosts && !isPhotos && !isCats;
 
     show(el('admin-list'), isFeed);
     show(el('admin-count'), isFeed);
     show(el('private-pane'), isPrivate);
     show(el('posts-pane'), isPosts);
     show(el('photos-pane'), isPhotos);
+    show(el('cats-pane'), isCats);
 
     if (isPrivate) {
       loadPrivate();
@@ -828,9 +802,29 @@
       loadPosts();
     } else if (isPhotos) {
       loadPhotos();
+    } else if (isCats) {
+      loadCats();
     } else {
       loadItems(kind);
     }
+  }
+
+  // 前台把「编辑本篇」点过来时带的是 ?edit=<slug>，相册那边带 ?pane=photos。
+  // 这里把参数读出来，免得他进来还要自己再翻一遍列表。
+  function queryParam(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function openPostBySlug(slug) {
+    var tries = 0;
+    (function wait() {
+      for (var i = 0; i < POST_ROWS.length; i++) {
+        if (POST_ROWS[i].slug === slug) { editPost(POST_ROWS[i]); return; }
+      }
+      if (++tries > 25) return;     // 五秒还没读到就算了，列表上照样能点「编辑」
+      window.setTimeout(wait, 200);
+    })();
   }
 
   // -------------------------------------------------------------------------
@@ -839,6 +833,9 @@
   var edPostId = null;
   var POST_ROWS = [];
   var POST_MAP = {};        // slug → { title, url }，评论列表要用来显示「来自《…》」
+
+  // 发帖时顺带传的照片统一收进这个名字的相册（与 feed.js 里保持一致）
+  var BLOG_ALBUM = '博客';
 
   var VIS_LABEL = {
     public: '公开', unlisted: '有链接可见', custom: '指定人可见',
@@ -995,6 +992,46 @@
     return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
   }
 
+  // 把一篇已经存在的文章调进上面的表单。
+  // 列表里点「编辑」是这条路，前台文章页的「编辑本篇」（admin.html?edit=<slug>）也是。
+  function editPost(row) {
+    edPostId = row.id;
+    el('po-title').value = row.title || '';
+    el('po-slug').value = row.slug || '';
+    el('po-body').value = row.body || '';
+    el('po-excerpt').value = row.excerpt || '';
+    selectCat(row.category || '');
+    el('po-tags').value = row.tags || '';
+    el('po-vis').value = row.visibility || 'draft';
+    PICK_UIDS = (row.visible_uids || []).slice();
+    syncPeople();
+    el('po-date').value = String(row.published_on || '').slice(0, 10) || todayStr();
+    el('po-featured').checked = !!row.featured;
+    show(el('po-cancel'), true);
+    var saveBtn = el('po-save');
+    if (saveBtn) saveBtn.textContent = '更新';
+    msg(el('po-msg'), '正在改《' + row.title + '》，改完点「更新」。', false);
+    if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 选中某个分类。分类被删掉之后，老文章身上还挂着旧名字——
+  // 那就把这个名字补进下拉里，别让表单悄悄改成别的分类。
+  function selectCat(name) {
+    var sel = el('po-cat');
+    if (!sel) return;
+    var found = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === name) { found = true; break; }
+    }
+    if (name && !found) {
+      var o = document.createElement('option');
+      o.value = name;
+      o.textContent = name + '（分类里没有了）';
+      sel.appendChild(o);
+    }
+    sel.value = name || (sel.options.length ? sel.options[0].value : '');
+  }
+
   function resetPostForm() {
     edPostId = null;
     el('po-title').value = '';
@@ -1050,12 +1087,15 @@
       }
       if (!body.trim()) { el('po-body').focus(); return msg(msgBox, '正文还是空的。', true); }
 
+      var cat = el('po-cat').value || '';
+      if (!cat) return msg(msgBox, '还没有分类。先去「分类」那个页签加一个，再回来发。', true);
+
       var payload = {
         title: title,
         slug: slug,
         excerpt: (el('po-excerpt').value || '').trim(),
         body: body,
-        category: el('po-cat').value || '日常',
+        category: cat,
         tags: (el('po-tags').value || '').trim(),
         visibility: vis,
         visible_uids: uids,
@@ -1115,22 +1155,7 @@
       if (!row) return;
 
       if (act === 'edit') {
-        edPostId = row.id;
-        el('po-title').value = row.title || '';
-        el('po-slug').value = row.slug || '';
-        el('po-body').value = row.body || '';
-        el('po-excerpt').value = row.excerpt || '';
-        el('po-cat').value = row.category || '日常';
-        el('po-tags').value = row.tags || '';
-        el('po-vis').value = row.visibility || 'draft';
-        PICK_UIDS = (row.visible_uids || []).slice();
-        syncPeople();
-        el('po-date').value = String(row.published_on || '').slice(0, 10) || todayStr();
-        el('po-featured').checked = !!row.featured;
-        show(el('po-cancel'), true);
-        saveBtn.textContent = '更新';
-        msg(msgBox, '正在改《' + row.title + '》，改完点「更新」。', false);
-        if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+        editPost(row);
         return;
       }
 
@@ -1228,6 +1253,21 @@
 
     if (el('ph-date') && !el('ph-date').value) el('ph-date').value = todayStr();
 
+    // 挂了文章的照片注定要进「博客相册」，相册名就替他填好并锁上，
+    // 免得他以为能填别的、填了又不生效。
+    function syncAlbumInput() {
+      var sel = el('ph-post'), input = el('ph-album');
+      if (!sel || !input) return;
+      if (sel.value) {
+        input.value = BLOG_ALBUM;
+        input.disabled = true;
+      } else {
+        if (input.value === BLOG_ALBUM) input.value = '';
+        input.disabled = false;
+      }
+    }
+    if (el('ph-post')) el('ph-post').addEventListener('change', syncAlbumInput);
+
     btn.addEventListener('click', function () {
       var input = el('ph-file');
       var files = input && input.files ? Array.prototype.slice.call(input.files) : [];
@@ -1237,6 +1277,8 @@
       var album = (el('ph-album').value || '').trim();
       var taken = el('ph-date').value || '';
       var slug = el('ph-post').value || '';
+      // 挂在文章下面的照片一律进「博客相册」，不跟站长自己建的相册混
+      if (slug) album = BLOG_ALBUM;
       var vis = el('ph-vis').value || 'private';
 
       btn.disabled = true;
@@ -1431,6 +1473,195 @@
   }
 
   // -------------------------------------------------------------------------
+  // 分类：站长自己维护。存在云端 categories 表里，写操作只放行站长。
+  // 分类页是 category.html?c=<slug>，所以改完前台立刻生效，不用重新发布。
+  // -------------------------------------------------------------------------
+  var CAT_ROWS = [];
+  var CAT_USE = {};       // 分类名 → 用它写了几篇（删之前要先看它有没有人）
+  var edCatId = null;
+
+  function catRowHTML(row) {
+    var n = CAT_USE[row.name] || 0;
+    return '<div class="adm-item" data-id="' + esc(row.id) + '">'
+      + '<div class="adm-head">'
+      + '<span class="adm-name">' + esc(row.name) + '</span>'
+      + '<span class="adm-badge">' + n + ' 篇</span>'
+      + '</div>'
+      + '<div class="adm-from">' + (row.descr ? esc(row.descr) : '没写说明')
+      + ' · <a href="category.html?c=' + esc(row.slug)
+      + '" target="_blank" rel="noopener">看分类页</a></div>'
+      + '<div class="adm-tools">'
+      + '<button type="button" class="btn-mini" data-act="edit">改名</button>'
+      + '<button type="button" class="btn-mini btn-danger" data-act="del">删除</button>'
+      + '</div></div>';
+  }
+
+  // 文章表单里的分类下拉。保留当前选中的那个，别一刷新就跳回第一个。
+  function fillCatSelect(rows) {
+    var sel = el('po-cat');
+    if (!sel) return;
+    var cur = sel.value;
+    if (!rows.length) {
+      sel.innerHTML = '<option value="">还没有分类</option>';
+      return;
+    }
+    sel.innerHTML = rows.map(function (r) {
+      return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>';
+    }).join('');
+    sel.value = cur || rows[0].name;
+  }
+
+  function loadCats() {
+    var box = el('ct-list');
+    // 顺手数一下每个分类挂了几篇：删分类之前得先知道它有没有人。
+    return Promise.all([
+      run(db().from('categories').select('id,slug,name,descr,sort')
+        .order('sort', { ascending: true })
+        .order('id', { ascending: true })),
+      run(db().from('posts').select('category')).then(function (r) { return r; },
+        function () { return []; })
+    ]).then(function (res) {
+      CAT_ROWS = res[0] || [];
+      CAT_USE = {};
+      (res[1] || []).forEach(function (r) {
+        var c = r.category || '';
+        if (c) CAT_USE[c] = (CAT_USE[c] || 0) + 1;
+      });
+      if (box) {
+        box.innerHTML = CAT_ROWS.length
+          ? CAT_ROWS.map(catRowHTML).join('')
+          : '<div class="empty-tip">还没有分类。上面加一个吧。</div>';
+      }
+      fillCatSelect(CAT_ROWS);
+      return CAT_ROWS;
+    }, function (err) {
+      msg(el('ct-msg'), errText(err), true);
+      return [];
+    });
+  }
+
+  function resetCatForm() {
+    edCatId = null;
+    if (el('ct-name')) el('ct-name').value = '';
+    if (el('ct-desc')) el('ct-desc').value = '';
+    show(el('ct-cancel'), false);
+    if (el('ct-save')) el('ct-save').textContent = '添加分类';
+  }
+
+  function bindCats() {
+    var saveBtn = el('ct-save'), list = el('ct-list');
+    if (!saveBtn || !list) return;
+    var msgBox = el('ct-msg');
+    resetCatForm();
+
+    saveBtn.addEventListener('click', function () {
+      var name = (el('ct-name').value || '').trim();
+      var desc = (el('ct-desc').value || '').trim();
+      if (!name) { el('ct-name').focus(); return msg(msgBox, '分类名还没填。', true); }
+      if (name.length > 12) return msg(msgBox, '分类名最多 12 个字。', true);
+
+      var oldRow = null;
+      for (var i = 0; i < CAT_ROWS.length; i++) {
+        if (String(CAT_ROWS[i].id) === String(edCatId)) { oldRow = CAT_ROWS[i]; break; }
+      }
+      // 重名检查（改自己名字的时候不算撞）
+      for (var j = 0; j < CAT_ROWS.length; j++) {
+        if (CAT_ROWS[j].name === name && (!oldRow || String(CAT_ROWS[j].id) !== String(oldRow.id))) {
+          return msg(msgBox, '已经有叫「' + name + '」的分类了。', true);
+        }
+      }
+
+      saveBtn.disabled = true;
+      msg(msgBox, '正在保存…', false);
+
+      var q;
+      if (oldRow) {
+        q = db().from('categories').update({ name: name, descr: desc }).eq('id', oldRow.id);
+      } else {
+        var sort = 0;
+        CAT_ROWS.forEach(function (r) { if ((r.sort || 0) > sort) sort = r.sort; });
+        q = db().from('categories').insert({
+          name: name,
+          descr: desc,
+          sort: sort + 10,
+          slug: 'c' + Date.now().toString(36)
+        });
+      }
+
+      run(q.select()).then(function (rows) {
+        if (!rows || !rows.length) {
+          throw new Error('没存上，可能这个分类名刚被人占了。刷新一下再看。');
+        }
+        // 改名：把挂在旧名字下的文章一起搬过去。
+        // 不搬的话它们会变成「分类里没有了」，前台就点不进去了。
+        if (oldRow && oldRow.name !== name) {
+          return run(db().from('posts').update({ category: name })
+            .eq('category', oldRow.name).select())
+            .then(function () { return loadPosts(); }, function () { return loadPosts(); });
+        }
+      }).then(function () {
+        resetCatForm();
+        return loadCats();
+      }).then(function () {
+        msg(msgBox, oldRow
+          ? '已改名。挂在这个分类下的文章也一起搬过去了。'
+          : '加好了。回「文章」写东西时就能选到它。', false);
+      }).catch(function (err) {
+        msg(msgBox, errText(err), true);
+      }).then(function () { saveBtn.disabled = false; });
+    });
+
+    el('ct-cancel').addEventListener('click', function () {
+      resetCatForm();
+      msg(msgBox, '已取消改名。', false);
+    });
+
+    list.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var item = btn.closest('.adm-item');
+      if (!item) return;
+      var id = item.getAttribute('data-id');
+      var act = btn.getAttribute('data-act');
+      var row = null;
+      for (var i = 0; i < CAT_ROWS.length; i++) {
+        if (String(CAT_ROWS[i].id) === String(id)) { row = CAT_ROWS[i]; break; }
+      }
+      if (!row) return;
+
+      if (act === 'edit') {
+        edCatId = row.id;
+        el('ct-name').value = row.name;
+        el('ct-desc').value = row.descr || '';
+        show(el('ct-cancel'), true);
+        saveBtn.textContent = '保存改名';
+        msg(msgBox, '正在改「' + row.name + '」这个名字，改完点「保存改名」。', false);
+        if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+        el('ct-name').focus();
+        return;
+      }
+
+      if (act === 'del') {
+        var used = CAT_USE[row.name] || 0;
+        if (used) {
+          return msg(msgBox, '「' + row.name + '」下面还有 ' + used + ' 篇文章。'
+            + '先把它们改成别的分类，再回来删。', true);
+        }
+        if (!window.confirm('删掉分类「' + row.name + '」？\n它下面没有文章，删了不影响任何内容。')) return;
+        btn.disabled = true;
+        run(db().from('categories').delete().eq('id', id).select()).then(function (rows) {
+          if (!rows || !rows.length) throw new Error('没删掉，可能这条已经不在了。');
+          return loadCats();
+        }).then(function () {
+          msg(msgBox, '已删除。', false);
+        }).catch(function (err) {
+          msg(msgBox, errText(err), true);
+        }).then(function () { btn.disabled = false; });
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // 启动
   // -------------------------------------------------------------------------
   function boot() {
@@ -1438,10 +1669,10 @@
     bindSignup();
     bindReset();
     bindLogout();
-    bindClaim();
     bindAdminList();
     bindPrivate();
     bindPosts();
+    bindCats();
     bindPhotos();
     loadPostMap();
 

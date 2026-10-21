@@ -2257,3 +2257,53 @@ html { scroll-behavior: smooth; }
   .lb-close { padding: 5px 11px; }
   .lb-strip button { width: 44px; height: 34px; }
 }
+
+/* ---------- 11. 相册分栏 ----------
+   照片按相册分开看：发帖时顺带传的照片都收在「博客相册」里，
+   跟站长自己建的相册不混在一起。只有一个相册时这一排不渲染。 */
+.album-tabs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.album-tab {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 11px;
+  color: #3A4F28;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.album-tab .n {
+  margin-left: 5px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 8px;
+  color: #8FA87A;
+}
+.album-tab:hover { border-color: var(--link); color: var(--link); }
+.album-tab:active { transform: translate(1px, 1px); }
+.album-tab.on {
+  background: var(--header);
+  border-color: var(--header);
+  color: var(--yellow);
+}
+.album-tab.on .n { color: var(--yellow); }
+.album-manage {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--link);
+  border-bottom: 1px dotted var(--link);
+}
+.album-tabs-hint { font-size: 12px; color: #8FA87A; }
+
+/* 文章页的「编辑本篇」，跟「复制本文链接」并排 */
+.post-edit { margin-left: 6px; }
+
+@media (max-width: 640px) {
+  .album-tabs { gap: 5px; }
+  .album-tab { font-size: 12px; padding: 7px 10px; }
+  /* 手机上让「管理照片」自己换行，别把一排标签挤成两行半 */
+  .album-manage { margin-left: 0; }
+}
