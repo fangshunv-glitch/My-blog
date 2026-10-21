@@ -310,7 +310,7 @@ def header(active, depth):
     </div>
     <div class="right">
       今天是 <span id="today" class="date-line">{today}</span><br>
-      站长信箱：{email}
+      找我：<a href="{p}guestbook.html">留言板</a>
     </div>
     <a class="head-login" id="head-login" href="{p}login.html">
       <i class="dot" aria-hidden="true"></i><span class="txt">登录</span>
@@ -320,8 +320,8 @@ def header(active, depth):
 
   <div class="nav">
     {nav}
-  </div>""".format(
-        p=up(depth), name=html.escape(SITE["name"]), email=html.escape(SITE["email"]),
+    </div>""".format(
+        p=up(depth), name=html.escape(SITE["name"]),
         slogan=html.escape(SITE["slogan"]), today=date.today().strftime("%Y-%m-%d"),
         nav="".join(nav),
     )
@@ -476,8 +476,6 @@ def footer(depth, marquee=True):
     <div class="foot-contact">
       <a href="{gh}" target="_blank" rel="noopener">GitHub</a>
       <span class="sep">·</span>
-      <a href="mailto:{email}">写信</a>
-      <span class="sep">·</span>
       <a href="{p}welcome.html">复古入口</a>
     </div>
     {toc}
@@ -504,7 +502,7 @@ def footer(depth, marquee=True):
     <script defer src="{p}foot-stats.js"></script>
     </div>""".format(name=html.escape(SITE["name"]), marq=marq,
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
-                     email=html.escape(SITE["email"]), url=html.escape(SITE["url"]),
+                     url=html.escape(SITE["url"]),
                      gh=html.escape(SITE.get("github", "#")),
                      toc=toc_nav(depth, "foot-toc"), p=up(depth))
 

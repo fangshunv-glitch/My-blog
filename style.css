@@ -244,6 +244,9 @@ body.blog { padding: 10px 0 0; }
   margin-left: auto; text-align: right; color: #E4F8CE; font-size: 12px; line-height: 1.9;
 }
 .site-head .right .date-line { font-size: 9px; color: var(--yellow); }
+/* 深绿底上默认的链接色（--link 也是深绿）等于隐形，这里单独提亮 */
+.site-head .right a { color: #FFE97A; text-decoration: none; border-bottom: 1px dotted #FFE97A; }
+.site-head .right a:hover { color: #FFFFFF; border-bottom-color: #FFFFFF; }
 
 /* 页眉右上角的账号入口
    —— 全站最显眼的一颗按钮：黄底 + 硬阴影 + 方块闪。
@@ -1886,8 +1889,9 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
   .site-head .logo { gap: 9px; }
   .site-head .logo img.sprout { height: 34px; }
   .site-head .logo img.name { height: 28px; }
-  /* 日期/信箱在手机上让位给登录按钮：两者都留着，第一行就被挤成两截，
-     而按钮顶到右上角才是手机上大家都顺手的位置 */
+  /* 日期和「找我：留言板」在手机上让位给登录按钮：两者都留着，
+     第一行就被挤成两截，而按钮顶到右上角才是手机上大家都顺手的位置
+     （留言板在导航里本来就有） */
   .site-head .right { display: none; }
   .site-head .head-login { margin-left: auto; padding: 6px 11px 5px; font-size: 12px; }
   .site-head .slogan { padding: 0 12px 9px; font-size: 11px; }

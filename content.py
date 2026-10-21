@@ -36,7 +36,6 @@ SITE = {
     "author": "清羽墨染",
     "slogan": "把日子过成一格一格的像素",
     "bio": "写字的人 / 拍照的人 / 养花的人 · 坐标北京",
-    "email": "admin@xiangsuri.com",
     "since": "2026-09-30",           # 开站日期，用于「开站第 N 天」
     # 必须带协议头：这串会被原样复制给别人、也会显示在页脚与分享页上。
     # 裸域名粘到聊天窗口里有时会被当成普通文字，点不动。
@@ -58,7 +57,6 @@ HOME = {
     # 封面底部的联系方式，按 (名字, 链接) 写
     "contact": [
         ("GitHub", "https://github.com/fangshunv-glitch"),
-        ("写信", "mailto:admin@xiangsuri.com"),
         ("复古入口", "welcome.html"),
     ],
 }
