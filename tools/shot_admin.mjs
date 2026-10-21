@@ -5,7 +5,7 @@
 // 只为看布局有没有崩，不代表权限逻辑。
 //
 // 用法：node tools/shot_admin.mjs <pane> [宽] [高] [输出文件] [点开第几个 info-dot]
-//   pane: posts | photos
+//   pane: posts | cats | photos | private
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -59,7 +59,7 @@ const REVEAL = `(function(){
     if (getComputedStyle(n).display === 'none') n.style.display = 'block';
     n = n.parentElement;
   }
-  ['admin-list','private-pane','posts-pane','photos-pane'].forEach(function(id){
+  ['admin-list','private-pane','posts-pane','cats-pane','photos-pane'].forEach(function(id){
     var e = document.getElementById(id);
     if (e) e.hidden = (id !== '${pane}-pane');
   });
