@@ -71,7 +71,7 @@ HOME = {
 CHAPTERS = [
     ("about",     "壹", "关于",   "about.html",     "ABOUT",     "几座城，一个阳台"),
     ("projects",  "贰", "项目",   "projects.html",  "PROJECTS",  "真正动手做过的东西"),
-    ("blog",      "叁", "博客",   "blog.html",      "BLOG",      "日常、照片、数码，和建站本身"),
+    ("blog",      "叁", "博客",   "blog.html",      "BLOG",      "按分类翻，或者从最近一篇看起"),
     ("album",     "肆", "相册",   "album.html",     "ALBUM",     "全站照片索引"),
     ("guestbook", "伍", "留言板", "guestbook.html", "GUESTBOOK", "打招呼、换友链、找站长"),
 ]

@@ -130,6 +130,10 @@ def _inline_lines(buf):
 
     注意 content.py 里要写成两个反斜杠（源码字面转义），
     因为在 Python 字符串里单个反斜杠加换行会被当成续行吃掉。
+
+    每段还要走一遍 _inline：**粗体**、[链接](url) 和 HTML 转义都在那里。
+    这里以前只拼了 <br>，于是段落里的 **粗体** 原样带着星号显示出来
+    （项目页那句「只放**真的动手做过**的东西」就是这么露出来的）。
     """
     parts, cur = [], []
     for seg in buf:
@@ -143,7 +147,7 @@ def _inline_lines(buf):
             cur = []
     if cur:
         parts.append(_join(cur))
-    return "<br>".join(parts)
+    return "<br>".join(_inline(x) for x in parts)
 
 
 def escape_lines(text):
@@ -454,8 +458,11 @@ def sidebar(depth, skip_me=False):
 
 def footer(depth, marquee=True):
     """页脚。marquee=False 时不带那条跑马灯（封面用，保持一屏干净）。"""
-    n_posts = len(LISTED)
-    n_photos = len(PHOTOS)
+    # 文章和照片都在云端，构建期这两个数几乎总是 0 —— 而 0 是在撒谎
+    # （站上明明有 1 篇）。所以没有静态内容时留个破折号，
+    # 由页脚里那个 foot-stats.js 读到云端真实条数再换掉。
+    n_posts = len(LISTED) or "—"
+    n_photos = len(PHOTOS) or "—"
     # 跑马灯内容就是站点口号。做成「一份内容复制两遍、动画只跑一半」的
     # 无缝循环 —— 这样整条始终是满的，不会出现开头一长段空白。
     marq = ""
@@ -487,6 +494,14 @@ def footer(depth, marquee=True):
         <img class="pixel" src="{p}assets/heart2.png" alt="">
       </div>
     </div>
+    <!-- 上面那两个数字是构建期的快照：文章和照片都在云端，构建时永远是 0。
+         按真实条数改写的是这个小脚本。挂在页脚里，因为每个页面都有页脚
+         （封面页连 feed.js 都没加载，只有它能兜住）。
+         它只要一个接口地址和公开键，所以在这儿顺手把 cloud-config.js 也带上——
+         深度页、内容页早就引过了，同一份文件浏览器不会再下一遍。
+         defer：等文档解析完再跑，免得比页脚里的元素还早。 -->
+    <script defer src="{p}cloud-config.js"></script>
+    <script defer src="{p}foot-stats.js"></script>
     </div>""".format(name=html.escape(SITE["name"]), marq=marq,
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
                      email=html.escape(SITE["email"]), url=html.escape(SITE["url"]),
@@ -807,7 +822,7 @@ def build_blog():
       </div>
       <div class="sort-note">置顶固定在最前，其余按发布时间倒序</div>
       <div id="feed-posts" data-view="all">{inner}</div>
-    </div>""".format(total=len(LISTED), inner=feed_inner)
+    </div>""".format(total=len(LISTED) or "—", inner=feed_inner)
 
     out = page("%s · 博客" % SITE["name"],
                "记录日常、照片与碎碎念的个人博客。", "blog", depth, main,
@@ -1066,9 +1081,9 @@ def build_archive():
 
       %s
 
-      <div class="sort-note" style="padding-top:0;">按发布时间倒序，同月内同样倒序 · 共 <b id="feed-count">%d</b> 篇</div>
+      <div class="sort-note" style="padding-top:0;">按发布时间倒序，同月内同样倒序 · 共 <b id="feed-count">%s</b> 篇</div>
       <div id="feed-archive">%s</div>
-    </div>""" % (chapter_crumb("blog", "归档", 0), len(LISTED),
+    </div>""" % (chapter_crumb("blog", "归档", 0), len(LISTED) or "—",
                  "".join(blocks) or '<div class="empty-tip">还没有文章可以归档。</div>')
 
     out = page("文章归档 · %s" % SITE["name"], "像素日常的全部文章，按月份归档。",
@@ -1110,11 +1125,11 @@ def build_album():
       <div class="section-head">
         <h2>相册</h2>
         <span class="en">PHOTO INDEX</span>
-        <span class="count" id="feed-photo-count">共 %d 张</span>
+        <span class="count" id="feed-photo-count">共 %s 张</span>
       </div>
       <div class="sort-note">点任意一张看大图</div>
       <div id="feed-album">%s</div>
-    </div>""" % (len(PHOTOS),
+    </div>""" % (len(PHOTOS) or "—",
                  "".join(blocks) or '<div class="empty-tip">相册还是空的。站长登录后在「站长管理 → 相册」里传第一张。</div>')
 
     out = page("相册 · %s" % SITE["name"], "像素日常的全站照片索引。", "album", 0, main,
@@ -1906,7 +1921,8 @@ _ASSET_V = {}
 
 _ASSET_REF = re.compile(
     r'((?:href|src)=")((?:\.\./)*(?:style\.css|cloud-config\.js|feed\.js'
-    r'|cloud\.js|admin\.js|login\.js|vendor/workbuddy-cloud\.global\.js))(")')
+    r'|cloud\.js|admin\.js|login\.js|foot-stats\.js'
+    r'|vendor/workbuddy-cloud\.global\.js))(")')
 
 
 def _asset_version(rel):
