@@ -85,9 +85,11 @@
     return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png"'
       + ' alt="' + escAttr(EMO[key]) + '" title="' + escAttr(EMO[key]) + '" loading="lazy">';
   }
+  // 按码点切。手机打的 emoji 是代理对，按 UTF-16 下标切会剩下半个 →「�」。
   function trunc(s, n) {
     s = String(s == null ? '' : s).trim();
-    return s.length <= n ? s : s.slice(0, n) + '…';
+    var chars = Array.from(s);
+    return chars.length <= n ? s : chars.slice(0, n).join('') + '…';
   }
   function catUrl(slug) {
     return BASE + 'category.html?c=' + encodeURIComponent(slug);
@@ -137,7 +139,7 @@
       return '<a href="' + escAttr(href) + '">' + t + '</a>';
     });
     // :smile: → 表情小图。放在最后，因为前面已经把 HTML 转义过了。
-    s = s.replace(/:([a-z][a-z_]{1,15}):/g, function (m, key) {
+    s = s.replace(/:([a-z][a-z0-9_]{1,15}):/g, function (m, key) {
       return EMO[key] ? emoTag(key) : m;
     });
     return s;

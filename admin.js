@@ -51,6 +51,23 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // 表情：后台列表里也把 :smile: 换成图。原来直接 esc() 出来是一串
+  // 「:smile:」，站长看自己的留言还以为是乱码。
+  var EMO = {};
+  (function () {
+    var l = window.PIXEL_EMOJI || [];
+    for (var i = 0; i < l.length; i++) EMO[l[i].k] = l[i].n;
+  })();
+
+  // 顺序不能反：先 esc 再替换，否则内容里的 HTML 会被当成标签插进来。
+  function emo(text) {
+    return esc(text).replace(/:([a-z][a-z0-9_]{1,15}):/g, function (m, key) {
+      if (!EMO[key]) return m;
+      return '<img class="emo" src="assets/emoji/' + key + '.png"'
+        + ' alt="' + esc(EMO[key]) + '" title="' + esc(EMO[key]) + '" loading="lazy">';
+    });
+  }
+
   function show(node, on) {
     if (node) node.hidden = !on;
   }
@@ -646,8 +663,8 @@
       + '<span class="adm-time">' + esc(fmtTime(row.created_at)) + '</span>'
       + '</div>'
       + from
-      + '<div class="adm-text">' + esc(row.content) + '</div>'
-      + (row.reply ? '<div class="adm-reply-view">站长回复：' + esc(row.reply) + '</div>' : '')
+      + '<div class="adm-text">' + emo(row.content) + '</div>'
+      + (row.reply ? '<div class="adm-reply-view">站长回复：' + emo(row.reply) + '</div>' : '')
       + '<div class="adm-tools">'
       + '<button type="button" class="btn-mini" data-act="reply">'
       + (row.reply ? '改回复' : '回复') + '</button>'

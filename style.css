@@ -1735,11 +1735,17 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
    表情包
    --------------------------------------------------------------------------- */
 .emo {
+  /* 第 46 行那条 img{display:block} 是给配图用的，表情不跟它走：
+     不显式改回 inline-block，「你好:smile:」就会变成「你好」/ 表情各占一行。 */
+  display: inline-block;
   width: 22px; height: 22px;
   vertical-align: -5px;
   image-rendering: pixelated;
   margin: 0 1px;
 }
+
+/* 侧栏的「最近互动」只有一百多像素宽，22px 的表情会把行撑开，缩一号 */
+.act-body .emo { width: 17px; height: 17px; vertical-align: -3px; }
 
 .emo-bar { margin: -6px 0 10px; }
 .emo-toggle {

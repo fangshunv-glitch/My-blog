@@ -78,15 +78,18 @@
     for (var i = 0; i < list.length; i++) EMO_INDEX[list[i].k] = list[i].n;
   })();
 
-  function emoImg(key, title) {
+  // eager=true 用在表情面板上：面板是 hidden 的，里面的图 lazy 就不会加载，
+  // 点开的第一眼是十二个空框。十二张图加起来不到 4KB，没必要省。
+  function emoImg(key, title, eager) {
     return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png"'
-      + ' alt="' + esc(title) + '" title="' + esc(title) + '" loading="lazy">';
+      + ' alt="' + esc(title) + '" title="' + esc(title) + '"'
+      + (eager ? '' : ' loading="lazy"') + '>';
   }
 
   // 顺序很重要：先 esc 再做替换。反过来的话用户写个 <img onerror=...>
   // 就能直接插进页面了。
   function emo(text) {
-    return esc(text).replace(/:([a-z][a-z_]{1,15}):/g, function (m, key) {
+    return esc(text).replace(/:([a-z][a-z0-9_]{1,15}):/g, function (m, key) {
       return EMO_INDEX[key] ? emoImg(key, EMO_INDEX[key]) : m;
     });
   }
@@ -103,9 +106,32 @@
       + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
+  // 截到 n 个字。两个坑都要避：
+  //   1) 不能按 UTF-16 下标切 —— 手机上直接打的 emoji 是代理对，
+  //      切一半就剩个孤零零的高位，页面上是个「�」。按码点切。
+  //   2) 不能把 :smile: 从中间切断 —— 截成「:smi…」的话就不成对了，
+  //      渲染时匹配不上，只能原样吐出来，看着像乱码。短代码整体算一个字。
   function trunc(s, n) {
     s = String(s == null ? '' : s).trim();
-    return s.length <= n ? s : s.slice(0, n) + '…';
+    var chars = Array.from(s);
+    if (chars.length <= n) return s;
+
+    var out = '', used = 0, i = 0;
+    while (i < chars.length && used < n) {
+      if (chars[i] === ':') {
+        var m = /^:([a-z][a-z0-9_]{1,15}):/.exec(chars.slice(i, i + 18).join(''));
+        if (m) {
+          out += m[0];
+          used += 1;
+          i += Array.from(m[0]).length;
+          continue;
+        }
+      }
+      out += chars[i];
+      used += 1;
+      i += 1;
+    }
+    return out + '…';
   }
 
   function el(id) {
@@ -336,7 +362,7 @@
     panel.hidden = true;
     panel.innerHTML = list.map(function (it) {
       return '<button type="button" class="emo-item" data-k="' + esc(it.k)
-        + '" title="' + esc(it.n) + '">' + emoImg(it.k, it.n) + '</button>';
+        + '" title="' + esc(it.n) + '">' + emoImg(it.k, it.n, true) + '</button>';
     }).join('');
 
     panel.addEventListener('click', function (ev) {
@@ -519,7 +545,9 @@
           body = '评论了《<a href="' + esc(it.url) + '">' + esc(trunc(it.title, 14)) + '</a>》';
         } else {
           badge = '<a class="src src-guest" href="' + esc(it.url) + '">留言板</a>';
-          body = esc(trunc(it.text, 30));
+          // 这里之前是 esc()，于是侧栏里 :smile: 原样吐出来，看着像乱码。
+          // emo() 内部自己会先 esc 再替换，别在外面再包一层。
+          body = emo(trunc(it.text, 30));
         }
         return '<li><div class="act-head">'
           + '<span class="act-name">' + esc(it.name) + '</span>' + badge
