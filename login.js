@@ -305,16 +305,19 @@
   }
 
   function saveAvatar(data) {
-    // 表里可能还没有自己这一行，所以 upsert：onConflict 落在主键 uid 上。
-    // uid 不传也行（列默认值就是 auth.uid()），但 upsert 的冲突判定要靠它，
-    // 传自己真实的 uid，策略那边再核一遍。
+    var stamp = new Date().toISOString();
+    // 行可能还不存在：先按 uid 更新，一行都没改到再插一条。
+    // 不用 upsert —— onConflict 各家实现不完全一致，而「update 没中就 insert」
+    // 跟本页存昵称是同一套写法，结果确定，出问题也好查。
     return run(db().from('avatars')
-      .upsert({
-        uid: ME.uid,
-        data: data,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'uid' })
-      .select('uid, data'));
+      .update({ data: data, updated_at: stamp })
+      .eq('uid', ME.uid).select('uid, data'))
+      .then(function (rows) {
+        if (rows && rows.length) return rows;
+        return run(db().from('avatars')
+          .insert({ uid: ME.uid, data: data, updated_at: stamp })
+          .select('uid, data'));
+      });
   }
 
   // 两种登录方式共用一条提示位，但提示框得显示在当前看得见的那一栏。
