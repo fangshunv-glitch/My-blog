@@ -326,8 +326,8 @@
       : '<div class="comment-avatar"></div>';
   }
 
-  function itemHTML(row, avatars) {
-    var out = '<div class="comment">'
+  function itemHTML(row, avatars, kids) {
+    var out = '<div class="comment" data-id="' + esc(String(row.id)) + '">'
       + '<div class="comment-head">'
       + avatarHTML(avatars && avatars[row.uid])
       + '<span class="comment-name">' + esc(row.name) + '</span>'
@@ -338,7 +338,40 @@
       out += '<div class="comment-reply"><span class="comment-name">'
         + esc(AUTHOR) + '</span> 回复：' + emo(row.reply) + '</div>';
     }
-    return out + '</div>';
+    if (kids && kids.length) {
+      out += '<div class="comment-kids">'
+        + kids.map(function (k) { return kidHTML(k, avatars); }).join('')
+        + '</div>';
+    }
+    out += '<div class="comment-acts">'
+      + '<button type="button" class="comment-act" data-reply-to="' + esc(String(row.id)) + '"'
+      + ' data-reply-name="' + esc(row.name) + '">回复</button>'
+      + '</div>'
+      // 回复框挂在每条下面，点了才显形。id 不能重复，所以用 class 定位。
+      + '<form class="reply-form" novalidate hidden>'
+      + '<textarea name="content" maxlength="' + LIMIT_TEXT + '"'
+      + ' placeholder="回复 ' + esc(row.name) + '…"></textarea>'
+      + '<div class="reply-acts">'
+      + '<button type="submit" class="btn-mini">发表回复</button>'
+      + '<button type="button" class="btn-mini" data-cancel="1">取消</button>'
+      + '</div>'
+      + '<div class="form-msg" role="status"></div>'
+      + '</form>'
+      + '</div>';
+    return out;
+  }
+
+  // 楼中楼只做一层：回复不再带回复按钮，免得越缩越窄、也免得来回@个没完。
+  // 回复某条回复时，parent_id 还是落到它所属的那条顶层上（见下面 reply 的提交）。
+  function kidHTML(row, avatars) {
+    return '<div class="comment-kid" data-id="' + esc(String(row.id)) + '">'
+      + '<div class="comment-head">'
+      + avatarHTML(avatars && avatars[row.uid])
+      + '<span class="comment-name">' + esc(row.name) + '</span>'
+      + '<span class="comment-time">' + esc(fmtTime(row.created_at)) + '</span>'
+      + '</div>'
+      + '<div class="comment-text">' + emo(row.content) + '</div>'
+      + '</div>';
   }
 
   // -------------------------------------------------------------------------
@@ -348,7 +381,8 @@
     var box = el(opt.boxId);
     if (!box) return Promise.resolve();
 
-    var q = db().from(opt.table).select('id, uid, name, content, reply, created_at');
+    var q = db().from(opt.table)
+      .select('id, uid, name, content, reply, created_at, parent_id');
     if (opt.slug) q = q.eq('post_slug', opt.slug);
     q = q.eq('status', 'published').order('created_at', { ascending: false }).limit(LIST_LIMIT);
 
@@ -356,8 +390,9 @@
       rows = rows || [];
       return loadAvatars(rows).then(function (avatars) {
         box.innerHTML = rows.length
-          ? rows.map(function (r) { return itemHTML(r, avatars); }).join('')
+          ? renderList(rows, avatars)
           : '<div class="empty-tip">' + esc(opt.emptyTip) + '</div>';
+        bindReply(box, opt);
         if (opt.countId) {
           var c = el(opt.countId);
           if (c) c.textContent = opt.countLabel.replace('{n}', rows.length);
@@ -365,6 +400,112 @@
       });
     }, function (err) {
       notice(box, friendly(err));
+    });
+  }
+
+  // 把平铺的一批行整理成「顶层 + 各自的孩子」。
+  // 父不在这一批里的（超过 100 条被截断、或父被站长隐藏了），
+  // 也按顶层显示 —— 内容本身是公开的，藏起来反而像丢数据。
+  function renderList(rows, avatars) {
+    var byId = {}, i, r;
+    for (i = 0; i < rows.length; i++) byId[rows[i].id] = rows[i];
+
+    var tops = [], kids = {};
+    for (i = 0; i < rows.length; i++) {
+      r = rows[i];
+      if (r.parent_id && byId[r.parent_id] && byId[r.parent_id].parent_id == null) {
+        (kids[r.parent_id] = kids[r.parent_id] || []).push(r);
+      } else {
+        tops.push(r);
+      }
+    }
+    // 回复按时间正序，读起来像对话
+    for (var k in kids) {
+      if (kids.hasOwnProperty(k)) {
+        kids[k].sort(function (a, b) {
+          return String(a.created_at) < String(b.created_at) ? -1 : 1;
+        });
+      }
+    }
+    return tops.map(function (t) {
+      return itemHTML(t, avatars, kids[t.id]);
+    }).join('');
+  }
+
+  // 回复按钮 / 回复框：事件委托挂在列表容器上，
+  // 列表整块重绘之后不需要重新绑。
+  function bindReply(box, opt) {
+    if (box.dataset.replyBound) return;
+    box.dataset.replyBound = '1';
+
+    box.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('[data-reply-to]');
+      var cancel = e.target.closest && e.target.closest('[data-cancel]');
+      if (cancel) {
+        var f = cancel.closest('.reply-form');
+        if (f) { f.reset(); f.hidden = true; }
+        return;
+      }
+      if (!btn) return;
+
+      var item = btn.closest('.comment');
+      var form = item && item.querySelector('.reply-form');
+      if (!form) return;
+      var wasOpen = !form.hidden;
+      // 同时只开一个，页面上不会挂一排半开的输入框
+      var open = box.querySelectorAll('.reply-form');
+      for (var i = 0; i < open.length; i++) open[i].hidden = true;
+      if (wasOpen) return;
+
+      form.hidden = false;
+      mountEmoji(form);                 // 回复框也能用表情
+      if (!ME.name) {
+        // 没登录也让他看见输入框，但先说清楚：写完了也发不出去。
+        // 这里不跳转 —— 只是点开看看内容的人，不该被页面带走。
+        say(form, '登录并取好昵称之后就能回复。', true);
+      } else {
+        var m = form.querySelector('.form-msg');
+        if (m) m.textContent = '';
+      }
+      var ta = form.querySelector('[name=content]');
+      if (ta && ME.name) ta.focus();
+    });
+
+    box.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form.classList || !form.classList.contains('reply-form')) return;
+      e.preventDefault();
+
+      var item = form.closest('.comment');
+      var parentId = item && item.getAttribute('data-id');
+      var ta = form.querySelector('[name=content]');
+      var body = ta ? (ta.value || '').trim() : '';
+      if (!body) return say(form, '还没写内容。', true);
+      if (body.length > LIMIT_TEXT) {
+        return say(form, '内容太长了，最多 ' + LIMIT_TEXT + ' 个字。', true);
+      }
+      if (!ME.name) {
+        return say(form, '先在账号页登录并取好昵称，再回来回复。', true);
+      }
+
+      var btn = form.querySelector('button[type=submit]');
+      if (btn && btn.disabled) return;
+      if (btn) btn.disabled = true;
+      say(form, '正在提交…', false);
+
+      // 只发内容和父级。uid 和昵称照样交给数据库默认值 + 行级策略。
+      var row = { content: body, parent_id: Number(parentId) };
+      if (opt.slug) row.post_slug = opt.slug;
+
+      run(db().from(opt.table).insert(row).select('id'))
+        .then(function () {
+          loadRecent();                  // 侧栏「最近互动」也要把这条算进去
+          return loadList(opt);
+        })
+        .catch(function (err) {
+          if (btn) btn.disabled = false;
+          say(form, friendly(err) + ' 你写的内容还在，可以直接重试。', true);
+        });
     });
   }
 

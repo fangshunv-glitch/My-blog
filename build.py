@@ -413,7 +413,7 @@ def sidebar(depth, skip_me=False):
         </div>
         <div class="cell-body">
           <div class="me">
-            <img class="avatar" src="{p}assets/avatar.png" alt="站长头像">
+            <img class="avatar" src="{p}assets/avatar.png" alt="站长头像" data-site-avatar>
             <div>
               <div class="me-name">{author}</div>
               <div class="me-bio">{bio}</div>
@@ -500,6 +500,9 @@ def footer(depth, marquee=True):
          defer：等文档解析完再跑，免得比页脚里的元素还早。 -->
     <script defer src="{p}cloud-config.js"></script>
     <script defer src="{p}foot-stats.js"></script>
+    <!-- 站点头像：avatars 里 is_site 那一行。跟上面同一个道理 —— 侧栏在每一页都有，
+         封面页也在，所以只能挂在页脚。 -->
+    <script defer src="{p}owner-avatar.js"></script>
     </div>""".format(name=html.escape(SITE["name"]), marq=marq,
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
                      url=html.escape(SITE["url"]),
@@ -1156,7 +1159,7 @@ def build_about():
         </div>
         <div class="cell-body">
           <div class="about-grid">
-            <img class="avatar-lg" src="assets/avatar.png" alt="站长头像">
+            <img class="avatar-lg" src="assets/avatar.png" alt="站长头像" data-site-avatar>
             <div class="about-lede">{lede}</div>
           </div>
         </div>
@@ -1930,7 +1933,7 @@ _ASSET_V = {}
 
 _ASSET_REF = re.compile(
     r'((?:href|src)=")((?:\.\./)*(?:style\.css|cloud-config\.js|feed\.js'
-    r'|cloud\.js|admin\.js|login\.js|foot-stats\.js'
+    r'|cloud\.js|admin\.js|login\.js|foot-stats\.js|owner-avatar\.js'
     r'|vendor/workbuddy-cloud\.global\.js))(")')
 
 

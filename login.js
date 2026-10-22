@@ -26,7 +26,7 @@
   var NAME_MIN = 2;
   var NAME_MAX = 24;
 
-  var ME = { uid: '', email: '', name: '', avatar: '' };
+  var ME = { uid: '', email: '', name: '', avatar: '', isAdmin: false };
 
   var pending = null;      // { email, verificationId, isExistingUser }
   var nextUrl = '';        // 校验过的回跳地址
@@ -213,7 +213,9 @@
     if (input) input.value = hasName ? ME.name : '';
 
     // 头像另取一次：它有自己的一张表，取不到也不该拖垮整页。
+    // 站长标记跟它并行查，互不依赖。
     loadAvatar().then(paintAvatar);
+    loadAdminFlag();
   }
 
   // 登录页通常是「从中途被赶过来的」：带着 ?next= 说明那边有活要接着干。
@@ -251,6 +253,44 @@
       .catch(function () { ME.avatar = ''; });   // 头像取不到不该影响整页
   }
 
+  // 「我是不是站长」= site_admins 里能不能查到自己那一行（策略只放行自己那行）。
+  // 站长的头像除了显示在留言旁边，还要顶掉侧栏和关于页那张构建期生成的静态图，
+  // 所以他自己这一行要多一个 is_site 标记，由 owner-avatar.js 全站读取。
+  function loadAdminFlag() {
+    if (!ME.uid) { ME.isAdmin = false; return Promise.resolve(false); }
+    return run(db().from('site_admins').select('uid'))
+      .then(function (rows) { ME.isAdmin = !!(rows && rows.length); return ME.isAdmin; })
+      .catch(function () { ME.isAdmin = false; return false; });
+  }
+
+  // 保存头像之后顺手维护「站点头像」这个标记。非站长根本不会走到这儿：
+  // is_site 只允许 pixel_is_admin() 设成 true，硬发请求也会被策略拒。
+  // 失败不吭声 —— 头像本身已经存上了，这个标记只影响侧栏那张图。
+  function markSiteAvatar(on) {
+    if (!ME.uid) return Promise.resolve();
+    var ready = ME.isAdmin ? Promise.resolve(true) : loadAdminFlag();
+    return ready.then(function (isAdmin) {
+      if (!isAdmin) return;
+      return run(db().from('avatars')
+        .update({ is_site: !!on })
+        .eq('uid', ME.uid));
+    }).catch(function () {});
+  }
+
+  // 当前页面上如果也有站点头像（侧栏 / 关于页），存完立刻换掉，
+  // 不用等刷新 —— 否则刚传完图还得手动刷一次才看得到。
+  // 第一次改之前把静态图地址记在 data-orig 上，去掉头像时还能回落。
+  function paintSiteAvatar(src) {
+    var slots = document.querySelectorAll('img[data-site-avatar]');
+    for (var i = 0; i < slots.length; i++) {
+      var node = slots[i];
+      if (!node.getAttribute('data-orig')) {
+        node.setAttribute('data-orig', node.getAttribute('src') || '');
+      }
+      node.src = src || node.getAttribute('data-orig');
+    }
+  }
+
   function paintAvatar() {
     var slot = el('avatar-slot');
     if (!slot) return;
@@ -273,8 +313,10 @@
       ? s : '';
   }
 
-  // 缩到 64×64 再存。手机原图动辄三四 MB，直接塞进数据库会让每次读留言
-  // 都拖着几百 KB 走；64 像素在 26px 的列表里已经够清楚（还有 2 倍余量）。
+  // 缩到 96×96 再存。手机原图动辄三四 MB，直接塞进数据库会让每次读留言
+  // 都拖着几百 KB 走。96 这个尺寸是量出来的：列表里显示 26px、侧栏 62px，
+  // 只有关于页那张是 108px —— 96 放大到 108 几乎看不出差别，
+  // 而 64 放大会明显发虚（`.avatar-lg` 还带 pixelated，糊得更显眼）。
   // 先按短边居中裁成正方形，再缩 —— 不然竖图会被压扁。
   function shrink(file) {
     return new Promise(function (resolve, reject) {
@@ -286,7 +328,7 @@
       var img = new Image();
       img.onload = function () {
         URL.revokeObjectURL(url);
-        var S = 64;
+        var S = 96;
         var side = Math.min(img.width, img.height);
         var sx = (img.width - side) / 2;
         var sy = (img.height - side) / 2;
@@ -610,6 +652,9 @@
           return saveAvatar(data).then(function () {
             ME.avatar = data;
             paintAvatar();
+            paintSiteAvatar(data);             // 站长：侧栏 / 关于页当场跟着换
+            return markSiteAvatar(true);
+          }).then(function () {
             msg(box, '头像已保存。', false);
           });
         }).catch(function (err) {
@@ -629,6 +674,9 @@
         saveAvatar('').then(function () {
           ME.avatar = '';
           paintAvatar();
+          paintSiteAvatar('');               // 侧栏 / 关于页回落成原来那张静态图
+          return markSiteAvatar(false);
+        }).then(function () {
           msg(box, '头像已去掉。', false);
         }).catch(function (err) {
           msg(box, errText(err), true);

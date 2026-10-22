@@ -2346,3 +2346,45 @@ img.comment-avatar { object-fit: cover; background: none; }
   .avatar-row { gap: 10px; }
 }
 
+/* ============================================================
+   回复（2026-10-22）
+
+   留言和文章评论都能被回复，楼中楼只做一层：
+   回复缩进在父条目下面，自己不再带「回复」按钮 —— 越缩越窄反而看不清。
+   缩进量跟原来的「站长回复」块对齐（34px），三种层次看起来是一套。
+   ============================================================ */
+.comment-acts { margin: 6px 0 0 34px; }
+.comment-act {
+  font-family: inherit; font-size: 11px; line-height: 1;
+  background: none; border: 0; padding: 2px 0;
+  color: var(--link); cursor: pointer;
+}
+.comment-act:hover { color: var(--header); border-bottom: 1px dotted #9ACD32; }
+
+.comment-kids { margin: 8px 0 0 34px; padding-left: 10px; border-left: 2px dotted #BFDE9C; }
+.comment-kid { margin: 0 0 8px; }
+.comment-kid:last-child { margin-bottom: 0; }
+.comment-kid .comment-avatar { width: 20px; height: 20px; }
+.comment-kid .comment-text { font-size: 12px; }
+.comment-kid .comment-name { font-size: 11px; }
+
+.reply-form { margin: 8px 0 0 34px; }
+.reply-form textarea {
+  display: block; width: 100%; box-sizing: border-box;
+  min-height: 62px; resize: vertical;
+  font-family: inherit; font-size: 12px; line-height: 1.7;
+  padding: 7px 9px;
+  color: var(--text); background: #FFFFFF;
+  border: 1px solid var(--line-soft);
+  outline: none;
+}
+.reply-form textarea:focus { border-color: #8EC759; }
+.reply-acts { display: flex; gap: 6px; margin-top: 6px; }
+.reply-form .form-msg { margin: 6px 0 0; }
+
+@media (max-width: 640px) {
+  /* 手机上缩进要收一点，不然回复框只剩一半宽 */
+  .comment-acts, .reply-form, .comment-kids { margin-left: 22px; }
+  .comment-reply { margin-left: 22px; }
+}
+

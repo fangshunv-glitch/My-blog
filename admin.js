@@ -635,13 +635,13 @@
   var TABLES = {
     guestbook: {
       table: 'guestbook',
-      cols: 'id, name, content, status, reply, created_at',
+      cols: 'id, name, content, status, reply, created_at, parent_id',
       empty: '留言板还是空的。',
       label: '条留言'
     },
     comments: {
       table: 'post_comments',
-      cols: 'id, post_slug, name, content, status, reply, created_at',
+      cols: 'id, post_slug, name, content, status, reply, created_at, parent_id',
       empty: '还没有任何文章评论。',
       label: '条评论'
     }
@@ -664,6 +664,8 @@
       + '<span class="adm-time">' + esc(fmtTime(row.created_at)) + '</span>'
       + '</div>'
       + from
+      // 回复在后台是独立一行（跟父同在表里），标一下才分得清哪条是回应哪条
+      + (row.parent_id ? '<div class="adm-from">↳ 这条是回复</div>' : '')
       + '<div class="adm-text">' + emo(row.content) + '</div>'
       + (row.reply ? '<div class="adm-reply-view">站长回复：' + emo(row.reply) + '</div>' : '')
       + '<div class="adm-tools">'
