@@ -203,12 +203,15 @@
   // -------------------------------------------------------------------------
   var VIS = {
     public: '',
+    members: '<div class="vis-note"><span class="badge">好友可见</span>'
+      + '<span>这一篇<b>只给登录过本站的人看</b>，没登录的访客看不到。</span></div>',
     unlisted: '<div class="vis-note"><span class="badge">有链接可见</span>'
       + '<span>这一篇<b>没有公开</b>：不在首页、分类、归档和相册里出现，'
-      + '只有拿着链接的人能看到。想让它公开，在后台把可见范围改成「公开」。</span></div>',
-    // 指定人可见：不给提示。这里只会有被授权的人才读得到，
-    // 对他说「这篇只给几个人看」等于废话；站长看后台的徽标就够了。
+      + '只有拿着链接的人能看到。想让它公开，把可见范围改成「所有人可见」。</span></div>',
+    // 部分人可见 / 部分人不可见：不给提示。能看到的人本来就在名单里，
+    // 对他说「这篇只给几个人看」是废话；站长看后台的徽标就够了。
     custom: '',
+    except: '',
     private: '<div class="vis-note"><span class="badge">仅自己可见</span>'
       + '<span>这一篇<b>只有你自己能看到</b>。访客连数据都查不到，'
       + '换成别的账号登录也读不出来。</span></div>',
@@ -219,7 +222,44 @@
 
   // -------------------------------------------------------------------------
   // 文章卡片
+  //
+  // 发文章时带的配图挂在 photos 表里（post_slug = 文章 slug），以前只有点进
+  // 文章详情才看得到 —— 列表上只剩一行摘要，图文帖看着像纯文字帖。
+  // 现在列表把「每篇的第一张」当封面用：一篇只取一张缩略图（约 27KB），
+  // 多了就把篇数标在角上。
   // -------------------------------------------------------------------------
+  var COVER = {};       // slug → { thumb, n }
+
+  function loadCovers() {
+    var slugs = PUBLIC.map(function (p) { return p.slug; }).slice(0, 60);
+    if (!slugs.length) return Promise.resolve();
+    // 只取缩略图，不取原图；按时间正序，第一条就当作封面
+    return run(db().from('photos')
+      .select('post_slug,thumb_data,taken_on')
+      .in('post_slug', slugs)
+      .in('visibility', LISTED_VIS)
+      .order('taken_on', { ascending: true })
+      .order('id', { ascending: true }))
+      .then(function (rows) {
+        COVER = {};
+        (rows || []).forEach(function (ph) {
+          var k = ph.post_slug;
+          if (!k || !ph.thumb_data) return;
+          if (!COVER[k]) COVER[k] = { thumb: ph.thumb_data, n: 0 };
+          COVER[k].n++;
+        });
+      }, function () { COVER = {}; });
+  }
+
+  function coverHTML(slug, cls) {
+    var c = COVER[slug];
+    if (!c || !c.thumb) return '';
+    return '<a class="' + (cls || 'post-cover') + '" href="' + escAttr(postUrl(slug))
+      + '"><img src="' + escAttr(c.thumb) + '" alt="" loading="lazy">'
+      + (c.n > 1 ? '<span class="pc-n">' + c.n + ' 张</span>' : '')
+      + '</a>';
+  }
+
   function cardHTML(p, opts) {
     opts = opts || {};
     var url = postUrl(p.slug);
@@ -236,6 +276,7 @@
       + '<h3 class="post-title"><a href="' + escAttr(url) + '">' + esc(p.title) + '</a></h3>'
       + '<div class="post-meta">' + meta.join('') + '</div>'
       + (p.excerpt ? '<p class="post-excerpt">' + esc(p.excerpt) + '</p>' : '')
+      + coverHTML(p.slug)
       + '<div class="post-foot">'
       + '<a class="more" href="' + escAttr(url) + '">阅读全文 <span class="arrow">▸</span></a>'
       + '<span class="post-tags">' + chips + '</span>'
@@ -251,8 +292,12 @@
       + (p.category ? '<span class="m-cat">分类：' + catLink(p.category) + '</span>' : '')
       + '</div>'
       + (p.excerpt ? '<p class="post-excerpt">' + esc(p.excerpt) + '</p>' : '')
+      + coverHTML(p.slug)
       + '<div class="post-foot"><a class="more" href="' + escAttr(url) + '">阅读全文 ▸</a></div>'
-      + '</div><div class="thumb">PIXEL<br>TOP</div></div></article>';
+      + '</div>' + (COVER[p.slug] && COVER[p.slug].thumb
+        ? ''                                  // 有首图就不再摆那块像素画，免得一个卡片两张图
+        : '<div class="thumb">PIXEL<br>TOP</div>')
+      + '</div></article>';
   }
 
   function emptyTip(text) {
@@ -262,8 +307,13 @@
   // -------------------------------------------------------------------------
   // 各视图
   // -------------------------------------------------------------------------
-  var ALL = [];        // 站长视角能读到的全部（访客只有 public + unlisted）
-  var PUBLIC = [];     // 真正对外公开的
+  var ALL = [];        // 能读到的全部（能读到多少由数据库策略决定）
+  var PUBLIC = [];     // 该出现在列表里的那些
+
+  // 哪些档位属于「正常展示」：所有人 / 好友 / 部分人可见 / 部分人不可见。
+  // 「有链接可见」不进列表；私密和草稿只有站长读得到，当然也不进。
+  // 这些档位读不读得到由 RLS 在服务端拦，前端的过滤只管「要不要出现在列表里」。
+  var LISTED_VIS = ['public', 'members', 'custom', 'except'];
 
   function viewList() {
     var box = el('feed-posts');
@@ -570,7 +620,7 @@
     if (!box) return;
     run(db().from('photos')
       .select('id,caption,taken_on,thumb_data')
-      .eq('post_slug', p.slug).eq('visibility', 'public')
+      .eq('post_slug', p.slug).in('visibility', LISTED_VIS)
       .order('taken_on', { ascending: true }).limit(60))
       .then(function (rows) {
         if (!rows.length) { box.innerHTML = ''; return; }
@@ -661,7 +711,7 @@
 
     run(db().from('photos')
       .select('id,album,post_slug,caption,taken_on,width,height,thumb_data')
-      .eq('visibility', 'public')
+      .in('visibility', LISTED_VIS)
       .order('taken_on', { ascending: false })
       .order('sort', { ascending: true })
       .limit(200))
@@ -954,12 +1004,13 @@
       return loadPosts();
     }).then(function (rows) {
       ALL = rows || [];
-      // 「指定人可见」也算进列表：能读到它，就说明 RLS 认了这个人。
-      // 没被授权的人连行都拿不到，所以这里多带上 custom 不会漏。
+      // 能被列出来的是这几档：所有人 / 好友 / 部分人可见 / 部分人不可见。
+      // 读不读得到由数据库策略在服务端管，这里只决定要不要进列表。
       PUBLIC = ALL.filter(function (p) {
-        return p.visibility === 'public' || p.visibility === 'custom';
+        return LISTED_VIS.indexOf(p.visibility) >= 0;
       });
-
+      return loadCovers();
+    }).then(function () {
       prepareCategoryPage();
       viewList();
       viewArchive();

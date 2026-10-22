@@ -177,21 +177,103 @@
     });
   }
 
-  // 可见范围：前台只给这四档。
-  // 「指定人可见」要勾具体的人，那个名单得走 pixel_site_members()，
-  // 在浮层里再摊一张人员表就太重了 —— 需要指定人就去后台发。
-  function visOptions(defaultVis) {
-    var opts = [
-      ['public', '公开 —— 所有人进来都能看到'],
-      ['unlisted', '有链接可见 —— 不进列表，拿到链接能看'],
-      ['private', '仅自己可见'],
-      ['draft', '草稿 —— 先存着，前台当它没发布']
-    ];
-    return opts.map(function (o) {
+  // 可见范围：照 QQ 空间那套排，从「谁都能看」到「只有自己」。
+  // 「好友」在这里 = 用邮箱登录过本站的人（游客不算）。
+  // 「部分人可见 / 部分人不可见」要勾人，名单走 pixel_site_members() ——
+  // 那是个 security definer 函数，只对站长返回名单，别人调用拿到空数组。
+  var VIS_OPTS = [
+    ['public', '所有人可见'],
+    ['members', '好友可见（登录过本站的人）'],
+    ['custom', '部分人可见'],
+    ['except', '部分人不可见'],
+    ['unlisted', '有链接可见（不进列表）'],
+    ['private', '仅自己可见'],
+    ['draft', '草稿（先存着）']
+  ];
+
+  function visOptions(defaultVis, withDraft) {
+    return VIS_OPTS.filter(function (o) {
+      return withDraft || o[0] !== 'draft';
+    }).map(function (o) {
       return '<option value="' + o[0] + '"'
         + (o[0] === (defaultVis || 'draft') ? ' selected' : '') + '>'
         + esc(o[1]) + '</option>';
     }).join('');
+  }
+
+  var MEMBERS = null;
+  function loadMembers() {
+    if (MEMBERS) return Promise.resolve(MEMBERS);
+    return run(db().rpc('pixel_site_members')).then(function (rows) {
+      MEMBERS = rows || [];
+      return MEMBERS;
+    }, function () { MEMBERS = []; return MEMBERS; });
+  }
+
+  function paintPeople(listId, selected) {
+    var box = el(listId);
+    if (!box) return;
+    var pick = {};
+    (selected || []).forEach(function (u) { pick[String(u)] = true; });
+    if (!MEMBERS || !MEMBERS.length) {
+      box.innerHTML = '<div class="cmp-people-empty">'
+        + '还没有别人登录过这个站。让对方来登录一次、设个昵称，这里就有人可选。</div>';
+      return;
+    }
+    box.innerHTML = MEMBERS.map(function (m) {
+      var uid = String(m.m_uid);
+      var name = m.m_name || ('匿名 ' + uid.slice(-4));
+      return '<button type="button" class="cmp-chip' + (pick[uid] ? ' on' : '')
+        + '" data-uid="' + esc(uid) + '">' + esc(name) + '</button>';
+    }).join('');
+  }
+
+  function pickedUids(listId) {
+    var box = el(listId);
+    if (!box) return [];
+    return Array.prototype.slice.call(box.querySelectorAll('.cmp-chip.on'))
+      .map(function (b) { return b.getAttribute('data-uid'); });
+  }
+
+  // 选中「部分人可见 / 部分人不可见」就把名单摊出来。
+  // 两档共用同一排人：只是存的时候一个进 visible_uids、一个进 hidden_uids。
+  function bindVis(selId, wrapId, listId) {
+    var sel = el(selId);
+    if (!sel) return;
+    function sync() {
+      var need = (sel.value === 'custom' || sel.value === 'except');
+      var wrap = el(wrapId);
+      if (wrap) wrap.hidden = !need;
+      if (!need) return;
+      var keep = pickedUids(listId);
+      loadMembers().then(function () { paintPeople(listId, keep); });
+    }
+    sel.addEventListener('change', sync);
+    sync();
+  }
+
+  function bindPick(listId) {
+    var box = el(listId);
+    if (!box) return;
+    box.addEventListener('click', function (e) {
+      var chip = e.target.closest ? e.target.closest('.cmp-chip') : null;
+      if (!chip) return;
+      chip.classList.toggle('on');
+    });
+  }
+
+  // 抽出来给两个表单共用：可见范围 + 名单
+  function visPayload(prefix) {
+    var vis = el(prefix + '-vis').value || 'draft';
+    var need = (vis === 'custom' || vis === 'except');
+    var uids = need ? pickedUids(prefix + '-people-list') : [];
+    return {
+      vis: vis,
+      need: need,
+      uids: uids,
+      visible: vis === 'custom' ? uids : [],
+      hidden: vis === 'except' ? uids : []
+    };
   }
 
   function tail(msgBox, text, isError) { msg(msgBox, text, isError); }
@@ -221,8 +303,13 @@
       + '<div class="form-row"><label for="cmp-date">日期</label>'
       + '<input id="cmp-date" type="date" value="' + todayStr() + '"></div>'
       + '<div class="form-row"><label for="cmp-vis">谁能看</label>'
-      + '<select id="cmp-vis">' + visOptions('draft') + '</select></div>'
+      + '<select id="cmp-vis">' + visOptions('draft', true) + '</select></div>'
       + '</div>'
+
+      + '<div class="cmp-people" id="cmp-people" hidden>'
+      + '<div class="cmp-people-tip">勾出来的人：选「部分人可见」就是给他们看，'
+      + '选「部分人不可见」就是不给他们看。</div>'
+      + '<div class="cmp-people-list" id="cmp-people-list"></div></div>'
 
       + '<div class="form-row"><label for="cmp-excerpt">摘要</label>'
       + '<input id="cmp-excerpt" type="text" maxlength="200" placeholder="留空就截正文开头"></div>'
@@ -247,6 +334,8 @@
     var msgBox = el('cmp-msg');
     var saveBtn = el('cmp-save');
     var picked = [];
+    bindVis('cmp-vis', 'cmp-people', 'cmp-people-list');
+    bindPick('cmp-people-list');
 
     // 分类不写死：名单在云端，站长自己加。下拉最后一项是「新建」，
     // 选它就地展开输入框 —— 发文章的时候顺手就把分类建了，
@@ -343,10 +432,15 @@
       var catVal = el('cmp-cat').value || '';
       var newCat = (el('cmp-newcat').value || '').trim();
       var body = el('cmp-text').value || '';
-      var vis = el('cmp-vis').value || 'draft';
+      var v = visPayload('cmp');
+      var vis = v.vis;
       var date = el('cmp-date').value || todayStr();
 
       if (!title) { el('cmp-title').focus(); return tail(msgBox, '标题还没填。', true); }
+      if (v.need && !v.uids.length) {
+        return tail(msgBox, vis === 'custom'
+          ? '「部分人可见」得先勾几个人。' : '「部分人不可见」得先勾几个人。', true);
+      }
       if (!catVal) { return tail(msgBox, '选一个分类，或者新建一个。', true); }
       if (catVal === NEW_OPT) {
         if (!newCat) { el('cmp-newcat').focus(); return tail(msgBox, '新分类还没起名字。', true); }
@@ -362,6 +456,8 @@
         category: catVal,          // 新建的那档在下面存文章之前换成真正的名字
         tags: (el('cmp-tags').value || '').trim(),
         visibility: vis,
+        visible_uids: v.visible,
+        hidden_uids: v.hidden,
         featured: !!el('cmp-featured').checked,
         published_on: date
       };
@@ -386,8 +482,11 @@
           savedSlug = (rows && rows[0] && rows[0].slug) || payload.slug;
           if (!picked.length) return { ok: 0, failed: [] };
 
-          // 照片的可见范围跟着文章走；「指定人」照片那档不支持，降成有链接可见。
-          var photoVis = vis === 'custom' ? 'unlisted' : vis;
+          // 照片的可见范围跟着文章走，名单也照搬 —— 否则文章给了某人，
+          // 里面的图对他还是看不见，等于白给。
+          var photoVis = vis === 'draft' ? 'private' : vis;
+          var photoVisUids = v.visible;
+          var photoHiddenUids = v.hidden;
           var ok = 0, failed = [];
           var chain = Promise.resolve();
 
@@ -402,6 +501,8 @@
                     taken_on: date,
                     post_slug: savedSlug,
                     visibility: photoVis,
+                    visible_uids: photoVisUids,
+                    hidden_uids: photoHiddenUids,
                     thumb_data: r[1].data,
                     image_data: r[0].data,
                     width: r[0].width,
@@ -467,6 +568,11 @@
       + '<select id="cmp-vis">' + visOptions('private') + '</select></div>'
       + '</div>'
 
+      + '<div class="cmp-people" id="cmp-people" hidden>'
+      + '<div class="cmp-people-tip">勾出来的人：选「部分人可见」就是给他们看，'
+      + '选「部分人不可见」就是不给他们看。</div>'
+      + '<div class="cmp-people-list" id="cmp-people-list"></div></div>'
+
       + '<div class="cmp-foot">'
       + '<button type="button" class="btn" id="cmp-save">上传</button>'
       + '<span class="form-msg" id="cmp-msg" role="status"></span>'
@@ -476,6 +582,8 @@
     var msgBox = el('cmp-msg');
     var saveBtn = el('cmp-save');
     var picked = [];
+    bindVis('cmp-vis', 'cmp-people', 'cmp-people-list');
+    bindPick('cmp-people-list');
 
     el('cmp-files').addEventListener('change', function (e) {
       picked = Array.prototype.slice.call(e.target.files || []);
@@ -488,7 +596,13 @@
       var caption = (el('cmp-caption').value || '').trim();
       var album = (el('cmp-album').value || '').trim();
       var date = el('cmp-date').value || todayStr();
-      var vis = el('cmp-vis').value || 'private';
+      var v = visPayload('cmp');
+      var vis = v.vis;
+      if (vis === 'draft') vis = 'private';   // 照片没有草稿这一档
+      if (v.need && !v.uids.length) {
+        return tail(msgBox, vis === 'custom'
+          ? '「部分人可见」得先勾几个人。' : '「部分人不可见」得先勾几个人。', true);
+      }
 
       saveBtn.disabled = true;
       var ok = 0, failed = [];
@@ -505,6 +619,8 @@
                 taken_on: date,
                 post_slug: '',
                 visibility: vis,
+                visible_uids: v.visible,
+                hidden_uids: v.hidden,
                 thumb_data: r[1].data,
                 image_data: r[0].data,
                 width: r[0].width,

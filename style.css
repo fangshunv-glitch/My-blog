@@ -1721,8 +1721,10 @@ a.src-guest:hover { background: #FFD400; color: #7A4A18; border-color: #B0691A; 
 
 /* 可见范围徽章：一眼分出轻重 */
 .adm-badge.vb-public { background: #4E9A21; }
-.adm-badge.vb-unlisted { background: #C79A16; }
+.adm-badge.vb-members { background: #2E8B7A; }
 .adm-badge.vb-custom { background: #3A6EA5; }
+.adm-badge.vb-except { background: #5B5BA6; }
+.adm-badge.vb-unlisted { background: #C79A16; }
 .adm-badge.vb-private { background: #A4622A; }
 .adm-badge.vb-draft { background: #8FA87A; }
 
@@ -2618,4 +2620,70 @@ img.comment-avatar { object-fit: cover; background: none; }
   .comment-img img { max-width: 150px; max-height: 150px; }
   .img-viewer { padding: 12px; }
   .img-viewer-img { max-height: 82vh; }
+}
+
+/* ============================================================
+   列表卡片的首图（文章配图里挑第一张）
+   ============================================================ */
+.post-cover {
+  display: block;
+  position: relative;
+  margin: 0 0 9px;
+  border: 1px solid var(--line);
+  background: #F2F7E8;
+  line-height: 0;
+}
+.post-cover img {
+  display: block;
+  width: 100%;
+  max-height: 190px;
+  object-fit: cover;
+}
+/* 多图时右上角标个张数，让人知道点进去还有 */
+.post-cover .pc-n {
+  position: absolute; right: 0; top: 0;
+  padding: 2px 6px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 7px; line-height: 1.6;
+  color: #fff; background: rgba(47, 93, 26, .82);
+}
+.post-cover:hover { border-color: var(--link); }
+
+/* 置顶卡片有首图时不再摆那块像素画，首图走普通的 .post-cover 横幅 */
+.post.featured .post-cover { margin-top: 4px; }
+
+/* ============================================================
+   浮层里勾人：部分人可见 / 部分人不可见
+   ============================================================ */
+.cmp-people { margin: -4px 0 10px; }
+.cmp-people[hidden] { display: none; }
+.cmp-people-tip {
+  font-size: 11px; line-height: 1.7; color: #6B7F55;
+  margin-bottom: 6px;
+}
+.cmp-people-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmp-people-empty {
+  font-size: 11px; line-height: 1.7; color: #6B7F55;
+  padding: 7px 9px;
+  background: #F7FAF0;
+  border: 1px dashed var(--line-soft);
+}
+.cmp-chip {
+  font-family: inherit; font-size: 12px; line-height: 1;
+  padding: 6px 10px;
+  color: #3A4F28;
+  background: #FBFCF7;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.cmp-chip:hover { border-color: var(--link); }
+.cmp-chip.on {
+  color: #fff;
+  background: var(--link);
+  border-color: var(--link);
+}
+
+@media (max-width: 640px) {
+  .post-cover img { max-height: 150px; }
+  .cmp-chip { font-size: 12px; padding: 7px 9px; }
 }

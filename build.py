@@ -1262,22 +1262,28 @@ def build_guestbook():
 # 可见范围：四档。文案在这里定义一次，后台下拉和前台提示都用它。
 # 真正的拦截在数据库行级策略里（见 posts / photos 两张表的 read 策略）。
 # ---------------------------------------------------------------------------
-# 四档可见范围。文章和照片共用同一套文案，所以别写「进首页、分类」这种
-# 只对文章成立的说法，改成两边都读得通的。
-# 顺序照旧，但静态 HTML 里把 private 标成 selected —— 万一 JS 没跑起来，
-# 默认落在最保守的一档，不会莫名其妙把东西放出去。
+# 可见范围：照 QQ 空间那套排的，从「谁都能看」到「只有自己」。
+#
+# 「好友」在这个站上的意思就是**用邮箱登录过本站的人**（游客不算）。
+# 「部分人可见 / 部分人不可见」要勾具体的人，名单走 pixel_site_members()。
+# 后两档（有链接可见 / 草稿）是博客特有的，QQ 空间没有，但这里用得上。
+#
+# 文章和照片共用同一套文案，所以别写「进首页、分类」这种只对文章成立的说法。
+# 静态 HTML 里默认选中 private —— JS 没跑起来时落在最保守的一档，不会漏出去。
 VIS_OPTIONS = [
-    ("public", "公开 —— 所有人进来都能看到，会进列表"),
-    ("unlisted", "有链接可见 —— 不进任何列表，拿到链接的人能看"),
-    ("custom", "指定人可见 —— 只有你勾选的人登录后能看到"),
+    ("public", "所有人可见 —— 谁进来都能看到"),
+    ("members", "好友可见 —— 登录过本站的人能看到，游客看不到"),
+    ("custom", "部分人可见 —— 只给你勾出来的人看"),
+    ("except", "部分人不可见 —— 勾出来的人看不到，其他人能看"),
+    ("unlisted", "有链接可见 —— 不进列表，拿到链接的人能看"),
     ("private", "仅自己可见 —— 只有你登录后能看到"),
     ("draft", "草稿 —— 先存着，前台当它没发布"),
 ]
 VIS_DEFAULT = "private"
 
-# 照片的可见范围暂时不含「指定人」：照片是按相册成批翻的，
-# 一张张指定人容易乱。要发只给某几个人看的东西，写文章挂图更合适。
-PHOTO_VIS_OPTIONS = [o for o in VIS_OPTIONS if o[0] != "custom"]
+# 照片不再排除「指定人」：跟着文章一起发的图用同一档次就行，
+# 一张张挑人虽然麻烦，但比「发不了」强。
+PHOTO_VIS_OPTIONS = [o for o in VIS_OPTIONS if o[0] != "draft"]
 
 
 # ---------------------------------------------------------------------------
@@ -1471,7 +1477,7 @@ def build_admin():
                 </div>
 
                 <div class="form-row" id="po-people" hidden>
-                  <label>给谁看</label>
+                  <label>给谁看 / 不给谁看</label>
                   <div class="adm-people" id="po-people-list"></div>
                   <div class="form-note" id="po-people-note">
                     这里只列<b>用邮箱登录过本站、并且设过昵称</b>的人。
@@ -1547,6 +1553,11 @@ def build_admin():
                     <div class="form-note">默认停在「仅自己可见」——
                       想让人看到，传之前先把它改成「公开」。传完再改也来得及，
                       下面每张照片都能单独删。</div></div>
+                </div>
+
+                <div class="form-row" id="ph-people" hidden>
+                  <label>给谁看 / 不给谁看</label>
+                  <div class="adm-people" id="ph-people-list"></div>
                 </div>
 
                 <div class="adm-form-actions">

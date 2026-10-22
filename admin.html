@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=c7b05a64">
+<link rel="stylesheet" href="style.css?v=b9a75ac6">
 </head>
 <body class="blog admin-page">
 <div class="page">
@@ -204,7 +204,7 @@
                   <div class="form-row"><label for="po-cat">分类</label>
                     <select id="po-cat"><option value="">正在读分类…</option></select></div>
                   <div class="form-row"><label for="po-vis">可见范围 <em>必填</em></label>
-                    <select id="po-vis"><option value="public">公开 —— 所有人进来都能看到，会进列表</option><option value="unlisted">有链接可见 —— 不进任何列表，拿到链接的人能看</option><option value="custom">指定人可见 —— 只有你勾选的人登录后能看到</option><option value="private" selected>仅自己可见 —— 只有你登录后能看到</option><option value="draft">草稿 —— 先存着，前台当它没发布</option></select></div>
+                    <select id="po-vis"><option value="public">所有人可见 —— 谁进来都能看到</option><option value="members">好友可见 —— 登录过本站的人能看到，游客看不到</option><option value="custom">部分人可见 —— 只给你勾出来的人看</option><option value="except">部分人不可见 —— 勾出来的人看不到，其他人能看</option><option value="unlisted">有链接可见 —— 不进列表，拿到链接的人能看</option><option value="private" selected>仅自己可见 —— 只有你登录后能看到</option><option value="draft">草稿 —— 先存着，前台当它没发布</option></select></div>
                 </div>
                 <div class="form-note" id="po-vis-note">
                   可见范围决定谁能看到这篇：访客的数据库查询会被直接拦住，
@@ -212,7 +212,7 @@
                 </div>
 
                 <div class="form-row" id="po-people" hidden>
-                  <label>给谁看</label>
+                  <label>给谁看 / 不给谁看</label>
                   <div class="adm-people" id="po-people-list"></div>
                   <div class="form-note" id="po-people-note">
                     这里只列<b>用邮箱登录过本站、并且设过昵称</b>的人。
@@ -284,10 +284,15 @@
                     <select id="ph-post"><option value="">不挂，只放相册</option></select>
                     <div class="form-note">挂上之后，那篇文章底部会多一块「本篇照片」。</div></div>
                   <div class="form-row"><label for="ph-vis">可见范围</label>
-                    <select id="ph-vis"><option value="public">公开 —— 所有人进来都能看到，会进列表</option><option value="unlisted">有链接可见 —— 不进任何列表，拿到链接的人能看</option><option value="private" selected>仅自己可见 —— 只有你登录后能看到</option><option value="draft">草稿 —— 先存着，前台当它没发布</option></select>
+                    <select id="ph-vis"><option value="public">所有人可见 —— 谁进来都能看到</option><option value="members">好友可见 —— 登录过本站的人能看到，游客看不到</option><option value="custom">部分人可见 —— 只给你勾出来的人看</option><option value="except">部分人不可见 —— 勾出来的人看不到，其他人能看</option><option value="unlisted">有链接可见 —— 不进列表，拿到链接的人能看</option><option value="private" selected>仅自己可见 —— 只有你登录后能看到</option></select>
                     <div class="form-note">默认停在「仅自己可见」——
                       想让人看到，传之前先把它改成「公开」。传完再改也来得及，
                       下面每张照片都能单独删。</div></div>
+                </div>
+
+                <div class="form-row" id="ph-people" hidden>
+                  <label>给谁看 / 不给谁看</label>
+                  <div class="adm-people" id="ph-people-list"></div>
                 </div>
 
                 <div class="adm-form-actions">
@@ -462,6 +467,6 @@
 <script src="cloud-config.js?v=ad44d33a"></script>
 <script src="vendor/workbuddy-cloud.global.js?v=64f437dc"></script>
 <script>if (!window.WorkBuddyCloud) { document.write('<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"><\/script>'); }</script>
-<script src="admin.js?v=8ad4047a"></script>
+<script src="admin.js?v=3031c50c"></script>
 </body>
 </html>

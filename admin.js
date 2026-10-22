@@ -863,12 +863,15 @@
   // 发帖时顺带传的照片统一收进这个名字的相册（与 feed.js 里保持一致）
   var BLOG_ALBUM = '博客';
 
+  // 档位与文案跟 build.py 的 VIS_OPTIONS 保持一致（QQ 空间那套排法）
   var VIS_LABEL = {
-    public: '公开', unlisted: '有链接可见', custom: '指定人可见',
+    public: '所有人可见', members: '好友可见', custom: '部分人可见',
+    except: '部分人不可见', unlisted: '有链接可见',
     private: '仅自己可见', draft: '草稿'
   };
   var VIS_CLASS = {
-    public: 'vb-public', unlisted: 'vb-unlisted', custom: 'vb-custom',
+    public: 'vb-public', members: 'vb-members', custom: 'vb-custom',
+    except: 'vb-except', unlisted: 'vb-unlisted',
     private: 'vb-private', draft: 'vb-draft'
   };
 
@@ -890,15 +893,15 @@
     }, function () { MEMBERS = []; return MEMBERS; });
   }
 
-  function checkedUids() {
-    var box = el('po-people-list');
+  function checkedUids(boxId) {
+    var box = el(boxId || 'po-people-list');
     if (!box) return [];
     return Array.prototype.slice.call(box.querySelectorAll('input:checked'))
       .map(function (i) { return i.value; });
   }
 
-  function paintPeople(selected) {
-    var box = el('po-people-list');
+  function paintPeople(boxId, selected) {
+    var box = el(boxId || 'po-people-list');
     if (!box) return;
     var pick = {};
     (selected || []).forEach(function (u) { pick[String(u)] = true; });
@@ -919,24 +922,28 @@
     }).join('');
   }
 
-  // 切换到「指定人可见」时把名单画出来；切走就收起来。
+  // 「部分人可见 / 部分人不可见」都要勾人，两个表单共用这一段：
+  // 选中那两档就把名单摊出来，切走就收起来。
   // 重画前先记住当前勾了谁，免得来回切一次就丢一次。
-  function syncPeople() {
-    var on = (el('po-vis').value === 'custom');
-    show(el('po-people'), on);
+  function syncPeople(selId, wrapId, listId, seed) {
+    var sel = el(selId);
+    if (!sel) return Promise.resolve();
+    var on = (sel.value === 'custom' || sel.value === 'except');
+    show(el(wrapId), on);
     if (!on) return Promise.resolve();
-    var keep = checkedUids();
+    // 框里已经勾着的人优先；一次都没画过的时候用 seed（编辑已有内容时回填）
+    var keep = checkedUids(listId);
     return loadPeople().then(function () {
-      paintPeople(keep.length ? keep : PICK_UIDS);
+      paintPeople(listId, keep.length ? keep : (seed || []));
     });
   }
 
   function visBadge(row) {
     var vis = row.visibility || 'draft';
     var text = VIS_LABEL[vis] || vis;
-    if (vis === 'custom') {
-      var n = (row.visible_uids || []).length;
-      text = n ? ('指定人可见 · ' + n + ' 人') : '指定人可见 · 没选人';
+    if (vis === 'custom' || vis === 'except') {
+      var n = (vis === 'custom' ? row.visible_uids : row.hidden_uids) || [];
+      text = VIS_LABEL[vis] + (n.length ? (' · ' + n.length + ' 人') : ' · 没选人');
     }
     return '<span class="adm-badge ' + (VIS_CLASS[vis] || '') + '">' + esc(text) + '</span>';
   }
@@ -984,7 +991,7 @@
     var box = el('po-list');
     if (!box) return Promise.resolve();
     return run(db().from('posts')
-      .select('id,slug,title,excerpt,body,category,tags,visibility,visible_uids,featured,published_on,created_at,updated_at')
+      .select('id,slug,title,excerpt,body,category,tags,visibility,visible_uids,hidden_uids,featured,published_on,created_at,updated_at')
       .order('published_on', { ascending: false })
       .order('id', { ascending: false })
       .limit(LIMIT)
@@ -1029,8 +1036,11 @@
     selectCat(row.category || '');
     el('po-tags').value = row.tags || '';
     el('po-vis').value = row.visibility || 'draft';
-    PICK_UIDS = (row.visible_uids || []).slice();
-    syncPeople();
+    PICK_UIDS = (row.visibility === 'except' ? row.hidden_uids : row.visible_uids) || [];
+    show(el('po-people'), row.visibility === 'custom' || row.visibility === 'except');
+    if (PICK_UIDS.length) {
+      loadPeople().then(function () { paintPeople('po-people-list', PICK_UIDS); });
+    }
     el('po-date').value = String(row.published_on || '').slice(0, 10) || todayStr();
     el('po-featured').checked = !!row.featured;
     show(el('po-cancel'), true);
@@ -1083,7 +1093,9 @@
     resetPostForm();
 
     // 只有切到「指定人可见」时才把选人框拿出来
-    el('po-vis').addEventListener('change', function () { syncPeople(); });
+    el('po-vis').addEventListener('change', function () {
+      syncPeople('po-vis', 'po-people', 'po-people-list');
+    });
 
     // 标题写完，别名还空着就顺手生成一个
     el('po-title').addEventListener('blur', function () {
@@ -1097,11 +1109,18 @@
       var body = el('po-body').value || '';
       var vis = el('po-vis').value || 'draft';
       var date = el('po-date').value || todayStr();
-      var uids = vis === 'custom' ? checkedUids() : [];
+      // 部分人可见 → visible_uids；部分人不可见 → hidden_uids。
+      // 两档共用一个勾选框，所以存的时候要分清楚存到哪一列。
+      var uids = (vis === 'custom' || vis === 'except')
+        ? checkedUids('po-people-list') : [];
+      var hidden = vis === 'except' ? uids : [];
 
       // 名单是空的（还没人来登录过）就不拦着，但名单非空时必须勾一个
       if (vis === 'custom' && !uids.length && MEMBERS && MEMBERS.length) {
-        return msg(msgBox, '「指定人可见」至少勾一个人，不然这篇谁都看不到。', true);
+        return msg(msgBox, '「部分人可见」至少勾一个人，不然这篇谁都看不到。', true);
+      }
+      if (vis === 'except' && !uids.length && MEMBERS && MEMBERS.length) {
+        return msg(msgBox, '「部分人不可见」至少勾一个人，不然它跟「好友可见」没区别。', true);
       }
 
       if (!title) { el('po-title').focus(); return msg(msgBox, '标题还没填。', true); }
@@ -1124,7 +1143,8 @@
         category: cat,
         tags: (el('po-tags').value || '').trim(),
         visibility: vis,
-        visible_uids: uids,
+        visible_uids: vis === 'custom' ? uids : [],
+        hidden_uids: hidden,
         featured: !!el('po-featured').checked,
         published_on: date
       };
@@ -1149,6 +1169,10 @@
           tail = uids.length
             ? ('可见范围：只有你勾的 ' + uids.length + ' 个人登录后能看到。')
             : '还没勾人，这篇目前只有你自己能看到。';
+        } else if (vis === 'except') {
+          tail = uids.length
+            ? ('可见范围：登录的人里，除了你勾的 ' + uids.length + ' 个，其他人都能看到。')
+            : '还没勾人，相当于「好友可见」。';
         } else {
           tail = '可见范围：' + (VIS_LABEL[vis] || vis) + '。';
         }
@@ -1255,7 +1279,7 @@
     var box = el('ph-list');
     if (!box) return Promise.resolve();
     return run(db().from('photos')
-      .select('id,caption,album,post_slug,taken_on,visibility,thumb_data,created_at')
+      .select('id,caption,album,post_slug,taken_on,visibility,visible_uids,hidden_uids,thumb_data,created_at')
       .order('taken_on', { ascending: false })
       .order('id', { ascending: false })
       .limit(LIMIT)
@@ -1293,6 +1317,11 @@
       }
     }
     if (el('ph-post')) el('ph-post').addEventListener('change', syncAlbumInput);
+    if (el('ph-vis')) {
+      el('ph-vis').addEventListener('change', function () {
+        syncPeople('ph-vis', 'ph-people', 'ph-people-list');
+      });
+    }
 
     btn.addEventListener('click', function () {
       var input = el('ph-file');
@@ -1306,6 +1335,9 @@
       // 挂在文章下面的照片一律进「博客相册」，不跟站长自己建的相册混
       if (slug) album = BLOG_ALBUM;
       var vis = el('ph-vis').value || 'private';
+      var uids = (vis === 'custom' || vis === 'except')
+        ? checkedUids('ph-people-list') : [];
+      var hidden = vis === 'except' ? uids : [];
 
       btn.disabled = true;
       var done = 0, failed = [];
@@ -1323,6 +1355,8 @@
                 taken_on: taken || null,
                 post_slug: slug,
                 visibility: vis,
+                visible_uids: vis === 'custom' ? uids : [],
+                hidden_uids: hidden,
                 thumb_data: small.data,
                 image_data: big.data,
                 width: big.width,
