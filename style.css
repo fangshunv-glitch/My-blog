@@ -2388,3 +2388,205 @@ img.comment-avatar { object-fit: cover; background: none; }
   .comment-reply { margin-left: 22px; }
 }
 
+
+/* ============================================================
+   就地新增（compose.js）
+   博客页「写一篇」、相册页「传照片」：按钮钉在列表标题右侧，
+   点开是一层浮层，存完当场刷新列表，不跳后台。
+   ============================================================ */
+.compose-btn {
+  margin-left: 10px;
+  font-family: inherit; font-size: 11px; line-height: 1;
+  padding: 5px 11px;
+  color: var(--link);
+  background: #FFFFFF;
+  border: 1px solid var(--line-soft);
+  cursor: pointer;
+  flex: none;
+}
+.compose-btn:hover { background: #F2F8E8; border-color: var(--link); color: var(--header); }
+.compose-btn[hidden] { display: none; }
+
+.cmp-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 900;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 34px 16px;
+  background: rgba(10, 18, 5, 0.62);
+  overflow-y: auto;
+}
+/* 收起来用 display:none。用 visibility:hidden 的盒子仍然参与布局，
+   一个宽盒子能把整页撑开，这个坑之前踩过。 */
+.cmp-mask[hidden] { display: none; }
+
+.cmp-card {
+  width: 100%; max-width: 620px;
+  /* flex 里的 margin:auto —— 内容比屏幕矮就居中，比屏幕高就从顶部开始、
+     往下滚。写死 align-items:center 的话，高过视口的那半截会被裁掉。 */
+  margin: auto;
+  background: #FFFFFF;
+  border: 2px solid var(--header);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
+}
+/* 标题栏用浅绿而不是深绿：深绿跟站点头部撞色，弹窗一顶到上面
+   两块钱就粘成一片，看不出边界。 */
+.cmp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  background: #EAF7DA;
+  border-bottom: 2px solid var(--header);
+  color: var(--header);
+}
+.cmp-head h3 {
+  margin: 0; font-size: 13px; font-weight: normal;
+  letter-spacing: 3px;
+}
+.cmp-close {
+  background: none; border: 0; padding: 0 2px;
+  color: var(--header); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.cmp-close:hover { color: #A33A22; }
+
+.cmp-body {
+  padding: 14px 14px 2px;
+  max-height: calc(88vh - 132px);
+  overflow-y: auto;
+}
+.cmp-body .form-row textarea { height: auto; min-height: 150px; }
+.cmp-body .form-row input[type=date] {
+  width: 100%;
+  font-family: inherit; font-size: 13px;
+  color: var(--text);
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  padding: 5px 8px;
+  outline: none;
+}
+.cmp-body .form-row input[type=date]:focus { border-color: #8EC759; }
+.cmp-body .form-row input[type=file] {
+  width: 100%;
+  font-family: inherit; font-size: 12px;
+  color: #4C6B33;
+}
+
+/* 日期 + 谁能看 / 摘要 + 标签这种成对字段，两列并排；窄屏自动竖排 */
+.cmp-2col { display: flex; gap: 12px; }
+.cmp-2col > .form-row { flex: 1 1 0; min-width: 0; }
+
+.cmp-picked { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cmp-picked:empty { display: none; }
+.cmp-thumb {
+  display: block;
+  width: 64px; height: 64px;
+  object-fit: cover;
+  border: 1px solid var(--line-soft);
+}
+
+.cmp-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: #FAFCF5;
+  border-top: 1px dashed var(--line-soft);
+}
+.cmp-foot .form-msg { margin: 0; flex: 1 1 auto; min-width: 0; }
+.cmp-check {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #4C6B33;
+  margin-right: auto; flex: none;
+}
+
+/* 存完之后的一句话结果。错误多留一会儿，够看清哪几张没成。 */
+.cmp-toast {
+  position: fixed; left: 50%; bottom: 26px;
+  z-index: 950;
+  max-width: min(92vw, 520px);
+  padding: 9px 15px;
+  background: var(--header); color: #FFFFFF;
+  font-size: 12px; line-height: 1.7;
+  opacity: 0; pointer-events: none;
+  transform: translateX(-50%) translateY(10px);
+  transition: opacity .18s steps(3), transform .18s steps(3);
+}
+.cmp-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.cmp-toast.is-error { background: #A33A22; }
+
+@media (max-width: 640px) {
+  .cmp-mask { padding: 10px 8px; align-items: flex-start; }
+  .cmp-body { max-height: calc(100vh - 158px); padding: 12px 12px 2px; }
+  .cmp-2col { display: block; }
+  .cmp-thumb { width: 56px; height: 56px; }
+  /* 标题、篇数和按钮挤在一行会换行，让按钮自己靠右 */
+  .compose-btn { margin-left: auto; padding: 5px 9px; }
+}
+
+/* ============================================================
+   评论和留言的配图
+   一条内容最多带一张。列表里只放缩略图（长边 480），点开才去取原图。
+   ============================================================ */
+.pick-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 7px 0 2px;
+}
+.pick-bar input[type=file] { display: none; }
+.pick-btn {
+  font-family: inherit; font-size: 11px; line-height: 1;
+  padding: 4px 10px;
+  color: var(--link); background: #FFFFFF;
+  border: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.pick-btn:hover { background: #F2F8E8; border-color: var(--link); }
+.pick-btn:disabled { opacity: .55; cursor: default; }
+.pick-preview { display: flex; align-items: center; gap: 6px; }
+.pick-preview[hidden] { display: none; }
+.pick-preview img {
+  display: block; width: 44px; height: 44px;
+  object-fit: cover;
+  border: 1px solid var(--line-soft);
+}
+.pick-del {
+  font-family: inherit; font-size: 11px; line-height: 1;
+  background: none; border: 0; padding: 0;
+  color: #A33A22; cursor: pointer;
+}
+.pick-del:hover { text-decoration: underline; }
+.pick-msg { font-size: 11px; color: var(--muted); }
+.pick-msg:empty { display: none; }
+
+/* 缩进对齐头像，和「站长回复」那一块同一个起点 */
+.comment-img { margin: 7px 0 0 34px; }
+.comment-img img {
+  display: block;
+  max-width: 190px; max-height: 190px;
+  border: 1px solid var(--line-soft);
+  cursor: zoom-in;
+}
+
+/* 看大图 */
+.img-viewer {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 940;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(12, 20, 6, 0.84);
+  overflow: auto;
+}
+.img-viewer-img {
+  display: block;
+  max-width: 100%; max-height: 88vh;
+  border: 2px solid #FFFFFF;
+}
+.img-viewer-tip { color: #FFFFFF; font-size: 13px; }
+.img-viewer-close {
+  position: fixed; top: 12px; right: 16px;
+  background: none; border: 0; padding: 0 4px;
+  color: #FFFFFF; font-size: 26px; line-height: 1; cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .comment-img { margin-left: 22px; }
+  .comment-img img { max-width: 150px; max-height: 150px; }
+  .img-viewer { padding: 12px; }
+  .img-viewer-img { max-height: 82vh; }
+}

@@ -820,9 +820,11 @@ def build_blog():
         <h2>最新文章</h2>
         <span class="en">LATEST POSTS</span>
         <span class="count" id="feed-count">共 {total} 篇</span>
+        <button class="compose-btn" id="compose-post" type="button" hidden>写一篇</button>
       </div>
       <div id="feed-posts" data-view="all">{inner}</div>
-    </div>""".format(total=len(LISTED) or "—", inner=feed_inner)
+    </div>
+    <script defer src="compose.js"></script>""".format(total=len(LISTED) or "—", inner=feed_inner)
 
     out = page("%s · 博客" % SITE["name"],
                "记录日常、照片与碎碎念的个人博客。", "blog", depth, main,
@@ -1123,10 +1125,12 @@ def build_album():
         <h2>相册</h2>
         <span class="en">PHOTO INDEX</span>
         <span class="count" id="feed-photo-count">共 %s 张</span>
+        <button class="compose-btn" id="compose-photo" type="button" hidden>传照片</button>
       </div>
       <div class="sort-note">点任意一张看大图</div>
       <div id="feed-album">%s</div>
-    </div>""" % (len(PHOTOS) or "—",
+    </div>
+    <script defer src="compose.js"></script>""" % (len(PHOTOS) or "—",
                  "".join(blocks) or '<div class="empty-tip">相册还是空的。站长登录后在「站长管理 → 相册」里传第一张。</div>')
 
     out = page("相册 · %s" % SITE["name"], "像素日常的全站照片索引。", "album", 0, main,
@@ -1934,7 +1938,7 @@ _ASSET_V = {}
 _ASSET_REF = re.compile(
     r'((?:href|src)=")((?:\.\./)*(?:style\.css|cloud-config\.js|feed\.js'
     r'|cloud\.js|admin\.js|login\.js|foot-stats\.js|owner-avatar\.js'
-    r'|vendor/workbuddy-cloud\.global\.js))(")')
+    r'|compose\.js|vendor/workbuddy-cloud\.global\.js))(")')
 
 
 def _asset_version(rel):

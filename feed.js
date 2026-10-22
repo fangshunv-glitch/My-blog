@@ -988,6 +988,11 @@
     viewAlbum();
   }
 
+  // 前台「写一篇 / 传照片」存完要立刻看到新内容，不用整页刷新。
+  // 暴露 boot 而不是 viewList：boot 会重新读分类和文章再重绘所有视图，
+  // 只重绘列表的话新文章还在旧数组里，看不见。
+  window.PixelFeed = { reload: boot };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {

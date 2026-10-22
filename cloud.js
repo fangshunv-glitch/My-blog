@@ -333,7 +333,8 @@
       + '<span class="comment-name">' + esc(row.name) + '</span>'
       + '<span class="comment-time">' + esc(fmtTime(row.created_at)) + '</span>'
       + '</div>'
-      + '<div class="comment-text">' + emo(row.content) + '</div>';
+      + '<div class="comment-text">' + emo(row.content) + '</div>'
+      + picHTML(row);
     if (row.reply) {
       out += '<div class="comment-reply"><span class="comment-name">'
         + esc(AUTHOR) + '</span> 回复：' + emo(row.reply) + '</div>';
@@ -371,6 +372,7 @@
       + '<span class="comment-time">' + esc(fmtTime(row.created_at)) + '</span>'
       + '</div>'
       + '<div class="comment-text">' + emo(row.content) + '</div>'
+      + picHTML(row)
       + '</div>';
   }
 
@@ -382,7 +384,7 @@
     if (!box) return Promise.resolve();
 
     var q = db().from(opt.table)
-      .select('id, uid, name, content, reply, created_at, parent_id');
+      .select('id, uid, name, content, reply, created_at, parent_id, thumb_data');
     if (opt.slug) q = q.eq('post_slug', opt.slug);
     q = q.eq('status', 'published').order('created_at', { ascending: false }).limit(LIST_LIMIT);
 
@@ -439,6 +441,12 @@
     box.dataset.replyBound = '1';
 
     box.addEventListener('click', function (e) {
+      // 先看是不是点了配图。缩略图在列表里，原图另查。
+      var pic = e.target.closest && e.target.closest('[data-big]');
+      if (pic) {
+        showBig(pic.getAttribute('data-big'), opt.table);
+        return;
+      }
       var btn = e.target.closest && e.target.closest('[data-reply-to]');
       var cancel = e.target.closest && e.target.closest('[data-cancel]');
       if (cancel) {
@@ -578,11 +586,176 @@
     ta.parentNode.insertBefore(bar, ta.nextSibling);
   }
 
+  // -------------------------------------------------------------------------
+  // 配图：一条内容最多带一张。手机上点一下直接调起相册或相机。
+  //
+  // 存两档：thumb（长边 480，列表里用）和 image（长边 1280，点开看大图）。
+  // 列表只取 thumb，一屏留言不会拖着几 MB 走；点开大图时再按 id 单独取。
+  // 和相册那边是同一套思路。
+  // -------------------------------------------------------------------------
+  var IMG_RE = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/;
+
+  function shrink(file, maxSide, quality) {
+    return new Promise(function (resolve, reject) {
+      if (!/^image\//.test(file.type)) {
+        reject(new Error('这个文件不是图片。'));
+        return;
+      }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        try {
+          resolve(cv.toDataURL('image/jpeg', quality));
+        } catch (e) {
+          reject(new Error('这张图转不出来。'));
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('这张图读不出来（格式可能不被浏览器支持）。'));
+      };
+      img.src = url;
+    });
+  }
+
+  function mountImage(form) {
+    if (!form || form.querySelector('.pick-bar')) return;
+    var ta = form.querySelector('[name=content]');
+    if (!ta) return;
+
+    var bar = document.createElement('div');
+    bar.className = 'pick-bar';
+    bar.innerHTML = '<button type="button" class="pick-btn">加张图</button>'
+      + '<input type="file" accept="image/*" hidden>'
+      + '<div class="pick-preview" hidden><img alt="配图">'
+      + '<button type="button" class="pick-del">去掉</button></div>'
+      + '<span class="pick-msg"></span>';
+
+    var btn = bar.querySelector('.pick-btn');
+    var input = bar.querySelector('input[type=file]');
+    var prev = bar.querySelector('.pick-preview');
+    var pic = bar.querySelector('.pick-preview img');
+    var del = bar.querySelector('.pick-del');
+    var note = bar.querySelector('.pick-msg');
+
+    form._pick = null;
+
+    btn.addEventListener('click', function () { input.click(); });
+
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      note.textContent = '正在处理…';
+      btn.disabled = true;
+      Promise.all([shrink(f, 1280, 0.78), shrink(f, 480, 0.7)])
+        .then(function (r) {
+          form._pick = { image: r[0], thumb: r[1] };
+          pic.src = r[1];
+          prev.hidden = false;
+          note.textContent = '';
+        })
+        .catch(function (err) {
+          form._pick = null;
+          prev.hidden = true;
+          note.textContent = (err && err.message) || '这张图读不出来。';
+        })
+        .then(function () {
+          btn.disabled = false;
+          input.value = '';
+        });
+    });
+
+    del.addEventListener('click', function () { clearPick(form); });
+
+    var anchor = form.querySelector('.emo-bar') || ta;
+    anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+  }
+
+  function clearPick(form) {
+    if (!form) return;
+    form._pick = null;
+    var prev = form.querySelector('.pick-preview');
+    var pic = form.querySelector('.pick-preview img');
+    var note = form.querySelector('.pick-msg');
+    if (prev) prev.hidden = true;
+    if (pic) pic.removeAttribute('src');
+    if (note) note.textContent = '';
+  }
+
+  // 列表里的那点配图。只认白名单里的 data URL —— 表是公开可读的，
+  // 别人写进去的东西不能直接当 src 用。
+  function picHTML(row) {
+    var d = String(row.thumb_data || '');
+    if (!IMG_RE.test(d)) return '';
+    return '<div class="comment-img"><img src="' + d + '" alt="配图"'
+      + ' data-big="' + esc(String(row.id)) + '" loading="lazy"></div>';
+  }
+
+  // -------------------------------------------------------------------------
+  // 看大图：缩略图点开，再按 id 把原图取回来
+  // -------------------------------------------------------------------------
+  var VIEWER = null;
+
+  function onViewEsc(e) { if (e.key === 'Escape') closeViewer(); }
+
+  function closeViewer() {
+    if (!VIEWER) return;
+    VIEWER.parentNode && VIEWER.parentNode.removeChild(VIEWER);
+    VIEWER = null;
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onViewEsc);
+  }
+
+  function openViewer(html) {
+    closeViewer();
+    var mask = document.createElement('div');
+    mask.className = 'img-viewer';
+    mask.innerHTML = html;
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask
+        || (e.target.closest && e.target.closest('.img-viewer-close'))) {
+        closeViewer();
+      }
+    });
+    document.body.appendChild(mask);
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onViewEsc);
+    VIEWER = mask;
+  }
+
+  function showBig(id, table) {
+    openViewer('<div class="img-viewer-tip">正在读取大图…</div>');
+    run(db().from(table).select('image_data').eq('id', id).limit(1))
+      .then(function (rows) {
+        var d = rows && rows[0] ? String(rows[0].image_data || '') : '';
+        if (!d) {
+          openViewer('<div class="img-viewer-tip">这张图没存原图。</div>');
+          return;
+        }
+        if (!IMG_RE.test(d)) {
+          openViewer('<div class="img-viewer-tip">这张图读不出来。</div>');
+          return;
+        }
+        openViewer('<img class="img-viewer-img" src="' + d + '" alt="配图">'
+          + '<button type="button" class="img-viewer-close" aria-label="关闭">×</button>');
+      }, function () {
+        openViewer('<div class="img-viewer-tip">大图没读出来，等会儿再点一次。</div>');
+      });
+  }
+
   function bindForm(opt) {
     var form = el(opt.formId);
     if (!form) return;
 
     mountEmoji(form);
+    mountImage(form);        // 一条留言/评论可以带一张图，可选
 
     var btn = form.querySelector('button[type=submit]');
     var busy = false;
@@ -612,6 +785,11 @@
       // 只发内容。uid 和昵称交给数据库的默认值 + 行级策略。
       var row = { content: body };
       if (opt.slug) row.post_slug = opt.slug;
+      // 配图一起发。图在选中的那一刻就压好了，这里只搬字符串。
+      if (form._pick) {
+        row.thumb_data = form._pick.thumb;
+        row.image_data = form._pick.image;
+      }
 
       busy = true;
       if (btn) { btn.disabled = true; btn.textContent = '正在提交…'; }
@@ -622,6 +800,7 @@
 
       run(insert).then(function () {
         if (fText) fText.value = '';
+        clearPick(form);
         say(form, '已发布，谢谢。', false);
         loadRecent();                 // 侧边栏也要跟着刷新
         return loadList(opt.list);
