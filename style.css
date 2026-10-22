@@ -2319,3 +2319,30 @@ html { scroll-behavior: smooth; }
   /* 手机上让「管理照片」自己换行，别把一排标签挤成两行半 */
   .album-manage { margin-left: 0; }
 }
+
+/* ============================================================
+   头像（2026-10-22）
+
+   账号页可以传一张自定义头像，留言和评论旁边显示它。
+   没设头像的人继续用 .comment-avatar 那块绿色斜纹占位，一眼能分清
+   「这张脸是谁」和「这个人还没设头像」。
+   ============================================================ */
+.avatar-row { display: flex; align-items: center; gap: 14px; }
+.avatar-slot {
+  width: 64px; height: 64px; flex: none;
+  border: 2px solid var(--line);
+  background: repeating-linear-gradient(45deg, #C9E5A8 0 4px, #B6DC90 4px 8px);
+}
+.avatar-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.avatar-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.avatar-act .form-msg { flex-basis: 100%; margin: 0; }
+/* 还没取昵称时不让点「选一张图」：头像要挂在 uid 上，uid 得先有昵称才有 */
+.btn.is-off { opacity: .55; cursor: default; filter: grayscale(.5); }
+
+/* 有头像时换成图片；尺寸和斜纹占位严格一致，列表不会跳高度 */
+img.comment-avatar { object-fit: cover; background: none; }
+
+@media (max-width: 640px) {
+  .avatar-row { gap: 10px; }
+}
+

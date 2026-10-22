@@ -98,6 +98,7 @@ TITLES = [
     ("上传照片", 16, 2, "#FFFFFF", None, "t_upload.png"),
     # 账号页是站长和访客共用的，题头别写「站长登录」—— 访客看了会以为走错地方。
     ("我的账号", 16, 2, "#FFFFFF", None, "t_account.png"),
+    ("我的头像", 16, 2, "#FFFFFF", None, "t_avatar.png"),
     ("私密内容", 16, 2, "#FFFFFF", None, "t_priv.png"),
     ("扫码打开", 16, 2, "#FFFFFF", None, "t_scan.png"),
     ("可以这么说", 16, 2, "#FFFFFF", None, "t_say.png"),
@@ -398,6 +399,7 @@ EMOJI_COLORS = {
     4: (237, 125, 49, 255),    # 橙：花瓣、爱心
     5: (142, 199, 89, 255),    # 绿
     6: (90, 150, 214, 255),    # 蓝：泪、汗
+    7: (244, 143, 177, 255),   # 粉：腮红、舌头
 }
 
 
@@ -532,15 +534,33 @@ def _e_heart():
 
 
 def _e_flower():
+    """六片花瓣绕着一圈花心。
+
+    最早是「十字 + 细边」，放大看就是个加号。改成挨个画圆形花瓣，
+    花瓣落在半径 4.4 的六个方向上，边缘叠起来才有花的轮廓。
+    """
     g = _blank()
-    _box(g, 6, 6, 4, 4, 1)
-    for x in range(6, 10):
-        _box(g, x, 3, 1, 2, 4)
-        _box(g, x, 11, 1, 2, 4)
-    for y in range(6, 10):
-        _box(g, 3, y, 2, 1, 4)
-        _box(g, 11, y, 2, 1, 4)
-    _box(g, 7, 7, 2, 2, 2)
+    petals = [(7.5, 3.1), (3.7, 5.3), (3.7, 9.7),
+              (7.5, 11.9), (11.3, 9.7), (11.3, 5.3)]
+    # 花瓣半径只能到 2.1：再大六片就在中间糊成一整块橙色了，
+    # 花瓣之间必须留出缺口才看得出是花。
+    for cx, cy in petals:
+        for y in range(EMOJI_SIZE):
+            for x in range(EMOJI_SIZE):
+                if (x - cx) ** 2 + (y - cy) ** 2 <= 4.5:
+                    g[y][x] = 4
+    # 沿外缘勾一圈深色边，跟其他图标的描边统一（做法同月亮）。
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            if g[y][x] == 4:
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < EMOJI_SIZE and 0 <= ny < EMOJI_SIZE and g[ny][nx] == 0:
+                        g[ny][nx] = 2
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            if (x - 7.5) ** 2 + (y - 7.5) ** 2 <= 4.0:
+                g[y][x] = 1                        # 花心：站点黄
     return g
 
 
@@ -562,11 +582,211 @@ def _e_star():
     return g
 
 
+def _art(rows, ox, oy, v=2):
+    """把一张字符画贴进 16×16 格子。
+
+    '#' 用 v；数字字符（'2'…'7'）直接当调色板下标，方便一张图里用好几种颜色。
+    """
+    g = _blank()
+    for i, row in enumerate(rows):
+        for j, ch in enumerate(row):
+            if ch.isdigit():
+                _put(g, [(ox + j, oy + i)], int(ch))
+            elif ch == "#":
+                _put(g, [(ox + j, oy + i)], v)
+    return g
+
+
+# ---------- 第二批：脸 ----------
+def _e_wink():
+    g = _face()
+    _box(g, 4, 5, 2, 2)                        # 左眼睁开
+    _put(g, [(9, 6), (10, 6), (11, 6)])        # 右眼闭成一条线
+    _put(g, [(x, 10) for x in range(5, 11)])
+    _put(g, [(4, 9), (11, 9)])
+    return g
+
+
+def _e_shy():
+    g = _face()
+    _box(g, 4, 5, 2, 2)
+    _box(g, 10, 5, 2, 2)
+    _box(g, 3, 9, 2, 1, 7)                     # 腮红
+    _box(g, 11, 9, 2, 1, 7)
+    _put(g, [(7, 10), (8, 10)])
+    return g
+
+
+def _e_speechless():
+    g = _face()
+    _put(g, [(4, 6), (5, 6), (6, 6)])          # 两条横线眼
+    _put(g, [(9, 6), (10, 6), (11, 6)])
+    _put(g, [(5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10)])   # 一条平嘴
+    return g
+
+
+def _e_sad():
+    g = _face()
+    _put(g, [(3, 5), (4, 6)])                  # 八字眉
+    _put(g, [(12, 5), (11, 6)])
+    _box(g, 4, 7, 2, 1)
+    _box(g, 10, 7, 2, 1)
+    _put(g, [(5, 11), (6, 12), (7, 12), (8, 12), (9, 12), (10, 11)])
+    return g
+
+
+def _e_dizzy():
+    g = _face()
+    _put(g, [(4, 5), (6, 5), (5, 6), (4, 7), (6, 7)])      # X 眼
+    _put(g, [(9, 5), (11, 5), (10, 6), (9, 7), (11, 7)])
+    _put(g, [(5, 11), (6, 11), (7, 12), (8, 12), (9, 11), (10, 11)])
+    return g
+
+
+def _e_kiss():
+    g = _face()
+    _box(g, 4, 5, 2, 2)                        # 左眼睁着
+    _put(g, [(9, 5), (10, 5), (11, 5)])        # 右眼眯着，和 wink 同一套
+    # 嘴就是一张小小的「o」：上下两道深色夹中间一条粉，凑近看才有嘴唇的意思。
+    # 试过往旁边噘，结果在 16px 上像脸侧面蹭了一块粉色，还是放回正中。
+    _put(g, [(7, 9), (8, 9)], 2)
+    _put(g, [(6, 10), (7, 10), (8, 10), (9, 10)], 7)
+    _put(g, [(7, 11), (8, 11)], 2)
+    return g
+
+
+# ---------- 第二批：物件 ----------
+def _e_sun():
+    g = _blank()
+    for y in range(2, 14):
+        for x in range(2, 14):
+            d = (x - 7.5) ** 2 + (y - 7.5) ** 2
+            if d <= 20:
+                g[y][x] = 1
+            elif d <= 27:
+                g[y][x] = 4
+    for x, y in ((7, 0), (8, 0), (7, 1), (8, 1),
+                 (7, 14), (8, 14), (7, 15), (8, 15),
+                 (0, 7), (0, 8), (1, 7), (1, 8),
+                 (14, 7), (14, 8), (15, 7), (15, 8)):
+        g[y][x] = 4
+    return g
+
+
+def _e_moon():
+    g = _blank()
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            outer = (x - 7.5) ** 2 + (y - 7.5) ** 2 <= 42
+            cut = (x - 11.0) ** 2 + (y - 5.5) ** 2 <= 34
+            if outer and not cut:
+                g[y][x] = 1
+    # 描一圈深色边，浅色背景上才看得出轮廓
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            if g[y][x] == 1:
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < EMOJI_SIZE and 0 <= ny < EMOJI_SIZE and g[ny][nx] == 0:
+                        g[ny][nx] = 2
+    return g
+
+
+def _e_leaf():
+    rows = [
+        ".........####...",
+        ".......######...",
+        "......#######...",
+        ".....########...",
+        "....########....",
+        "....#######.....",
+        "...#######......",
+        "...######.......",
+        "..#####.........",
+        "..####..........",
+        "..###...........",
+        "..#.............",
+    ]
+    g = _art(rows, 1, 2, 5)
+    # 主叶脉
+    for i in range(1, 11):
+        _put(g, [(10 - i, i + 2)], 2)
+    return g
+
+
+def _e_coffee():
+    rows = [
+        "..2.......2....",
+        "...2.....2.....",
+        "..2.......2....",
+        "...2.....2.....",
+        "................",
+        "..33333333.....",
+        ".3222222223....",
+        ".3222222223.22.",
+        ".3222222223.22.",
+        ".3222222223.2..",
+        "..322222223.22.",
+        "..322222223....",
+        "...33333333....",
+        "....22222......",
+    ]
+    return _art(rows, 2, 1, 2)
+
+
+def _e_camera():
+    """白机身 + 深色镜头 + 蓝色镜片 + 橙色快门。
+
+    前两版都是深色机身，16px 上就是一个带窗户的黑方块，怎么改都像显示器。
+    换成白机身以后占比大的部分是亮的，深色只剩镜头，一眼就是相机。
+    """
+    g = _blank()
+    _box(g, 5, 2, 4, 2, 3)                     # 取景器凸起
+    _box(g, 1, 4, 14, 10, 3)                   # 机身
+    for y in range(EMOJI_SIZE):                # 白机身描一圈深边
+        for x in range(EMOJI_SIZE):
+            if g[y][x] == 3:
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < EMOJI_SIZE and 0 <= ny < EMOJI_SIZE and g[ny][nx] == 0:
+                        g[ny][nx] = 2
+    _put(g, [(13, 3), (14, 3)], 4)             # 橙色快门
+    for y in range(EMOJI_SIZE):
+        for x in range(EMOJI_SIZE):
+            d = (x - 7.5) ** 2 + (y - 9.5) ** 2
+            if d <= 10.0:
+                g[y][x] = 2                        # 镜头外圈
+            if d <= 4.5:
+                g[y][x] = 6                        # 镜片
+    _put(g, [(6, 8)], 3)                       # 镜片反光
+    return g
+
+
+def _e_music():
+    rows = [
+        ".......2222.....",
+        ".......2..2.....",
+        ".......2........",
+        ".......2........",
+        ".......2........",
+        "...22222........",
+        "..2222222.......",
+        "..2222222.......",
+        "...22222........",
+    ]
+    return _art(rows, 2, 4, 2)
+
+
 EMOJI_PAINTERS = {
     "smile": _e_smile, "laugh": _e_laugh, "love": _e_love, "cry": _e_cry,
     "surprise": _e_surprise, "sweat": _e_sweat, "angry": _e_angry,
     "sleepy": _e_sleepy, "cool": _e_cool, "heart": _e_heart,
     "flower": _e_flower, "star": _e_star,
+    # 第二批：还是同一套 16×16 点阵，脸沿用 _face() 保证大小一致
+    "wink": _e_wink, "shy": _e_shy, "speechless": _e_speechless,
+    "sad": _e_sad, "dizzy": _e_dizzy, "kiss": _e_kiss,
+    "sun": _e_sun, "moon": _e_moon, "leaf": _e_leaf,
+    "coffee": _e_coffee, "camera": _e_camera, "music": _e_music,
 }
 
 

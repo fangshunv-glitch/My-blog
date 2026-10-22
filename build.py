@@ -528,7 +528,9 @@ def site_data(depth, all_posts=False):
         "siteUrl": SITE["url"],
         "posts": posts,
     }
-    return '<script>window.SITE_DATA = %s;</script>' % json.dumps(data, ensure_ascii=False)
+    # EMOJI_V 单独挂一个全局：cloud.js / feed.js / admin.js 三处拼表情 URL 时都要用。
+    return ('<script>window.SITE_DATA = %s;window.EMOJI_V = "%s";</script>'
+            % (json.dumps(data, ensure_ascii=False), emoji_version()))
 
 
 def vendor_scripts(depth):
@@ -732,12 +734,8 @@ def build_home():
     文章列表在 blog.html，也就是目录里的「叁 博客」。
     """
     epigraph = HOME.get("epigraph") or SITE["slogan"]
-    contact = '<span class="sep">·</span>'.join(
-        '<a href="%s"%s>%s</a>'
-        % (html.escape(url),
-           ' target="_blank" rel="noopener"' if url.startswith("http") else "",
-           html.escape(name))
-        for name, url in HOME.get("contact", []))
+    # 联系方式只在页脚放一份。封面以前也摆一套 GitHub / 复古入口，
+    # 结果首页往下滚一点就是页脚，同样的两个链接一屏里出现两次。
 
     main = """
     <div class="cover">
@@ -755,7 +753,6 @@ def build_home():
 
       <div class="cover-foot">
         <div class="cover-year">{year}</div>
-        <div class="cover-contact">{contact}</div>
       </div>
     </div>""".format(
         name=html.escape(SITE["name"]), epi=html.escape(epigraph),
@@ -764,7 +761,7 @@ def build_home():
         # 没有 lede 就整行不渲染，别留一个空 <p> 撑出间距
         lede=('<p class="cover-lede">%s</p>' % html.escape(HOME["lede"])
               if HOME.get("lede", "").strip() else ""),
-        year=cn_year(), contact=contact)
+        year=cn_year())
 
     out = "\n".join([
         head("%s · %s" % (SITE["name"], epigraph), SITE["slogan"], 0),
@@ -1697,6 +1694,28 @@ def build_login():
       </div>
 
       <div class="cell">
+        <div class="cell-title tall bar-2">
+          <img class="pixel" src="assets/t_avatar.png" alt="我的头像">
+          <span class="en">MY AVATAR</span>
+        </div>
+        <div class="cell-body">
+          <div class="avatar-row">
+            <div class="avatar-slot" id="avatar-slot"></div>
+            <div class="avatar-act">
+              <label class="btn" for="avatar-file">选一张图</label>
+              <input id="avatar-file" type="file" accept="image/*" hidden>
+              <button class="btn-mini" id="avatar-clear" type="button">去掉头像</button>
+              <div class="form-msg" id="avatar-msg" role="status"></div>
+            </div>
+          </div>
+          <div class="form-note">
+            方图最好，会自动裁成正方形缩到 64 像素，原图不会被改动。
+            不设头像的话，留言旁边显示一块绿色斜纹。
+          </div>
+        </div>
+      </div>
+
+      <div class="cell">
         <div class="cell-title tall bar-3">
           <img class="pixel" src="assets/t_me.png" alt="我的昵称">
           <span class="en">MY NAME</span>
@@ -1923,6 +1942,33 @@ def _asset_version(rel):
         except OSError:
             _ASSET_V[rel] = ""
     return _ASSET_V[rel]
+
+
+_EMOJI_V = []
+
+
+def emoji_version():
+    """整包表情图共用一个版本号。
+
+    表情是 JS 按 <key>.png 现拼 URL 的，不像 CSS/JS 那样能被 _ASSET_REF 抓到，
+    所以换一张图的内容 URL 是不变的 —— 访客那边照旧吃旧缓存。
+    这里把 assets/emoji/ 下所有图的内容合起来算一个哈希，
+    由 site_data() 下发给前端，emo() 拼 URL 时带上。
+    二十四张图一起算：反正加一张新图也是「这一套变了」，没必要按张分开。
+    """
+    if not _EMOJI_V:
+        h = hashlib.sha256()
+        d = os.path.join(ROOT, "assets", "emoji")
+        try:
+            names = sorted(n for n in os.listdir(d) if n.endswith(".png"))
+        except OSError:
+            names = []
+        for n in names:
+            h.update(n.encode("utf-8"))
+            with open(os.path.join(d, n), "rb") as f:
+                h.update(f.read())
+        _EMOJI_V.append(h.hexdigest()[:8])
+    return _EMOJI_V[0]
 
 
 def stamp_assets(content):

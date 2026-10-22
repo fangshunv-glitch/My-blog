@@ -63,7 +63,8 @@
   function emo(text) {
     return esc(text).replace(/:([a-z][a-z0-9_]{1,15}):/g, function (m, key) {
       if (!EMO[key]) return m;
-      return '<img class="emo" src="assets/emoji/' + key + '.png"'
+      return '<img class="emo" src="assets/emoji/' + key + '.png'
+        + (window.EMOJI_V ? '?v=' + window.EMOJI_V : '') + '"'
         + ' alt="' + esc(EMO[key]) + '" title="' + esc(EMO[key]) + '" loading="lazy">';
     });
   }

@@ -26,7 +26,7 @@
   var NAME_MIN = 2;
   var NAME_MAX = 24;
 
-  var ME = { uid: '', email: '', name: '' };
+  var ME = { uid: '', email: '', name: '', avatar: '' };
 
   var pending = null;      // { email, verificationId, isExistingUser }
   var nextUrl = '';        // 校验过的回跳地址
@@ -211,6 +211,9 @@
     if (save) save.textContent = hasName ? '保存修改' : '就这个';
     var input = el('nick-input');
     if (input) input.value = hasName ? ME.name : '';
+
+    // 头像另取一次：它有自己的一张表，取不到也不该拖垮整页。
+    loadAvatar().then(paintAvatar);
   }
 
   // 登录页通常是「从中途被赶过来的」：带着 ?next= 说明那边有活要接着干。
@@ -221,7 +224,7 @@
   }
 
   // -------------------------------------------------------------------------
-  // 身份：会话 + 昵称
+  // 身份：会话 + 昵称 + 头像
   // -------------------------------------------------------------------------
   function loadProfile() {
     // profiles 的行级策略只放行自己那一行，所以查得到 == 我有昵称。
@@ -234,6 +237,84 @@
         ME.name = r.display_name || '';
         return true;
       });
+  }
+
+  // 头像单独一张表（avatars），不塞进 profiles：profiles 只放行自己那一行，
+  // 访客读不到别人的，头像就没法显示在留言旁边了。avatars 是公开可读的。
+  // 也正因为公开可读，select 必须自己带上 uid 过滤 —— 不带的话拉到的是全站头像。
+  function loadAvatar() {
+    if (!ME.uid) { ME.avatar = ''; return Promise.resolve(); }
+    return run(db().from('avatars').select('uid, data').eq('uid', ME.uid))
+      .then(function (rows) {
+        ME.avatar = (rows && rows[0] && rows[0].data) || '';
+      })
+      .catch(function () { ME.avatar = ''; });   // 头像取不到不该影响整页
+  }
+
+  function paintAvatar() {
+    var slot = el('avatar-slot');
+    if (!slot) return;
+    var can = !!ME.uid;
+    var img = can ? safeAvatar(ME.avatar) : '';
+    slot.innerHTML = img ? '<img src="' + img + '" alt="我的头像">' : '';
+    var clear = el('avatar-clear');
+    if (clear) clear.disabled = !img;
+    var file = el('avatar-file');
+    if (file) file.disabled = !can;
+    var lab = document.querySelector('label[for="avatar-file"]');
+    if (lab) lab.className = 'btn' + (can ? '' : ' is-off');
+  }
+
+  // 头像地址会被当成 HTML 插进页面，而 avatars 表是公开可读的 ——
+  // 谁都能往自己那一行塞一段 data:image/... 后面接引号和 onerror。
+  // 所以只认「规规矩矩的 base64 图片」，别的一律当没设头像。
+  function safeAvatar(s) {
+    return /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/.test(String(s || ''))
+      ? s : '';
+  }
+
+  // 缩到 64×64 再存。手机原图动辄三四 MB，直接塞进数据库会让每次读留言
+  // 都拖着几百 KB 走；64 像素在 26px 的列表里已经够清楚（还有 2 倍余量）。
+  // 先按短边居中裁成正方形，再缩 —— 不然竖图会被压扁。
+  function shrink(file) {
+    return new Promise(function (resolve, reject) {
+      if (!/^image\//.test(file.type)) {
+        reject(new Error('这个文件不是图片。'));
+        return;
+      }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var S = 64;
+        var side = Math.min(img.width, img.height);
+        var sx = (img.width - side) / 2;
+        var sy = (img.height - side) / 2;
+        var cv = document.createElement('canvas');
+        cv.width = S; cv.height = S;
+        var cx = cv.getContext('2d');
+        cx.drawImage(img, sx, sy, side, side, 0, 0, S, S);
+        resolve(cv.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('这张图读不出来，换一张试试。'));
+      };
+      img.src = url;
+    });
+  }
+
+  function saveAvatar(data) {
+    // 表里可能还没有自己这一行，所以 upsert：onConflict 落在主键 uid 上。
+    // uid 不传也行（列默认值就是 auth.uid()），但 upsert 的冲突判定要靠它，
+    // 传自己真实的 uid，策略那边再核一遍。
+    return run(db().from('avatars')
+      .upsert({
+        uid: ME.uid,
+        data: data,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'uid' })
+      .select('uid, data'));
   }
 
   // 两种登录方式共用一条提示位，但提示框得显示在当前看得见的那一栏。
@@ -511,6 +592,49 @@
     }));
   }
 
+  function bindAvatar() {
+    var file = el('avatar-file');
+    if (file) {
+      file.addEventListener('change', function () {
+        var box = el('avatar-msg');
+        var f = file.files && file.files[0];
+        file.value = '';                       // 清掉才能连着选同一张
+        if (!f) return;
+        if (!ME.uid) return msg(box, '先在下面取个昵称，再回来设头像。', true);
+        msg(box, '正在处理…', false);
+        shrink(f).then(function (data) {
+          if (data.length > 60000) throw new Error('这张图压完还是太大，换一张。');
+          return saveAvatar(data).then(function () {
+            ME.avatar = data;
+            paintAvatar();
+            msg(box, '头像已保存。', false);
+          });
+        }).catch(function (err) {
+          msg(box, err.message || errText(err), true);
+        });
+      });
+    }
+
+    var clear = el('avatar-clear');
+    if (clear) {
+      clear.addEventListener('click', guard('avatar-msg', function () {
+        var box = el('avatar-msg');
+        if (!ME.avatar) return msg(box, '现在就没有头像。', true);
+        clear.disabled = true;
+        msg(box, '正在保存…', false);
+        // 存空串而不是删行：建约束允许 data=''，读到空串就当没设头像。
+        saveAvatar('').then(function () {
+          ME.avatar = '';
+          paintAvatar();
+          msg(box, '头像已去掉。', false);
+        }).catch(function (err) {
+          msg(box, errText(err), true);
+          clear.disabled = false;
+        });
+      }));
+    }
+  }
+
   function bindLogout() {
     var btn = el('logout-btn');
     if (!btn) return;
@@ -531,6 +655,7 @@
     nextUrl = safeNext(qs('next'));
     bindLogin();
     bindNick();
+    bindAvatar();
     bindLogout();
     setLoginMode(defaultMode());
 

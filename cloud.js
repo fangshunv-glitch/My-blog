@@ -80,8 +80,11 @@
 
   // eager=true 用在表情面板上：面板是 hidden 的，里面的图 lazy 就不会加载，
   // 点开的第一眼是十二个空框。十二张图加起来不到 4KB，没必要省。
+  // ?v= 由 build.py 下发（整包表情图的哈希）：换一张图的内容，文件名不变，
+  // 不带版本号的话访客那边永远是旧图。
   function emoImg(key, title, eager) {
-    return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png"'
+    return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png'
+      + (window.EMOJI_V ? '?v=' + window.EMOJI_V : '') + '"'
       + ' alt="' + esc(title) + '" title="' + esc(title) + '"'
       + (eager ? '' : ' loading="lazy"') + '>';
   }
@@ -289,10 +292,44 @@
   // -------------------------------------------------------------------------
   // 渲染：单条留言 / 评论
   // -------------------------------------------------------------------------
-  function itemHTML(row) {
+  // 头像：一批 uid 一次问回来，别一条评论一个请求
+  // -------------------------------------------------------------------------
+  // 头像在 avatars 表里，公开可读；留言表只存了 uid，名字是当时的快照。
+  // 头像也按 uid 现查，所以换了头像，以前发过的留言跟着变（名字不会）。
+  function safeAvatar(s) {
+    return /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/]+=*$/.test(String(s || ''))
+      ? s : '';
+  }
+
+  function loadAvatars(rows) {
+    var seen = {}, uids = [];
+    for (var i = 0; i < rows.length; i++) {
+      var u = rows[i].uid;
+      if (u && !seen[u]) { seen[u] = 1; uids.push(u); }
+    }
+    if (!uids.length) return Promise.resolve({});
+    return run(db().from('avatars').select('uid, data').in('uid', uids))
+      .then(function (list) {
+        var map = {};
+        for (var j = 0; j < (list || []).length; j++) {
+          var s = safeAvatar(list[j].data);
+          if (s) map[list[j].uid] = s;
+        }
+        return map;
+      })
+      .catch(function () { return {}; });   // 头像取不到就都显示斜纹，不影响留言
+  }
+
+  function avatarHTML(src) {
+    return src
+      ? '<img class="comment-avatar" src="' + src + '" alt="">'
+      : '<div class="comment-avatar"></div>';
+  }
+
+  function itemHTML(row, avatars) {
     var out = '<div class="comment">'
       + '<div class="comment-head">'
-      + '<div class="comment-avatar"></div>'
+      + avatarHTML(avatars && avatars[row.uid])
       + '<span class="comment-name">' + esc(row.name) + '</span>'
       + '<span class="comment-time">' + esc(fmtTime(row.created_at)) + '</span>'
       + '</div>'
@@ -311,19 +348,21 @@
     var box = el(opt.boxId);
     if (!box) return Promise.resolve();
 
-    var q = db().from(opt.table).select('id, name, content, reply, created_at');
+    var q = db().from(opt.table).select('id, uid, name, content, reply, created_at');
     if (opt.slug) q = q.eq('post_slug', opt.slug);
     q = q.eq('status', 'published').order('created_at', { ascending: false }).limit(LIST_LIMIT);
 
     return run(q).then(function (rows) {
       rows = rows || [];
-      box.innerHTML = rows.length
-        ? rows.map(itemHTML).join('')
-        : '<div class="empty-tip">' + esc(opt.emptyTip) + '</div>';
-      if (opt.countId) {
-        var c = el(opt.countId);
-        if (c) c.textContent = opt.countLabel.replace('{n}', rows.length);
-      }
+      return loadAvatars(rows).then(function (avatars) {
+        box.innerHTML = rows.length
+          ? rows.map(function (r) { return itemHTML(r, avatars); }).join('')
+          : '<div class="empty-tip">' + esc(opt.emptyTip) + '</div>';
+        if (opt.countId) {
+          var c = el(opt.countId);
+          if (c) c.textContent = opt.countLabel.replace('{n}', rows.length);
+        }
+      });
     }, function (err) {
       notice(box, friendly(err));
     });

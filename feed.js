@@ -82,7 +82,8 @@
   })();
 
   function emoTag(key) {
-    return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png"'
+    return '<img class="emo" src="' + BASE + 'assets/emoji/' + key + '.png'
+      + (window.EMOJI_V ? '?v=' + window.EMOJI_V : '') + '"'
       + ' alt="' + escAttr(EMO[key]) + '" title="' + escAttr(EMO[key]) + '" loading="lazy">';
   }
   // 按码点切。手机打的 emoji 是代理对，按 UTF-16 下标切会剩下半个 →「�」。
