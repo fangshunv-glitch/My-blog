@@ -2687,3 +2687,139 @@ img.comment-avatar { object-fit: cover; background: none; }
   .post-cover img { max-height: 150px; }
   .cmp-chip { font-size: 12px; padding: 7px 9px; }
 }
+
+/* ============================================================
+   点赞（likes.js / feed.js 拼的那颗心）
+   ============================================================ */
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;          /* 卡片底部：靠右，跟「阅读全文」分两头 */
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: #7A8B66;
+  background: #FBFCF7;
+  border: 1px solid var(--line-soft);
+  cursor: pointer;
+  transition: none;           /* 复古站不用平滑过渡 */
+}
+.like-btn:hover { color: var(--link); border-color: var(--link); }
+.like-btn .lk-heart { font-size: 13px; color: #C4CFB4; }
+.like-btn.on {
+  color: #fff;
+  background: #D9534F;        /* 赞过的红，和站点的绿系错开，一眼看得出 */
+  border-color: #C0413D;
+}
+.like-btn.on .lk-heart { color: #FFE7E5; }
+
+/* 文章详情：标签条下面一行 */
+.post-like { margin: 10px 0 0; display: flex; }
+.post-like .like-btn { margin-left: 0; padding: 6px 14px; font-size: 13px; }
+
+/* 说说正文（列表里直接铺开） */
+.post.note .note-body {
+  margin: 0 0 9px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: #3F4A36;
+  word-break: break-word;
+}
+.post.note .note-body .emo { display: inline-block; vertical-align: -2px; }
+.post.note .note-more { color: var(--link); }
+/* 「说说」这两个字只是给自己看的分类记号，压得很轻 */
+.m-kind {
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 11px;
+  color: #6B7F55;
+  background: #EEF6E0;
+  border: 1px solid #D6E7BC;
+}
+
+/* ============================================================
+   后台「足迹」
+   ============================================================ */
+.trail-sum {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+}
+.trail-sum b { color: var(--header); }
+
+.trail-day {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  background: #FBFCF7;
+}
+.trail-day-h {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 8px;
+  color: #fff;
+  background: var(--header);
+}
+.trail-day-n {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 11px;
+  opacity: .85;
+}
+.trail-list { margin: 0; padding: 0; list-style: none; }
+.trail-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  border-top: 1px dashed var(--line-soft);
+}
+.trail-list li:first-child { border-top: 0; }
+.tr-time {
+  flex: 0 0 44px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 8px;
+  color: #8B9B78;
+}
+.tr-who {
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--header);
+  font-weight: bold;
+}
+.tr-who.tr-anon { color: #94A084; font-weight: normal; }
+.tr-page {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: #6B7F55;
+}
+
+/* 后台里到处用的空态一行话 */
+.adm-empty {
+  padding: 14px 12px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #6B7F55;
+  background: #FBFCF7;
+  border: 1px dashed var(--line-soft);
+}
+
+@media (max-width: 640px) {
+  /* 手机上卡片底部三个东西挤一行会溢出：让人心上到第二行的右边 */
+  .post-foot { flex-wrap: wrap; }
+  .like-btn { padding: 4px 9px; }
+  .tr-time { flex-basis: 40px; }
+  .tr-who { max-width: 34%; }
+  .trail-list li { gap: 6px; padding: 6px 8px; }
+}

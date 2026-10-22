@@ -69,6 +69,20 @@
     return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
 
+  // 从正文里摘一个标题。去掉 markdown 记号再取前 24 个字，
+  // 按码点切 —— 手机打的 emoji 是代理对，按 UTF-16 切会剩半个字。
+  function autoTitle(body) {
+    var s = String(body)
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')     // 图片
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')   // 链接只留文字
+      .replace(/[#>*_`~\-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    var chars = Array.from(s);
+    var t = chars.slice(0, 24).join('').trim();
+    return t || '说说';
+  }
+
   function makeSlug() {
     var d = new Date();
     return 'post-' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate())
@@ -287,8 +301,8 @@
       + '<button type="button" class="cmp-close" aria-label="关闭">×</button></div>'
 
       + '<div class="cmp-body">'
-      + '<div class="form-row"><label for="cmp-title">标题 <em>必填</em></label>'
-      + '<input id="cmp-title" type="text" maxlength="120" placeholder="这篇写点什么"></div>'
+      + '<div class="form-row"><label for="cmp-title">标题 <em>可不填</em></label>'
+      + '<input id="cmp-title" type="text" maxlength="120" placeholder="随手一句就不用起标题"></div>'
 
       + '<div class="form-row"><label for="cmp-cat">分类 <em>必填</em></label>'
       + '<select id="cmp-cat"><option value="">正在读分类…</option></select>'
@@ -436,7 +450,6 @@
       var vis = v.vis;
       var date = el('cmp-date').value || todayStr();
 
-      if (!title) { el('cmp-title').focus(); return tail(msgBox, '标题还没填。', true); }
       if (v.need && !v.uids.length) {
         return tail(msgBox, vis === 'custom'
           ? '「部分人可见」得先勾几个人。' : '「部分人不可见」得先勾几个人。', true);
@@ -448,7 +461,14 @@
       }
       if (!body.trim()) { el('cmp-text').focus(); return tail(msgBox, '正文还是空的。', true); }
 
+      // 标题空着就发成「说说」：正文直接铺在列表上，不用先想个标题。
+      // 数据库那条 title 约束要求 1~120 字，所以还是得给它一个 ——
+      // 从正文里摘一小段，只在后台列表和页面标题里用得到。
+      var kind = title ? 'post' : 'note';
+      if (!title) title = autoTitle(body);
+
       var payload = {
+        kind: kind,
         title: title,
         slug: makeSlug(),
         excerpt: (el('cmp-excerpt').value || '').trim(),

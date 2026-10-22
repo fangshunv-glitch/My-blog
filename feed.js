@@ -221,6 +221,33 @@
   };
 
   // -------------------------------------------------------------------------
+  // 行内表情 / 点赞按钮
+  //
+  // 说说（kind=note）的正文要直接铺在列表上，所以这里有一份「按行渲染」的
+  // 轻量版：esc 之后转义换行、再把 :key: 换成图。**顺序不能反** ——
+  // 先替换再 esc 就是把人写的东西当 HTML 用。
+  // -------------------------------------------------------------------------
+  var EMO_RE = /:([a-z][a-z0-9_]{1,15}):/g;
+
+  function emoLines(text, max) {
+    var chars = Array.from(String(text == null ? '' : text).trim());
+    var cut = false;
+    if (max && chars.length > max) { chars = chars.slice(0, max); cut = true; }
+    var out = esc(chars.join('')).replace(EMO_RE, function (m, k) {
+      return EMO[k] ? emoTag(k) : m;
+    }).replace(/\n/g, '<br>');
+    return out + (cut ? '<span class="note-more">…</span>' : '');
+  }
+
+  // 按钮只是一副壳子，数字和「我赞过没有」由 likes.js 统一填。
+  // 这样一处逻辑管全站的心，不会出现列表算 3、详情算 2 的情况。
+  function likeHTML(kind, key) {
+    return '<button class="like-btn" type="button" data-like="'
+      + escAttr(kind + ':' + key) + '" aria-pressed="false" title="赞一下">'
+      + '<span class="lk-heart">♥</span><span class="lk-n">赞</span></button>';
+  }
+
+  // -------------------------------------------------------------------------
   // 文章卡片
   //
   // 发文章时带的配图挂在 photos 表里（post_slug = 文章 slug），以前只有点进
@@ -260,8 +287,44 @@
       + '</a>';
   }
 
+  // 说说的正文：列表查询故意不带 body（正文可能几十 KB，绝大多数卡片用不上），
+  // 所以只给「说说」再补一次，一次多带几篇也就几百字。
+  var NOTE_BODY = {};
+
+  function loadNotes() {
+    var slugs = PUBLIC.filter(function (p) { return p.kind === 'note'; })
+      .map(function (p) { return p.slug; }).slice(0, 20);
+    if (!slugs.length) return Promise.resolve();
+    return run(db().from('posts').select('slug,body').in('slug', slugs))
+      .then(function (rows) {
+        NOTE_BODY = {};
+        (rows || []).forEach(function (r) { NOTE_BODY[r.slug] = r.body || ''; });
+      }, function () { NOTE_BODY = {}; });
+  }
+
+  // 说说：标题是空的，正文就是全部内容。QQ 空间那种「随手一句 + 一张图」，
+  // 不该逼人先想一个标题。挂在 posts 表里，评论、可见范围、点赞全都通用。
+  function noteHTML(p, opts) {
+    opts = opts || {};
+    var url = postUrl(p.slug);
+    var meta = ['<span class="m-date">' + esc(dayOf(p.published_on)) + '</span>'];
+    if (opts.showCat !== false && p.category) {
+      meta.push('<span class="m-cat">' + catLink(p.category) + '</span>');
+    }
+    meta.push('<span class="m-kind">说说</span>');
+    return '<article class="post note">'
+      + '<div class="post-meta">' + meta.join('') + '</div>'
+      + '<div class="note-body">' + emoLines(NOTE_BODY[p.slug] || '', 260) + '</div>'
+      + coverHTML(p.slug)
+      + '<div class="post-foot">'
+      + '<a class="more" href="' + escAttr(url) + '">评论 <span class="arrow">▸</span></a>'
+      + likeHTML('post', p.slug)
+      + '</div></article>';
+  }
+
   function cardHTML(p, opts) {
     opts = opts || {};
+    if (p.kind === 'note') return noteHTML(p, opts);
     var url = postUrl(p.slug);
     var meta = ['<span class="m-date">' + esc(dayOf(p.published_on)) + '</span>'];
     if (opts.showCat !== false && p.category) {
@@ -279,6 +342,7 @@
       + coverHTML(p.slug)
       + '<div class="post-foot">'
       + '<a class="more" href="' + escAttr(url) + '">阅读全文 <span class="arrow">▸</span></a>'
+      + likeHTML('post', p.slug)
       + '<span class="post-tags">' + chips + '</span>'
       + '</div></article>';
   }
@@ -293,7 +357,8 @@
       + '</div>'
       + (p.excerpt ? '<p class="post-excerpt">' + esc(p.excerpt) + '</p>' : '')
       + coverHTML(p.slug)
-      + '<div class="post-foot"><a class="more" href="' + escAttr(url) + '">阅读全文 ▸</a></div>'
+      + '<div class="post-foot"><a class="more" href="' + escAttr(url) + '">阅读全文 ▸</a>'
+      + likeHTML('post', p.slug) + '</div>'
       + '</div>' + (COVER[p.slug] && COVER[p.slug].thumb
         ? ''                                  // 有首图就不再摆那块像素画，免得一个卡片两张图
         : '<div class="thumb">PIXEL<br>TOP</div>')
@@ -561,6 +626,19 @@
           + '?slug=' + encodeURIComponent(p.slug), copyBtn);
       });
     }
+
+    // 详情页也放一颗心。容器只建一次，重新渲染时只换里面的内容，
+    // 否则来回进两篇文章会叠出两颗心。
+    var likeBox = el('post-like');
+    if (!likeBox) {
+      likeBox = document.createElement('div');
+      likeBox.id = 'post-like';
+      likeBox.className = 'post-like';
+      var anchor = el('post-tags');
+      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(likeBox, anchor.nextSibling);
+    }
+    likeBox.innerHTML = likeHTML('post', p.slug);
+    if (window.PixelLikes) window.PixelLikes.refresh();
 
     paintPostNav(p);
     paintPostPhotos(p);
@@ -980,7 +1058,7 @@
   function loadPosts() {
     // 只拉需要的列：正文可能在几十 KB，列表页用不上
     return run(db().from('posts')
-      .select('id,slug,title,excerpt,category,tags,visibility,featured,published_on,owner_name,updated_at')
+      .select('id,slug,title,excerpt,category,tags,kind,visibility,featured,published_on,owner_name,updated_at')
       .order('published_on', { ascending: false })
       .order('id', { ascending: false })
       .limit(500));
@@ -1011,6 +1089,8 @@
       });
       return loadCovers();
     }).then(function () {
+      return loadNotes();
+    }).then(function () {
       prepareCategoryPage();
       viewList();
       viewArchive();
@@ -1019,6 +1099,7 @@
       paintArchList();
       broadcast();
       viewPost();
+      if (window.PixelLikes) window.PixelLikes.refresh();
     }, function (err) {
       // 读不到就保住静态兜底，只补一句人话
       var note = '<div class="empty-tip">内容没能从云端读出来：' + esc(friendly(err))

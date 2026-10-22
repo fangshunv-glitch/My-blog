@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=b9a75ac6">
+<link rel="stylesheet" href="style.css?v=e258c55f">
 </head>
 <body class="blog">
 <div class="page">
@@ -188,6 +188,12 @@
     <!-- 站点头像：avatars 里 is_site 那一行。跟上面同一个道理 —— 侧栏在每一页都有，
          封面页也在，所以只能挂在页脚。 -->
     <script defer src="owner-avatar.js?v=956ad56f"></script>
+    <!-- 点赞：也挂在页脚，因为文章卡片和详情页都要它，而这两页的渲染时机
+         各不相同。没有按钮的页面它自己会退出，不白发请求。 -->
+    <script defer src="likes.js?v=8d31e53d"></script>
+    <!-- 足迹：每次打开页面记一条「谁看了哪页」。没引 SDK 的封面页
+         用公开键直连记成匿名访客；失败一律静默。 -->
+    <script defer src="trail.js?v=d04654e8"></script>
     </div>
 </div>
 <script>window.PIXEL_EMOJI = [{"k":"smile","n":"微笑"},{"k":"laugh","n":"大笑"},{"k":"love","n":"喜欢"},{"k":"cry","n":"哭"},{"k":"surprise","n":"惊讶"},{"k":"sweat","n":"汗"},{"k":"angry","n":"生气"},{"k":"sleepy","n":"困"},{"k":"cool","n":"酷"},{"k":"wink","n":"眨眼"},{"k":"shy","n":"害羞"},{"k":"speechless","n":"无语"},{"k":"sad","n":"难过"},{"k":"dizzy","n":"晕"},{"k":"kiss","n":"亲亲"},{"k":"heart","n":"爱心"},{"k":"flower","n":"小花"},{"k":"star","n":"星星"},{"k":"sun","n":"太阳"},{"k":"moon","n":"月亮"},{"k":"leaf","n":"叶子"},{"k":"coffee","n":"咖啡"},{"k":"camera","n":"相机"},{"k":"music","n":"音乐"}];</script>
@@ -254,7 +260,7 @@
 <script src="cloud-config.js?v=ad44d33a"></script>
 <script src="vendor/workbuddy-cloud.global.js?v=64f437dc"></script>
 <script>if (!window.WorkBuddyCloud) { document.write('<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"><\/script>'); }</script>
-<script src="feed.js?v=9dc53741"></script>
+<script src="feed.js?v=0be9d4f4"></script>
 <script src="cloud.js?v=dcddcec3"></script>
 </body>
 </html>

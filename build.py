@@ -504,6 +504,12 @@ def footer(depth, marquee=True):
     <!-- 站点头像：avatars 里 is_site 那一行。跟上面同一个道理 —— 侧栏在每一页都有，
          封面页也在，所以只能挂在页脚。 -->
     <script defer src="{p}owner-avatar.js"></script>
+    <!-- 点赞：也挂在页脚，因为文章卡片和详情页都要它，而这两页的渲染时机
+         各不相同。没有按钮的页面它自己会退出，不白发请求。 -->
+    <script defer src="{p}likes.js"></script>
+    <!-- 足迹：每次打开页面记一条「谁看了哪页」。没引 SDK 的封面页
+         用公开键直连记成匿名访客；失败一律静默。 -->
+    <script defer src="{p}trail.js"></script>
     </div>""".format(name=html.escape(SITE["name"]), marq=marq,
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
                      url=html.escape(SITE["url"]),
@@ -1436,6 +1442,7 @@ def build_admin():
               <a href="#" data-panel="posts">文章</a>
               <a href="#" data-panel="cats">分类</a>
               <a href="#" data-panel="photos">相册</a>
+              <a href="#" data-panel="trail">足迹</a>
               <a href="#" data-panel="private">私密内容</a>
               <button type="button" class="info-dot" data-info="「隐藏」之后访客看不到，但内容还在，随时能恢复；「删除」是真的删掉，找不回来。">i</button>
             </div>
@@ -1598,6 +1605,22 @@ def build_admin():
             </div>
           </div>
           <div id="ct-list"></div>
+        </div>
+
+        <!-- 足迹：site_events 里 kind='view' 的那些，由 trail.js 在每次
+             打开页面时记一条。**只有站长读得到** —— 策略是 pixel_is_admin()，
+             访客写完之后当场就读不回来，也看不到别人的。 -->
+        <div id="trail-pane" hidden>
+          <div class="cell">
+            <div class="cell-title bar-7">
+              <img class="pixel" src="assets/t_act.png" alt="足迹">
+              <span class="en">WHO VISITED</span>
+            </div>
+            <div class="cell-body">
+              <div class="trail-sum" id="trail-sum">正在读…</div>
+            </div>
+          </div>
+          <div id="trail-list"></div>
         </div>
 
         <!-- 私密内容：存在云端数据库，数据库层面只放行站长一个人，
@@ -1950,7 +1973,7 @@ _ASSET_V = {}
 _ASSET_REF = re.compile(
     r'((?:href|src)=")((?:\.\./)*(?:style\.css|cloud-config\.js|feed\.js'
     r'|cloud\.js|admin\.js|login\.js|foot-stats\.js|owner-avatar\.js'
-    r'|compose\.js|vendor/workbuddy-cloud\.global\.js))(")')
+    r'|compose\.js|likes\.js|trail\.js|vendor/workbuddy-cloud\.global\.js))(")')
 
 
 def _asset_version(rel):

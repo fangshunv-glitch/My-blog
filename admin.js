@@ -812,8 +812,9 @@
     var isPosts = kind === 'posts';
     var isPhotos = kind === 'photos';
     var isCats = kind === 'cats';
+    var isTrail = kind === 'trail';
     // 留言板 / 文章评论共用一块列表
-    var isFeed = !isPrivate && !isPosts && !isPhotos && !isCats;
+    var isFeed = !isPrivate && !isPosts && !isPhotos && !isCats && !isTrail;
 
     show(el('admin-list'), isFeed);
     show(el('admin-count'), isFeed);
@@ -821,6 +822,7 @@
     show(el('posts-pane'), isPosts);
     show(el('photos-pane'), isPhotos);
     show(el('cats-pane'), isCats);
+    show(el('trail-pane'), isTrail);
 
     if (isPrivate) {
       loadPrivate();
@@ -830,6 +832,8 @@
       loadPhotos();
     } else if (isCats) {
       loadCats();
+    } else if (isTrail) {
+      loadTrail();
     } else {
       loadItems(kind);
     }
@@ -882,6 +886,135 @@
   // 内部用 pixel_is_admin() 把门，非站长调用只会拿到空数组。
   // profiles 表本身只放行自己那一行，所以不能直接 select 别人。
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // 足迹：谁在什么时候看了哪一页
+  //
+  // 数据是 trail.js 记的（site_events 表，kind='view'）。策略只放行站长，
+  // 所以这里读到的就是全部，不用再按 uid 过滤。
+  // 只取最近 300 条 —— 足迹是「最近谁来串过门」的感觉，不是审计日志。
+  // -------------------------------------------------------------------------
+  var TRAIL_LIMIT = 300;
+
+  var PAGE_NAME = {
+    'index.html': '封面', 'blog.html': '博客', 'album.html': '相册',
+    'archive.html': '归档', 'guestbook.html': '留言板', 'projects.html': '项目',
+    'about.html': '关于', 'share.html': '分享页', 'category.html': '分类',
+    'post.html': '文章', 'welcome.html': '复古入口'
+  };
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function dayKey(v) {
+    var d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  function clockOf(v) {
+    var d = new Date(v);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  // /post.html?slug=post-20261022-kdlf → 文章 · post-20261022-kdlf
+  function pageLabel(detail) {
+    var t = String(detail || '');
+    var q = t.indexOf('?');
+    var file = q < 0 ? t : t.slice(0, q);
+    var name = PAGE_NAME[file] || file || '某个页面';
+    if (q < 0) return name;
+    var m = /slug=([^&]*)/.exec(t);
+    if (m) return name + ' · ' + decodeURIComponent(m[1]);
+    var c = /c=([^&]*)/.exec(t);
+    if (c) return name + ' · ' + decodeURIComponent(c[1]);
+    return name;
+  }
+
+  function trailName(uid) {
+    var id = String(uid || '');
+    // 匿名访客这条 uid 是 'anon'（不是空）—— 云端把「没有用户」也存成了角色名，
+    // 当真人算的话，「独立访客」会凭空多一个。
+    if (!id || id === 'anon' || id === 'null') return '游客';
+    for (var i = 0; i < (MEMBERS || []).length; i++) {
+      if (String(MEMBERS[i].m_uid) === id) return MEMBERS[i].m_name || ('匿名 ' + id.slice(-4));
+    }
+    return '访客 ' + id.slice(-4);
+  }
+
+  function loadTrail() {
+    var sum = el('trail-sum');
+    var box = el('trail-list');
+    if (!box) return;
+    if (sum) sum.textContent = '';
+    box.innerHTML = '<div class="adm-empty">正在读…</div>';
+    run(db().from('site_events')
+      .select('id,kind,detail,uid,created_at')
+      .eq('kind', 'view')
+      .order('created_at', { ascending: false })
+      .limit(TRAIL_LIMIT))
+      .then(function (rows) {
+        // 名字要等名单。名单读不到也照画 —— 顶多显示成「访客 xxxx」。
+        loadPeople().then(function () { paintTrail(rows || []); },
+                          function () { paintTrail(rows || []); });
+      }, function (err) {
+        box.innerHTML = '<div class="adm-empty">足迹没读出来：'
+          + esc((err && (err.message || err.code)) || '未知原因') + '。刷新一下再试。</div>';
+      });
+  }
+
+  function paintTrail(rows) {
+    var sum = el('trail-sum');
+    var box = el('trail-list');
+    if (!box) return;
+
+    var today = dayKey(new Date().toISOString());
+    var weekAgo = Date.now() - 7 * 86400000;
+    var nToday = 0, nWeek = 0, people = {};
+    rows.forEach(function (r) {
+      var t = new Date(r.created_at).getTime();
+      if (dayKey(r.created_at) === today) nToday++;
+      if (t >= weekAgo) nWeek++;
+      var who = String(r.uid || '');
+      if (who && who !== 'anon' && who !== 'null') people[who] = true;
+    });
+    var nPeople = Object.keys(people).length;
+
+    if (sum) {
+      sum.innerHTML = rows.length
+        ? ('今天 <b>' + nToday + '</b> 次 · 最近七天 <b>' + nWeek + '</b> 次 · 独立访客 <b>'
+           + nPeople + '</b> 人' + (rows.length >= TRAIL_LIMIT ? '（只看最近 ' + TRAIL_LIMIT + ' 条）' : ''))
+        : '还没有人来看过。';
+    }
+
+    if (!rows.length) {
+      box.innerHTML = '<div class="adm-empty">足迹是空的。前台每打开一个页面就会记一条，'
+        + '自己先去逛一圈试试。</div>';
+      return;
+    }
+
+    // 按天分组，同一天里按时间倒序（查询已经是倒序，这里顺着切就行）
+    var groups = [], cur = null;
+    rows.forEach(function (r) {
+      var k = dayKey(r.created_at);
+      if (!cur || cur.k !== k) { cur = { k: k, list: [] }; groups.push(cur); }
+      cur.list.push(r);
+    });
+
+    box.innerHTML = groups.map(function (g) {
+      var head = g.k === today ? '今天' : g.k;
+      return '<div class="trail-day">'
+        + '<div class="trail-day-h">' + esc(head)
+        + '<span class="trail-day-n">' + g.list.length + ' 次</span></div>'
+        + '<ul class="trail-list">'
+        + g.list.map(function (r) {
+            return '<li><span class="tr-time">' + esc(clockOf(r.created_at)) + '</span>'
+              + '<span class="tr-who' + (trailName(r.uid) === '游客' ? ' tr-anon' : '') + '">'
+              + esc(trailName(r.uid)) + '</span>'
+              + '<span class="tr-page">' + esc(pageLabel(r.detail)) + '</span></li>';
+          }).join('')
+        + '</ul></div>';
+    }).join('');
+  }
+
   var MEMBERS = null;      // 可选人员，拉一次就缓存
   var PICK_UIDS = [];      // 编辑已有文章时回填用的 uid
 
