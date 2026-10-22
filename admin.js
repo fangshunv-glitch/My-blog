@@ -802,6 +802,12 @@
   // tab 之间的切换
   function switchPanel(kind) {
     currentKind = kind;
+    // 高亮跟着走。不只点页签会进来 —— 前台「配置分类」带的是
+    // admin.html?pane=cats，从那个地址进来也得让「分类」亮着，
+    // 否则停在「留言板」的样式上，人会以为没跳过去。
+    Array.prototype.forEach.call(document.querySelectorAll('[data-panel]'), function (t) {
+      t.classList.toggle('active', t.getAttribute('data-panel') === kind);
+    });
     var isPrivate = kind === 'private';
     var isPosts = kind === 'posts';
     var isPhotos = kind === 'photos';

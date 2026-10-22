@@ -355,7 +355,7 @@
     var box = el('cat-list');
     if (!box) return;
     if (!CAT_ROWS.length) {
-      box.innerHTML = '<li class="side-empty">还没有分类。站长在后台「分类」里加一个就会出现。</li>';
+      box.innerHTML = '<li class="side-empty">还没有分类。</li>';
       return;
     }
     box.innerHTML = CAT_ROWS.map(function (c) {

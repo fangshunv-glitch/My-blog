@@ -98,6 +98,18 @@ a:hover { color: var(--new); text-decoration: underline; }
   font-size: 7px;
   color: rgba(255, 255, 255, .8);
 }
+/* 侧栏标题右上角的小入口（站长专属，默认 hidden）。
+   放在 .en 后面：.en 的 margin-left:auto 把这一组推到右边，它就贴在标题栏右端。 */
+.cell-title .cell-more {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(255, 255, 255, .7);
+  white-space: nowrap;
+}
+.cell-title .cell-more:hover { color: var(--yellow); border-bottom-color: var(--yellow); }
+.cell-title .cell-more[hidden] { display: none; }
 .cell-body { padding: 9px 11px; }
 
 /* 标题栏配色（深浅绿轮换） */
@@ -2495,6 +2507,23 @@ img.comment-avatar { object-fit: cover; background: none; }
   font-size: 12px; color: #4C6B33;
   margin-right: auto; flex: none;
 }
+
+/* 分类下拉选了「＋ 新建分类…」之后就地展开的输入框。
+   默认收起来，别让两行输入框并排显得多余。 */
+.cmp-newcat { margin-top: 6px; }
+.cmp-newcat[hidden] { display: none; }
+.cmp-newcat input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 9px;
+  color: var(--text);
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.cmp-newcat input:focus { border-color: #8EC759; outline: none; }
 
 /* 存完之后的一句话结果。错误多留一会儿，够看清哪几张没成。 */
 .cmp-toast {

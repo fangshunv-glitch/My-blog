@@ -430,6 +430,7 @@ def sidebar(depth, skip_me=False):
         <div class="cell-title bar-2">
           <img class="pixel" src="{p}assets/t_cat.png" alt="文章分类">
           <span class="en">CATEGORY</span>
+          <a class="cell-more" id="cat-manage" href="{p}admin.html?pane=cats" hidden>配置</a>
         </div>
         <div class="cell-body"><ul class="cat-list" id="cat-list">{cats}</ul></div>
       </div>

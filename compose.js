@@ -49,7 +49,9 @@
     var m = (err && (err.message || err.error_description)) || '';
     if (/SDK_MISSING/.test(m)) return '云端脚本没加载上，刷新一下再试。';
     if (/Failed to fetch|NetworkError|fetch/i.test(m)) return '网络好像不通。';
-    if (/row-level security|42501/i.test(m)) return '这个账号没有权限，先确认是站长身份登录的。';
+    if (/row-level security|permission denied|42501/i.test(m)) {
+      return '这个账号没有权限，先确认是站长身份登录的。';
+    }
     return m || '出了点问题，稍后再试。';
   }
 
@@ -207,7 +209,10 @@
       + '<input id="cmp-title" type="text" maxlength="120" placeholder="这篇写点什么"></div>'
 
       + '<div class="form-row"><label for="cmp-cat">分类 <em>必填</em></label>'
-      + '<select id="cmp-cat"><option value="">正在读分类…</option></select></div>'
+      + '<select id="cmp-cat"><option value="">正在读分类…</option></select>'
+      + '<div class="cmp-newcat" id="cmp-newcat-wrap" hidden>'
+      + '<input id="cmp-newcat" type="text" maxlength="12" placeholder="新分类叫什么，比如「读书」">'
+      + '</div></div>'
 
       + '<div class="form-row"><label for="cmp-text">正文 <em>必填</em></label>'
       + '<textarea id="cmp-text" rows="11" placeholder="支持 **粗体**、[链接](地址)、- 列表"></textarea></div>'
@@ -243,23 +248,88 @@
     var saveBtn = el('cmp-save');
     var picked = [];
 
-    // 分类是云端维护的，现读现填
-    run(db().from('categories').select('slug,name').order('sort', { ascending: true }))
+    // 分类不写死：名单在云端，站长自己加。下拉最后一项是「新建」，
+    // 选它就地展开输入框 —— 发文章的时候顺手就把分类建了，
+    // 不用为了加一个分类先跑去后台。
+    var CATS = [];
+    var NEW_OPT = '__new';
+
+    function newCatVisible(on) {
+      var wrap = el('cmp-newcat-wrap');
+      if (!wrap) return;
+      wrap.hidden = !on;
+      if (on) {
+        var inp = el('cmp-newcat');
+        if (inp) inp.focus();
+      }
+    }
+
+    function fillCatSelect(rows, pick) {
+      var sel = el('cmp-cat');
+      if (!sel) return;
+      var cur = sel.value;
+      var html = (rows || []).map(function (r) {
+        return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>';
+      }).join('');
+      html += '<option value="' + NEW_OPT + '">＋ 新建分类…</option>';
+      sel.innerHTML = html;
+      if (!rows || !rows.length) {
+        sel.value = NEW_OPT;
+        newCatVisible(true);
+        return;
+      }
+      if (pick && findCat(pick)) sel.value = pick;
+      else sel.value = (cur && cur !== NEW_OPT && findCat(cur)) ? cur : rows[0].name;
+      newCatVisible(sel.value === NEW_OPT);
+    }
+
+    function findCat(name) {
+      for (var i = 0; i < CATS.length; i++) {
+        if (CATS[i].name === name) return CATS[i];
+      }
+      return null;
+    }
+
+    // 建一个分类。重名就当「已经有了」，直接用那一条，别报错。
+    function createCat(name) {
+      var sort = 0;
+      CATS.forEach(function (r) { if ((r.sort || 0) > sort) sort = r.sort; });
+      var slug = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+      return run(db().from('categories').insert({
+        name: name, descr: '', sort: sort + 10, slug: slug
+      }).select('id,slug,name,sort')).then(function (rows) {
+        var row = (rows && rows[0]) || { id: '', slug: slug, name: name, sort: sort + 10 };
+        CATS.push(row);
+        fillCatSelect(CATS, row.name);
+        return row;
+      }, function (err) {
+        var m = (err && (err.message || err.error_description)) || '';
+        if (!/23505|duplicate|unique/i.test(m)) throw err;
+        return run(db().from('categories').select('id,slug,name,sort')
+          .eq('name', name).limit(1)).then(function (rows) {
+          var row = (rows && rows[0]) || { id: '', slug: '', name: name, sort: 99 };
+          if (!findCat(name)) CATS.push(row);
+          fillCatSelect(CATS, row.name);
+          return row;
+        });
+      });
+    }
+
+    run(db().from('categories').select('slug,name,sort').order('sort', { ascending: true }))
       .then(function (rows) {
-        var sel = el('cmp-cat');
-        if (!sel) return;
-        rows = rows || [];
-        if (!rows.length) {
-          sel.innerHTML = '<option value="">还没有分类，先去后台加一个</option>';
-          return;
-        }
-        sel.innerHTML = rows.map(function (r) {
-          return '<option value="' + esc(r.name) + '">' + esc(r.name) + '</option>';
-        }).join('');
+        CATS = rows || [];
+        fillCatSelect(CATS);
       }, function () {
         var sel = el('cmp-cat');
-        if (sel) sel.innerHTML = '<option value="">分类没读出来</option>';
+        CATS = [];
+        if (sel) sel.innerHTML = '<option value="' + NEW_OPT + '">＋ 新建分类…</option>';
+        if (sel) sel.value = NEW_OPT;
+        newCatVisible(true);
       });
+
+    el('cmp-cat').addEventListener('change', function () {
+      newCatVisible(el('cmp-cat').value === NEW_OPT);
+    });
 
     el('cmp-files').addEventListener('change', function (e) {
       picked = Array.prototype.slice.call(e.target.files || []);
@@ -270,13 +340,18 @@
     // 正文已经存好了，为几张图把它删掉更气人。
     saveBtn.addEventListener('click', function () {
       var title = (el('cmp-title').value || '').trim();
-      var cat = el('cmp-cat').value || '';
+      var catVal = el('cmp-cat').value || '';
+      var newCat = (el('cmp-newcat').value || '').trim();
       var body = el('cmp-text').value || '';
       var vis = el('cmp-vis').value || 'draft';
       var date = el('cmp-date').value || todayStr();
 
       if (!title) { el('cmp-title').focus(); return tail(msgBox, '标题还没填。', true); }
-      if (!cat) { return tail(msgBox, '选一个分类。', true); }
+      if (!catVal) { return tail(msgBox, '选一个分类，或者新建一个。', true); }
+      if (catVal === NEW_OPT) {
+        if (!newCat) { el('cmp-newcat').focus(); return tail(msgBox, '新分类还没起名字。', true); }
+        if (newCat.length > 12) { return tail(msgBox, '分类名最多 12 个字。', true); }
+      }
       if (!body.trim()) { el('cmp-text').focus(); return tail(msgBox, '正文还是空的。', true); }
 
       var payload = {
@@ -284,7 +359,7 @@
         slug: makeSlug(),
         excerpt: (el('cmp-excerpt').value || '').trim(),
         body: body,
-        category: cat,
+        category: catVal,          // 新建的那档在下面存文章之前换成真正的名字
         tags: (el('cmp-tags').value || '').trim(),
         visibility: vis,
         featured: !!el('cmp-featured').checked,
@@ -295,7 +370,18 @@
       tail(msgBox, '正在保存…', false);
 
       var savedSlug = '';
-      run(db().from('posts').insert(payload).select('id,slug'))
+      Promise.resolve()
+        .then(function () {
+          if (catVal !== NEW_OPT) return catVal;
+          var dup = findCat(newCat);
+          if (dup) return dup.name;
+          tail(msgBox, '先把分类「' + newCat + '」建上…', false);
+          return createCat(newCat).then(function (row) { return row.name; });
+        })
+        .then(function (cat) {
+          payload.category = cat;
+          return run(db().from('posts').insert(payload).select('id,slug'));
+        })
         .then(function (rows) {
           savedSlug = (rows && rows[0] && rows[0].slug) || payload.slug;
           if (!picked.length) return { ok: 0, failed: [] };
@@ -488,7 +574,8 @@
   function mount() {
     var postBtn = el('compose-post');
     var photoBtn = el('compose-photo');
-    if (!postBtn && !photoBtn) return;
+    var catManage = el('cat-manage');
+    if (!postBtn && !photoBtn && !catManage) return;
 
     isSiteAdmin().then(function (ok) {
       if (!ok) return;
@@ -500,6 +587,9 @@
         photoBtn.hidden = false;
         photoBtn.addEventListener('click', composePhotos);
       }
+      // 侧栏「分类」旁边那个「配置」：改名、删除、排序还在后台做，
+      // 但入口得摆在他看得见的地方，别让他以为分类是写死的。
+      if (catManage) catManage.hidden = false;
     });
   }
 
