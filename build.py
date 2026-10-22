@@ -750,7 +750,7 @@ def build_home():
 
         {toc}
 
-        <p class="cover-lede">{lede}</p>
+        {lede}
       </div>
 
       <div class="cover-foot">
@@ -760,11 +760,14 @@ def build_home():
     </div>""".format(
         name=html.escape(SITE["name"]), epi=html.escape(epigraph),
         epi_from=html.escape(HOME.get("epigraph_from", "")),
-        toc=toc_nav(0, "toc"), lede=html.escape(HOME.get("lede", "")),
+        toc=toc_nav(0, "toc"),
+        # 没有 lede 就整行不渲染，别留一个空 <p> 撑出间距
+        lede=('<p class="cover-lede">%s</p>' % html.escape(HOME["lede"])
+              if HOME.get("lede", "").strip() else ""),
         year=cn_year(), contact=contact)
 
     out = "\n".join([
-        head("%s · %s" % (SITE["name"], epigraph), HOME.get("lede", ""), 0),
+        head("%s · %s" % (SITE["name"], epigraph), SITE["slogan"], 0),
         '<body class="cover-body">', '<div class="page">',
         main, footer(0, marquee=False), "</div>", script_tag(),
         "</body>", "</html>",
@@ -818,7 +821,6 @@ def build_blog():
         <span class="en">LATEST POSTS</span>
         <span class="count" id="feed-count">共 {total} 篇</span>
       </div>
-      <div class="sort-note">置顶固定在最前，其余按发布时间倒序</div>
       <div id="feed-posts" data-view="all">{inner}</div>
     </div>""".format(total=len(LISTED) or "—", inner=feed_inner)
 
@@ -885,10 +887,13 @@ def build_projects():
 
     main = """
     <p class="proj-lede">{lede}</p>
-    <div class="proj-intro">{intro}</div>
+    {intro}
 {blocks}
     {note}""".format(lede=html.escape(PROJECTS_LEDE),
-                     intro=md(PROJECTS_INTRO), blocks="".join(blocks), note=note)
+                     # 没有 intro 就整块不渲染
+                     intro=('<div class="proj-intro">%s</div>' % md(PROJECTS_INTRO)
+                            if PROJECTS_INTRO.strip() else ""),
+                     blocks="".join(blocks), note=note)
 
     out = bare_page("%s · 项目" % SITE["name"], PROJECTS_LEDE, "projects", depth,
                     main, top=chapter_head("projects", depth), wrap="proj-wrap",
@@ -957,9 +962,8 @@ def build_post():
           <div class="auth-gate" id="comment-gate">
             <div class="gate-lines">
               <p class="auth-gate-line">
-                评论要先登录。写出来的话会挂在<b>你自己的账号</b>上，别人冒用不了。
+                登录后就能评论。邮箱收个验证码，不用注册。
               </p>
-              <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
             </div>
             <a class="btn gate-btn" id="comment-login" href="login.html">登录</a>
           </div>
@@ -977,11 +981,6 @@ def build_post():
             <div class="form-note">评论会立刻显示在这里。</div>
           </form>
         </div>
-      </div>
-
-      <div class="scope-note">
-        这里是<b>文章评论</b>，只讨论这一篇。想打招呼、换友链或找站长，请去
-        <a href="guestbook.html">留言板</a>。
       </div>
 
     </div>"""
@@ -1018,7 +1017,7 @@ def build_categories():
         <span class="en">CATEGORY</span>
         <span class="count" id="feed-count"></span>
       </div>
-      <div class="sort-note" id="cat-desc">分类和说明都是站长在后台自己写的。</div>
+      <div class="sort-note" id="cat-desc"></div>
 
       <div id="feed-posts" data-view="category">
         <div class="empty-tip">文章正在从云端读出来…</div>
@@ -1079,7 +1078,7 @@ def build_archive():
 
       %s
 
-      <div class="sort-note" style="padding-top:0;">按发布时间倒序，同月内同样倒序 · 共 <b id="feed-count">%s</b> 篇</div>
+      <div class="sort-note" style="padding-top:0;">共 <b id="feed-count">%s</b> 篇</div>
       <div id="feed-archive">%s</div>
     </div>""" % (chapter_crumb("blog", "归档", 0), len(LISTED) or "—",
                  "".join(blocks) or '<div class="empty-tip">还没有文章可以归档。</div>')
@@ -1200,9 +1199,7 @@ def build_guestbook():
     main = """
     <div class="main">
 
-      <div class="scope-note" style="margin-top:0;margin-bottom:12px;">
-        {intro}
-      </div>
+      {intro}
 
       <div class="cell">
         <div class="cell-title tall bar-4">
@@ -1223,10 +1220,8 @@ def build_guestbook():
           <div class="auth-gate" id="guestbook-gate">
             <div class="gate-lines">
               <p class="auth-gate-line">
-                留言板要先对一下身份。登录之后就能发言，写出来的每句话都挂在
-                <b>你自己的账号</b>上，别人冒用不了。
+                登录后就能留言。邮箱收个验证码，不用注册。
               </p>
-              <p class="auth-gate-line dim">不用记密码也行——邮箱收个验证码就能进。</p>
             </div>
             <a class="btn gate-btn" id="guestbook-login" href="login.html">登录</a>
           </div>
@@ -1246,7 +1241,10 @@ def build_guestbook():
         </div>
       </div>
 
-    </div>""".format(intro=md(GUESTBOOK_INTRO), n=len(items),
+    </div>""".format(intro=('<div class="scope-note" style="margin-top:0;margin-bottom:12px;">'
+                            '%s</div>' % md(GUESTBOOK_INTRO)
+                            if GUESTBOOK_INTRO.strip() else ""),
+                    n=len(items),
                     rows="".join(rows) or '<div class="empty-tip">还没有留言，来说第一句。</div>')
 
     out = page("留言板 · %s" % SITE["name"],
@@ -1758,8 +1756,7 @@ def build_share():
             <button class="btn" id="copy-url" type="button">复制链接</button>
             <div class="form-msg" id="share-msg" role="status"></div>
             <div class="form-note">
-              链接已经用稳定域名，可以放心发在群里、写在名片上。
-              手机扫上面这个码，效果和点链接一样。
+              链接不会变，发出去就一直有效。
             </div>
           </div>
         </div>
@@ -1793,11 +1790,6 @@ def build_share():
           <li>想把文章存下来，浏览器里直接「收藏」就行</li>
         </ul>
       </div>
-    </div>
-
-    <div class="scope-note">
-      这一页只是给分享用的说明页，朋友从首页进不来也没关系——
-      它出现的位置在页脚，不影响正常浏览。
     </div>
 
 <script>

@@ -703,6 +703,8 @@ body.blog { padding: 10px 0 0; }
   color: var(--muted);
   padding: 4px 0 2px;
 }
+/* 内容靠 JS 现填的（比如分类页那句描述），填不到就整条不占位 */
+.sort-note:empty { display: none; }
 .cell-note {
   margin-top: 7px;
   padding-top: 6px;
