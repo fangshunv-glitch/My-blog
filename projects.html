@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="format-detection" content="telephone=no">
-<meta name="theme-color" content="#2F5D1A">
+<meta name="theme-color" content="#243B2A">
 <title>像素日常 · 项目</title>
 <meta name="description" content="动手做过的东西，都在这里。">
 <link rel="icon" type="image/png" href="assets/heart0.png">
@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=24726a19">
+<link rel="stylesheet" href="theme-map.css?v=0fcd8dca">
 </head>
 <body class="blog">
 <div class="page">
@@ -51,6 +52,26 @@
     <p class="proj-lede">动手做过的东西，都在这里。</p>
     
 
+      <article class="project">
+        <div class="proj-art">
+          <img class="pixel" src="assets/proj_headache.png" alt="">
+        </div>
+        <div class="proj-body">
+          <div class="proj-head">
+            <h2 class="proj-name">头疼日记</h2>
+            <span class="proj-kind">记录工具</span>
+          </div>
+          <p class="proj-desc">记录偏头痛发作和每天身体状态的网页工具。靠没头痛的日子当对照，才能算出哪个因素真的把头痛概率推高了。</p>
+          <ul class="proj-points"><li>每天 20 秒打卡睡眠、压力、咖啡因这些，末尾勾一下今天痛没痛</li><li>痛的时候另记一条：强度、部位、伴随症状、用药和效果，一天可记多条</li><li>诱因排行比较「有它」和「没它」两边的头痛率；样本不够的单独列出，不并进结论</li><li>能看当天、前一天、前两天的延迟效应，也能看几项同时触发时的阈值</li><li>按近 30 天的用药天数提示反弹性头痛，一天一行导出 CSV 给医生看</li><li>纯静态，数据只留在本机浏览器，不经过任何服务器</li></ul>
+          <div class="proj-foot">
+            <div class="proj-side">
+              <div class="proj-meta">2026 · 在用</div>
+              <div class="proj-stack"><span class="chip">原生 JS</span><span class="chip">IndexedDB</span><span class="chip">静态页面</span></div>
+            </div>
+            <div class="proj-links"><a class="proj-go" href="https://github.com/fangshunv-glitch/Headache-Diary" target="_blank" rel="noopener">查看项目 →</a></div>
+          </div>
+        </div>
+      </article>
       <article class="project">
         <div class="proj-art">
           <img class="pixel" src="assets/proj_house.png" alt="">

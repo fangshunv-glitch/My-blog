@@ -465,6 +465,45 @@ draw_grid(os.path.join(OUT, "proj_house.png"), HOUSE, HOUSE_PAL)
 draw_grid(os.path.join(OUT, "proj_blog.png"), MONITOR, MONITOR_PAL)
 
 
+# 日历：给「头疼日记」用。
+# 它最核心的一张图就是日历热力图 —— 哪天痛过一眼能看见，
+# 所以这里不画「人头疼」，直接画那张日历：顶上深绿题头，下面四个格子，
+# 几个格子被橙红点亮。22px 的格子里画人头只会糊成一个球。
+CAL_PAL = {
+    "F": "#2F5D1A",           # 题头
+    "A": "#FFD400",           # 挂环 / 题头里的字
+    "W": "#F2FFE4",           # 没痛的一天
+    "X": "#FF6B35",           # 痛过
+    "x": "#E8412F",           # 连着痛
+}
+CALENDAR = [
+    ".......AA......AA.......",
+    ".......AA......AA.......",
+    "..FFFFFFFFFFFFFFFFFFFF..",
+    "..FFAAAAFAAAAAAAFFFFFF..",
+    "..FFFFFFFFFFFFFFFFFFFF..",
+    "........................",
+    "..WWW.XXX.WWW.WWW.WWW...",
+    "..WWW.XXX.WWW.WWW.WWW...",
+    "..WWW.XXX.WWW.WWW.WWW...",
+    "........................",
+    "..WWW.WWW.WWW.XXX.xxx...",
+    "..WWW.WWW.WWW.XXX.xxx...",
+    "..WWW.WWW.WWW.XXX.xxx...",
+    "........................",
+    "..WWW.WWW.XXX.WWW.WWW...",
+    "..WWW.WWW.XXX.WWW.WWW...",
+    "..WWW.WWW.XXX.WWW.WWW...",
+    "........................",
+    "..XXX.WWW.WWW.WWW.WWW...",
+    "..XXX.WWW.WWW.WWW.WWW...",
+    "..XXX.WWW.WWW.WWW.WWW...",
+    "........................",
+]
+
+draw_grid(os.path.join(OUT, "proj_headache.png"), CALENDAR, CAL_PAL)
+
+
 # ---------------- 站点二维码（分享页用） ----------------
 def draw_qr(path, url, box=6, border=3):
     """生成二维码 PNG。前景用最深的绿，保证手机能扫出来。"""

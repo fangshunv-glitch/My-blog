@@ -304,7 +304,7 @@ body {
    ------------------------------------------------------------ */
 .marquee {
   background: #EDE2C2;
-  border-bottom-color: var(--ink-line-2);
+  border-color: var(--ink-line-2);
   color: var(--wax);
 }
 
@@ -321,6 +321,41 @@ body {
 .post-cover, .thumb, .ph-item img, .post-body img {
   border-color: var(--ink-line-2);
 }
+
+/* ------------------------------------------------------------
+   补漏：style.css 里还散着几处写死的亮绿。绿色主题下它们是点缀，
+   到纸面上就成塑料片了 —— 逐个压回墨色系。
+   （用 CDP 扫每个元素的计算色找出来的，不是猜的）
+   ------------------------------------------------------------ */
+
+/* 全站的图片边框 / 相册文件名 */
+img { border-color: var(--ink-line-2); }
+.album-ph { color: var(--ink-3); }
+
+/* 置顶卡片左侧那道亮绿 → 火漆红，置顶本来就该戳眼 */
+.post.featured { border-left-color: var(--wax); }
+
+/* 主按钮：绿底绿边 → 墨边；悬停原来是亮绿，改成金 */
+.btn { border-color: var(--forest); }
+.btn:hover { background: var(--gold); color: var(--ink); border-color: var(--ink-line); }
+
+/* 小按钮：浅绿底 → 纸底墨边。危险按钮的橙红留着，只把底色拉到纸系 */
+.btn-mini { color: var(--ink-2); background: var(--paper-2); border-color: var(--ink-line-2); }
+.btn-mini:hover { background: var(--gold); color: var(--ink); border-color: var(--ink-line); }
+.btn-danger { background: #FBEDE3; border-color: #D9A183; }
+
+/* 表单标签的边框和文字，后台和留言板都有 */
+label { border-color: var(--ink-line-2); color: var(--ink-3); }
+
+/* 没设头像的人的占位：绿色斜纹 → 旧地图那种棕褐细斜线 */
+.comment-avatar {
+  background: repeating-linear-gradient(45deg, #E9DFC4 0 4px, #DCD2B4 4px 8px);
+  border-color: var(--ink-line-2);
+}
+
+/* 关于页：大头像的浅绿底、小节标题的绿竖线 */
+.about-grid .avatar-lg { background: var(--paper-3); }
+.about-h { border-left-color: var(--wax); }
 
 /* 正文里的引号、分隔符等零碎 */
 .crumb .sep, .section-head .en { color: var(--ink-line); }

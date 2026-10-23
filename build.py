@@ -204,14 +204,15 @@ def uptime_days():
 
 
 # ---------------------------------------------------------------------------
-# 主题开关：先只给封面和博客两页挂活点地图，其余页面还是原来的绿色，
-# 方便两版并排比。验证满意后把这两个值改成 "map" 就全站铺开。
+# 主题开关：全站挂活点地图（theme-map.css）。
+# 想退回旧的绿色版式，把下面两个和 head/page/bare_page 的默认值一起清空即可，
+# style.css 一个字没动，所以退回去就是原样。
 # ---------------------------------------------------------------------------
 THEME_HOME = "map"
 THEME_BLOG = "map"
 
 
-def head(title, desc, depth, theme=""):
+def head(title, desc, depth, theme="map"):
     """theme="map" 时多引一层 theme-map.css（活点地图）。
 
     主题做成「多引一个文件」而不是改 style.css：原样式一个字不动，
@@ -680,7 +681,7 @@ def script_tag():
             .replace("{d}", str(int(d))))
 
 
-def page(title, desc, active, depth, main, skip_me=False, top="", theme=""):
+def page(title, desc, active, depth, main, skip_me=False, top="", theme="map"):
     """标准两栏页：章题头（top）→ 正文 + 侧边栏。
 
     top 放在 .layout 外面，这样章题头是通栏居中的，不会被挤进正文那一栏。
@@ -696,7 +697,7 @@ def page(title, desc, active, depth, main, skip_me=False, top="", theme=""):
 
 
 def bare_page(title, desc, active, depth, main, body_class="blog", tags="",
-              top="", wrap="wide-wrap", theme=""):
+              top="", wrap="wide-wrap", theme="map"):
     """无侧边栏的整页（项目 / 管理后台 / 分享页用）。"""
     return "\n".join([
         head(title, desc, depth, theme),
