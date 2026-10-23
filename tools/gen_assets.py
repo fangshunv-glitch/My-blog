@@ -65,9 +65,9 @@ def matrix_to_png(mat, scale, color, out_path, stroke=None):
 TITLES = [
     # (文本, 网格, 倍数, 颜色, 描边, 文件名)
     ("欢迎光临", 16, 6, "#F2FFE4", "#1B3308", "t_welcome.png"),
-    ("像素日常", 16, 3, "#E4F8CE", "#17300A", "t_sitename.png"),
+    ("像素日常", 16, 3, "#E3CB86", "#120C04", "t_sitename.png"),
     # 封面用的站名：倍数更大、颜色是深的（封面底色是浅绿，深字才看得清）
-    ("像素日常", 16, 6, "#2F5D1A", None, "t_cover.png"),
+    ("像素日常", 16, 6, "#2B2417", None, "t_cover.png"),
     ("相册", 16, 3, "#FFFFFF", None, "t_album.png"),
     ("留言板", 16, 3, "#FFFFFF", None, "t_guest.png"),
     # —— 博客版 ——
@@ -84,11 +84,11 @@ TITLES = [
     # 白字那套是给彩色标题栏用的；深绿这套（ch_*.png）给浅色背景的章节题头用。
     ("项目", 16, 3, "#FFFFFF", None, "t_project.png"),
     ("博客", 16, 3, "#FFFFFF", None, "t_blog.png"),
-    ("关于", 16, 4, "#2F5D1A", None, "ch_about.png"),
-    ("项目", 16, 4, "#2F5D1A", None, "ch_projects.png"),
-    ("博客", 16, 4, "#2F5D1A", None, "ch_blog.png"),
-    ("相册", 16, 4, "#2F5D1A", None, "ch_album.png"),
-    ("留言板", 16, 4, "#2F5D1A", None, "ch_guestbook.png"),
+    ("关于", 16, 4, "#243B2A", None, "ch_about.png"),
+    ("项目", 16, 4, "#243B2A", None, "ch_projects.png"),
+    ("博客", 16, 4, "#243B2A", None, "ch_blog.png"),
+    ("相册", 16, 4, "#243B2A", None, "ch_album.png"),
+    ("留言板", 16, 4, "#243B2A", None, "ch_guestbook.png"),
     # —— 站长后台 / 分享页 ——
     ("站长登录", 16, 2, "#FFFFFF", None, "t_login.png"),
     ("认领站长", 16, 2, "#FFFFFF", None, "t_claim.png"),
@@ -199,8 +199,8 @@ def draw_heart(path, color="#8EC759", shade="#4C8C1F", scale=5):
     return path
 
 
-for i, c in enumerate(["#8EC759", "#B6E27F", "#FFD400"]):
-    p = draw_heart(os.path.join(OUT, f"heart{i}.png"), color=c, shade="#3E7B14")
+for i, c in enumerate(["#C9A227", "#E0BE52", "#8E3A38"]):
+    p = draw_heart(os.path.join(OUT, f"heart{i}.png"), color=c, shade="#7A5E12")
     print("heart ->", os.path.basename(p))
 
 # ---------------- 像素小树（装饰）----------------
@@ -226,6 +226,106 @@ def draw_sprout(path, scale=6):
 
 
 draw_sprout(os.path.join(OUT, "sprout.png"))
+
+
+# ---------------- 活点地图：脚印 / 火漆印（装饰） ----------------
+# 主题层 theme-map.css 用。都是字符画，跟着 gen_assets 一起重跑即可，
+# 后面想调颜色改 SCALE 下面那两行就行，不必重画。
+
+def draw_footstep(path, color="#6B5A3E", shade="#4A3E2A", scale=4):
+    """一只鞋印，16×16。
+
+    上掌下跟，中间稍微收一下 —— 不画脚趾，16 格上画不出能认出来的脚趾，
+    反而会糊成一团。这一版在 16px 上是能读成「脚印」的最小形状。
+    """
+    art = [
+        "................",
+        "................",
+        "....########....",
+        "...##########...",
+        "...##########...",
+        "...##########...",
+        "....########....",
+        "....########....",
+        ".....######.....",
+        ".....######.....",
+        ".....######.....",
+        "......####......",
+        "......####......",
+        "......###.......",
+        "................",
+        "................",
+    ]
+    h, w = len(art), len(art[0])
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = img.load()
+
+    def rgb(c):
+        return (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16), 255)
+
+    for y in range(h):
+        for x in range(w):
+            if art[y][x] != "#":
+                continue
+            # 右下角压暗，做出「踩下去」的凹陷感
+            px[x, y] = rgb(shade) if (x - w / 2) + (y - h / 2) > 3 else rgb(color)
+    img.resize((w * scale, h * scale), Image.NEAREST).save(path)
+    return path
+
+
+def draw_wax(path, color="#7A2E2E", dark="#5E2020", light="#9A4038", scale=2):
+    """火漆印，12×12 放大两倍。
+
+    外圈比内圈暗一圈，中心压一个方块印 —— 站点的「置顶」用它，
+    比一行文字更像封印。不规则边缘靠四角缺一格做出来。
+    """
+    # 手工列 12 行，圆里带一点毛边
+    art = [
+        "...######...",
+        "..########..",
+        ".##########.",
+        "############",
+        "############",
+        "############",
+        "############",
+        "############",
+        "############",
+        ".##########.",
+        "..########..",
+        "...######...",
+    ]
+    h, w = len(art), len(art[0])
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = img.load()
+
+    def rgb(c):
+        return (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16), 255)
+
+    for y in range(h):
+        for x in range(w):
+            if art[y][x] != "#":
+                continue
+            d = max(abs(x - 5.5), abs(y - 5.5))
+            if d > 5.0:
+                px[x, y] = rgb(dark)          # 外圈压暗
+            elif d > 4.2:
+                px[x, y] = rgb(light)         # 内圈提亮，做出凸起
+            else:
+                px[x, y] = rgb(color)
+    # 中心压一个 4×4 的方印（像印章的刻纹）
+    for y in range(4, 8):
+        for x in range(4, 8):
+            if art[y][x] == "#":
+                px[x, y] = rgb(dark)
+    img.resize((w * scale, h * scale), Image.NEAREST).save(path)
+    return path
+
+
+for _i, (_c, _s, _n) in enumerate([("#6B5A3E", "#4A3E2A", "footstep.png")]):
+    draw_footstep(os.path.join(OUT, _n), color=_c, shade=_s)
+    print("footstep ->", _n)
+draw_wax(os.path.join(OUT, "wax.png"))
+print("wax -> wax.png")
 
 
 # ---------------- 像素头像（关于我） ----------------

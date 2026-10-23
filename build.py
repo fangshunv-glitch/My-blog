@@ -203,22 +203,42 @@ def uptime_days():
     return max(1, (date.today() - date(y, m, d)).days + 1)
 
 
-def head(title, desc, depth):
+# ---------------------------------------------------------------------------
+# 主题开关：先只给封面和博客两页挂活点地图，其余页面还是原来的绿色，
+# 方便两版并排比。验证满意后把这两个值改成 "map" 就全站铺开。
+# ---------------------------------------------------------------------------
+THEME_HOME = "map"
+THEME_BLOG = "map"
+
+
+def head(title, desc, depth, theme=""):
+    """theme="map" 时多引一层 theme-map.css（活点地图）。
+
+    主题做成「多引一个文件」而不是改 style.css：原样式一个字不动，
+    想退回旧版只要不传 theme 就行，两套可以按页面并存着看。
+    浏览器地址栏的颜色也跟着主题走，否则手机上看还是绿的。
+    """
+    extra = ""
+    theme_color = "#2F5D1A"
+    if theme == "map":
+        extra = '\n<link rel="stylesheet" href="{p}theme-map.css">'.format(p=up(depth))
+        theme_color = "#243B2A"
     return """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="format-detection" content="telephone=no">
-<meta name="theme-color" content="#2F5D1A">
+<meta name="theme-color" content="{theme_color}">
 <title>{title}</title>
 <meta name="description" content="{desc}">
 <link rel="icon" type="image/png" href="{p}assets/heart0.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{p}style.css">
-</head>""".format(title=html.escape(title), desc=html.escape(desc), p=up(depth))
+<link rel="stylesheet" href="{p}style.css">{extra}
+</head>""".format(title=html.escape(title), desc=html.escape(desc), p=up(depth),
+                  theme_color=theme_color, extra=extra)
 
 
 # 导航顺序跟着封面的目录走（壹 关于 / 贰 项目 / 叁 博客 / 肆 相册 / 伍 留言板），
@@ -660,13 +680,13 @@ def script_tag():
             .replace("{d}", str(int(d))))
 
 
-def page(title, desc, active, depth, main, skip_me=False, top=""):
+def page(title, desc, active, depth, main, skip_me=False, top="", theme=""):
     """标准两栏页：章题头（top）→ 正文 + 侧边栏。
 
     top 放在 .layout 外面，这样章题头是通栏居中的，不会被挤进正文那一栏。
     """
     return "\n".join([
-        head(title, desc, depth),
+        head(title, desc, depth, theme),
         '<body class="blog">', '<div class="page">',
         header(active, depth), top,
         '<div class="layout">', main, sidebar(depth, skip_me),
@@ -676,10 +696,10 @@ def page(title, desc, active, depth, main, skip_me=False, top=""):
 
 
 def bare_page(title, desc, active, depth, main, body_class="blog", tags="",
-              top="", wrap="wide-wrap"):
+              top="", wrap="wide-wrap", theme=""):
     """无侧边栏的整页（项目 / 管理后台 / 分享页用）。"""
     return "\n".join([
-        head(title, desc, depth),
+        head(title, desc, depth, theme),
         '<body class="%s">' % body_class, '<div class="page">',
         header(active, depth), top, '<div class="%s">' % wrap, main, "</div>",
         footer(depth), "</div>", script_tag(), tags,
@@ -782,7 +802,7 @@ def build_home():
         year=cn_year())
 
     out = "\n".join([
-        head("%s · %s" % (SITE["name"], epigraph), SITE["slogan"], 0),
+        head("%s · %s" % (SITE["name"], epigraph), SITE["slogan"], 0, THEME_HOME),
         '<body class="cover-body">', '<div class="page">',
         main, footer(0, marquee=False, toc=False), "</div>", script_tag(),
         "</body>", "</html>",
@@ -843,7 +863,7 @@ def build_blog():
 
     out = page("%s · 博客" % SITE["name"],
                "记录日常、照片与碎碎念的个人博客。", "blog", depth, main,
-               top=chapter_head("blog", depth))
+               top=chapter_head("blog", depth), theme=THEME_BLOG)
     write("blog.html", out)
 
 
@@ -1979,7 +1999,7 @@ def build_retired():
 _ASSET_V = {}
 
 _ASSET_REF = re.compile(
-    r'((?:href|src)=")((?:\.\./)*(?:style\.css|cloud-config\.js|feed\.js'
+    r'((?:href|src)=")((?:\.\./)*(?:style\.css|theme-map\.css|cloud-config\.js|feed\.js'
     r'|cloud\.js|admin\.js|login\.js|foot-stats\.js|owner-avatar\.js'
     r'|compose\.js|likes\.js|trail\.js|vendor/workbuddy-cloud\.global\.js))(")')
 

@@ -1,0 +1,350 @@
+/* ============================================================
+   活点地图 · 主题层
+
+   在 style.css 之后加载，靠「同选择器后到者赢」覆盖掉绿色那套。
+   style.css 本身一个字不动 —— 不引用这个文件时，站点还是原来的样子，
+   两套主题可以并存（build.py 的 head() 按页面决定引不引）。
+
+   设计来源两处：
+   · 哈利波特 —— 羊皮纸、墨线、火漆印、活点地图上的脚印
+   · Minecraft —— 经纬方格、方块式的「上左亮、下右暗」凸边、色带
+
+   两条硬规矩：
+   1. 不用平滑缓动，动效一律 steps()。
+   2. 纸面上不放大面积纯白 —— 纯白会把羊皮纸打成两截。
+   ============================================================ */
+
+:root {
+  /* 纸：三层，从页面到最亮的输入面 */
+  --paper:      #E7DAB8;   /* 页面底 · 老羊皮纸 */
+  --paper-2:    #F0E6CB;   /* 面板 / 侧栏 */
+  --paper-3:    #F8F1DC;   /* 最亮 · 输入框、图片底 */
+
+  /* 墨：字和线分三层，最深的用来说正文 */
+  --ink:        #2B2417;
+  --ink-2:      #3A3025;
+  --ink-3:      #6B5A3E;
+  --ink-line:   #9C8968;
+  --ink-line-2: #C4B392;
+
+  /* 深墨绿（原来的绿降到这里，承接站点身份） */
+  --forest:     #243B2A;
+  --forest-d:   #1B2C1F;
+
+  /* 火漆红 —— 强调色，替代原来的暖橙 */
+  --wax:        #7A2E2E;
+  --wax-d:      #5E2020;
+  --gold:       #C9A227;
+
+  /* 覆盖 style.css 那套变量 */
+  --bg:        var(--paper);
+  --header:    var(--forest);
+  --footer:    var(--forest-d);
+  --nav:       #DFD0AC;
+  --line:      var(--ink-line);
+  --line-soft: var(--ink-line-2);
+  --link:      #7A3B22;
+  --text:      var(--ink-2);
+  --muted:     #8A7A5C;
+  --new:       var(--wax);
+  --yellow:    #D9B23C;
+  --panel:     var(--paper-2);
+  --lcd-bg:    #241D12;
+  --lcd-fg:    #D9B23C;
+
+  /* 这六个是 style.css 里从散落色提出来的，一一对位换掉：
+     橙→火漆赭、绿→墨褐、淡绿点线→墨线。改完这两行，
+     那些没走 --header/--link 的地方也就跟着变了。 */
+  --accent:    #8A3A22;
+  --leaf:      #5E4620;
+  --leaf-d:    #4A3E2A;
+  --leaf-l:    #9C8968;
+  --rule:      #C4B392;
+  --wash:      #F8F1DC;
+}
+
+/* ------------------------------------------------------------
+   纸底：一层羊皮纸 + 一层经纬方格。
+   方格就是地图的底格，也顺手把 Minecraft 的方块感带了进来 ——
+   1px 线，淡到只在小面积看得见，不会跟正文抢注意力。
+
+   网格要画在 .page 上而不是 body 上：.page 自己有背景色，
+   画在 body 上会被整个盖掉，只剩页面外那圈看得见 —— 那样像
+   「纸摆在格纹桌垫上」，不像地图。body 反过来用深一档的纸当桌面。
+   ------------------------------------------------------------ */
+body {
+  background-color: #D9C89C;
+  background-image: none;
+}
+
+.page {
+  border: 1px solid var(--ink-line);
+  background-color: var(--paper-2);
+  background-image:
+    repeating-linear-gradient(to right,
+      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(to bottom,
+      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px);
+  box-shadow:
+    0 0 0 3px #D9C89C,
+    0 0 0 4px var(--ink-line-2),
+    7px 7px 0 4px rgba(43, 36, 23, .12);
+}
+
+/* ------------------------------------------------------------
+   页眉：深墨绿 + 双金线（古书装帧那种）
+   ------------------------------------------------------------ */
+.site-head {
+  background: var(--forest);
+  border-bottom: 3px double var(--gold);
+}
+.site-head .slogan { background: var(--forest); color: #DCC894; }
+.site-head .right { color: #DCC894; }
+.site-head .right .date-line { color: var(--gold); }
+.site-head .right a { color: #E8CF7A; border-bottom-color: #E8CF7A; }
+.site-head .right a:hover { color: #FFF3CE; border-bottom-color: #FFF3CE; }
+
+/* 账号按钮：换成火漆封的样子 —— 红底、金边、硬阴影 */
+.head-login {
+  background: var(--wax);
+  color: #F7EBD0;
+  border: 2px solid var(--forest-d);
+  box-shadow: 3px 3px 0 var(--forest-d);
+}
+.head-login .dot { background: var(--gold); border-color: var(--forest-d); }
+.head-login:hover {
+  background: #8E3A38;
+  color: #FFF6E0;
+  box-shadow: 4px 4px 0 var(--forest-d);
+}
+.head-login:active { box-shadow: 1px 1px 0 var(--forest-d); }
+.head-login.is-in { background: #3A5C41; color: #F0E6CB; }
+.head-login.is-in .dot { background: var(--gold); }
+
+/* 导航：羊皮纸色，当前项用火漆红 */
+.nav {
+  background: var(--nav);
+  border-bottom: 1px solid var(--ink-line);
+}
+.nav a.active { color: var(--wax); }
+.nav .sep { color: var(--ink-line-2); }
+
+/* ------------------------------------------------------------
+   文章：墨迹分隔线
+   CSS 的 dashed 改不了「一划多长、断多宽」，所以用渐变画 ——
+   14px 一划、6px 一断，比浏览器默认的虚线更像手画的墨线。
+   ------------------------------------------------------------ */
+.post {
+  border-bottom: 0;
+  background-image: repeating-linear-gradient(
+    to right, var(--ink-line-2) 0 14px, transparent 14px 20px);
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 100% 1px;
+}
+.post-title a { color: var(--forest); }
+.post-title a:hover { color: var(--wax); }
+.post-meta, .post-excerpt { color: var(--ink-3); }
+
+/* ------------------------------------------------------------
+   面板：纸片 + 方块凸边
+   上、左亮，下、右暗 —— Minecraft 的按钮就是这个做法，
+   只是这里用的是墨色而不是石头色。
+   ------------------------------------------------------------ */
+.cell {
+  border: 0;
+  background: var(--paper-3);
+  border-top: 2px solid #FDF8E9;
+  border-left: 2px solid #FDF8E9;
+  border-right: 2px solid var(--ink-line);
+  border-bottom: 2px solid var(--ink-line);
+}
+.cell-title { border-bottom: 1px solid var(--ink-line); }
+
+/* 侧栏标签栏：墨绿家族，掺两块赭石和火漆提神 */
+.bar-1 { background: #4A6B3A; }
+.bar-2 { background: #6B3A2A; }
+.bar-3 { background: #3A5C41; }
+.bar-4 { background: #243B2A; }
+.bar-5 { background: #56704A; }
+.bar-6 { background: #2E4A34; }
+.bar-7 { background: #1B2C1F; }
+.bar-8 { background: #7A2E2E; }
+
+/* 小标签与置顶 */
+.chip { background: var(--paper-2); border-color: var(--ink-line-2); color: #5E4620; }
+.chip:hover { background: var(--gold); color: var(--ink); }
+.pill {
+  background: var(--wax);
+  color: #F7EBD0;
+  padding-left: 18px;
+  background-image: url(assets/wax.png);
+  background-repeat: no-repeat;
+  background-position: 3px center;
+  background-size: 11px 11px;
+  image-rendering: pixelated;
+}
+
+/* ------------------------------------------------------------
+   目录：活点地图的主舞台
+   点线本来就是虚线，直接换成墨色；鼠标扫过时，名字左边踩出一个脚印。
+   ------------------------------------------------------------ */
+.toc-dots {
+  background-image: repeating-linear-gradient(
+    to right, var(--ink-line) 0 4px, transparent 4px 9px);
+}
+.toc-num { color: var(--ink-line); }
+.toc a:hover .toc-dots {
+  background-image: repeating-linear-gradient(
+    to right, var(--wax) 0 4px, transparent 4px 9px);
+}
+.toc a:hover .toc-num { color: var(--wax); }
+
+.toc a { position: relative; }
+.toc a::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  background: url(assets/footstep.png) no-repeat center / contain;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: translateX(5px);
+  pointer-events: none;
+}
+.toc a:hover::before {
+  opacity: .9;
+  transform: translateX(0);
+  transition: transform .12s steps(2), opacity .12s steps(2);
+}
+
+/* ------------------------------------------------------------
+   封面
+   顶部那条彩带是 Y2K 的旧痕迹：8 段的节奏留着，颜色换成墨绿阶梯。
+   原来用 .cover::before + 负 margin 往上顶，在纸面里算不准，总是浮在半空。
+   改成直接画在 .page 的多层背景上 —— 位置就跟纸张边缘严格对齐了。
+   ------------------------------------------------------------ */
+.cover::before { display: none; }
+
+.cover-body .page {
+  background-color: var(--paper-2);
+  background-image:
+    linear-gradient(
+      to right,
+      #0F1A12 0 12.5%, #16241A 12.5% 25%, #1E3324 25% 37.5%,
+      #2A4A33 37.5% 50%, #3A5F42 50% 62.5%, #2A4A33 62.5% 75%,
+      #1E3324 75% 87.5%, #0F1A12 87.5% 100%),
+    repeating-linear-gradient(to right,
+      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(to bottom,
+      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px);
+  background-repeat: no-repeat, repeat, repeat;
+  background-size: 100% 18px, auto, auto;
+  background-position: left top, 0 0, 0 0;
+  /* 色带下面那条金线，用内阴影画，不占高度 */
+  box-shadow:
+    inset 0 18px 0 -17px var(--gold),
+    0 0 0 3px #D9C89C,
+    0 0 0 4px var(--ink-line-2),
+    7px 7px 0 4px rgba(43, 36, 23, .12);
+}
+
+/* 封面正文外面套一圈双线框 —— 古书封面的做法。
+   没有它，这一整页就是一张空白纸，站名和目录浮在上面没处落脚。 */
+.cover-inner {
+  border: 1px solid var(--ink-line-2);
+  outline: 1px solid var(--ink-line-2);
+  outline-offset: 4px;
+  padding: 30px 26px 26px;
+}
+
+.cover-epigraph { color: var(--ink); }
+.cover-from { color: var(--ink-3); }
+.cover-lede { color: var(--ink-3); }
+.cover-year { color: var(--ink-line); letter-spacing: 8px; }
+/* 年份是落款，要跟上面那圈框拉开一点，否则像被挤出框外的半行 */
+.cover-foot { padding-top: 16px; }
+.cover-contact .sep { color: var(--ink-line-2); }
+
+/* 封面站名四周给一圈很淡的金，像烫金压过 */
+.cover-mark img {
+  filter: drop-shadow(0 0 0 transparent);
+}
+
+/* ------------------------------------------------------------
+   页脚：深墨绿 + 金顶线
+   ------------------------------------------------------------ */
+.site-foot {
+  background: var(--forest-d);
+  border-top: 3px double var(--gold);
+  color: #DCC894;
+}
+.site-foot a { color: #E8CF7A; }
+.site-foot .px-en { color: var(--gold); }
+.foot-contact .sep { color: #6E7F5A; }
+.foot-toc a { color: #DCC894; }
+.foot-toc a:hover { color: var(--gold); }
+.foot-toc .toc-dots {
+  background-image: repeating-linear-gradient(
+    to right, #6E7F5A 0 2px, transparent 2px 7px);
+}
+.foot-toc .toc-num { color: #E8CF7A; }
+
+/* ------------------------------------------------------------
+   跑马灯：页脚顶部那一条。原来是近白绿底 + 橙字，这一条在深墨绿页脚上
+   会亮成一道白缝，换成纸色压下去。
+   ------------------------------------------------------------ */
+.marquee {
+  background: var(--paper-3);
+  border-bottom-color: var(--ink-line-2);
+  color: var(--wax);
+}
+
+/* 点赞：原来的灰绿在纸面上像褪色，改成墨褐，赞过仍然是红 */
+.like-btn { color: var(--ink-3); background: var(--paper-3); border-color: var(--ink-line-2); }
+.like-btn .lk-heart { color: var(--ink-line-2); }
+.like-btn:hover { color: var(--wax); border-color: var(--wax); }
+.like-btn.on { color: #F7EBD0; background: #B4453F; border-color: #8E2F2A; }
+.like-btn.on .lk-heart { color: #FFE7E5; }
+
+/* ------------------------------------------------------------
+   图片：一律给一道墨边，免得照片像浮在纸上
+   ------------------------------------------------------------ */
+.post-cover, .thumb, .ph-item img, .post-body img {
+  border-color: var(--ink-line-2);
+}
+
+/* 正文里的引号、分隔符等零碎 */
+.crumb .sep, .section-head .en { color: var(--ink-line); }
+
+/* 输入框：纸面凹陷（和凸起的卡片相反） */
+input[type="text"], input[type="date"], input[type="email"],
+input[type="password"], textarea, select {
+  background: var(--paper-3);
+  border-color: var(--ink-line);
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------------
+   窄屏：脚印在左边会顶出边界，退到名字上方一点点
+   ------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .toc a::before { left: -15px; width: 12px; height: 12px; margin-top: -6px; }
+  /* 窄屏上纸边和那圈框都要收一收，否则框会顶到屏幕两侧 */
+  .page {
+    box-shadow: 0 0 0 2px #D9C89C, 0 0 0 3px var(--ink-line-2);
+  }
+  .cover-body .page {
+    box-shadow:
+      inset 0 18px 0 -17px var(--gold),
+      0 0 0 2px #D9C89C,
+      0 0 0 3px var(--ink-line-2);
+  }
+  .cover-inner {
+    padding: 22px 14px 20px;
+    outline-offset: 3px;
+  }
+}
