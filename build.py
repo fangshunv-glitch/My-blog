@@ -457,8 +457,12 @@ def sidebar(depth, skip_me=False):
                      links_cell=links_cell)
 
 
-def footer(depth, marquee=True):
-    """页脚。marquee=False 时不带那条跑马灯（封面用，保持一屏干净）。"""
+def footer(depth, marquee=True, toc=True):
+    """页脚。marquee=False 时不带那条跑马灯（封面用，保持一屏干净）。
+
+    toc=False 时不带页脚目录 —— 封面正文里已经有一份同样的目录了，
+    一屏里出现两遍没意义（其他页面靠它导航，得留着）。
+    """
     # 文章和照片都在云端，构建期这两个数几乎总是 0 —— 而 0 是在撒谎
     # （站上明明有 1 篇）。所以没有静态内容时留个破折号，
     # 由页脚里那个 foot-stats.js 读到云端真实条数再换掉。
@@ -514,7 +518,7 @@ def footer(depth, marquee=True):
                      days=uptime_days(), n_posts=n_posts, n_photos=n_photos,
                      url=html.escape(SITE["url"]),
                      gh=html.escape(SITE.get("github", "#")),
-                     toc=toc_nav(depth, "foot-toc"), p=up(depth))
+                     toc=toc_nav(depth, "foot-toc") if toc else "", p=up(depth))
 
 
 # 云端互动：SDK 走 CDN，cloud.js 是本站的读写封装
@@ -746,6 +750,10 @@ def build_home():
     epigraph = HOME.get("epigraph") or SITE["slogan"]
     # 联系方式只在页脚放一份。封面以前也摆一套 GitHub / 复古入口，
     # 结果首页往下滚一点就是页脚，同样的两个链接一屏里出现两次。
+    #
+    # 目录同理：封面正文里已经有一份了，页脚那份要关掉（toc=False），
+    # 否则同一屏里两套一模一样的目录，点哪个都一样，看着像做重了。
+    # 其他页面没有正文目录，页脚那份是唯一的导航，得留着。
 
     main = """
     <div class="cover">
@@ -776,7 +784,7 @@ def build_home():
     out = "\n".join([
         head("%s · %s" % (SITE["name"], epigraph), SITE["slogan"], 0),
         '<body class="cover-body">', '<div class="page">',
-        main, footer(0, marquee=False), "</div>", script_tag(),
+        main, footer(0, marquee=False, toc=False), "</div>", script_tag(),
         "</body>", "</html>",
     ])
     write("index.html", out)
