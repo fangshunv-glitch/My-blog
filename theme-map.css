@@ -15,17 +15,21 @@
    ============================================================ */
 
 :root {
-  /* 纸：三层，从页面到最亮的输入面 */
-  --paper:      #E7DAB8;   /* 页面底 · 老羊皮纸 */
-  --paper-2:    #F0E6CB;   /* 面板 / 侧栏 */
-  --paper-3:    #F8F1DC;   /* 最亮 · 输入框、图片底 */
+  /* 纸：三层，从页面到最亮的输入面。
+     明度整体抬过一版 —— 第一版压得太黄，整页像蒙了层灰。
+     现在保留羊皮纸的暖，但底子接近亚麻白，不再发闷。 */
+  --paper:      #FDFBF3;   /* 页面底 · 老羊皮纸 */
+  --paper-2:    #FEFCF6;   /* 面板 / 侧栏 */
+  --paper-3:    #FFFEFB;   /* 最亮 · 输入框、图片底 */
+  --desk:       #F6F0DE;   /* 纸外那圈桌面 */
 
-  /* 墨：字和线分三层，最深的用来说正文 */
-  --ink:        #2B2417;
-  --ink-2:      #3A3025;
-  --ink-3:      #6B5A3E;
-  --ink-line:   #9C8968;
-  --ink-line-2: #C4B392;
+  /* 墨：字和线分三层，最深的用来说正文。
+     次级文字压深一点，之前偏灰，在黄底上糊成一片。 */
+  --ink:        #241E14;
+  --ink-2:      #332C1F;
+  --ink-3:      #5C5038;
+  --ink-line:   #A4916C;
+  --ink-line-2: #CBBB99;
 
   /* 深墨绿（原来的绿降到这里，承接站点身份） */
   --forest:     #243B2A;
@@ -40,12 +44,12 @@
   --bg:        var(--paper);
   --header:    var(--forest);
   --footer:    var(--forest-d);
-  --nav:       #DFD0AC;
+  --nav:       #FAF5E6;
   --line:      var(--ink-line);
   --line-soft: var(--ink-line-2);
   --link:      #7A3B22;
   --text:      var(--ink-2);
-  --muted:     #8A7A5C;
+  --muted:     #6F6146;
   --new:       var(--wax);
   --yellow:    #D9B23C;
   --panel:     var(--paper-2);
@@ -58,9 +62,9 @@
   --accent:    #8A3A22;
   --leaf:      #5E4620;
   --leaf-d:    #4A3E2A;
-  --leaf-l:    #9C8968;
-  --rule:      #C4B392;
-  --wash:      #F8F1DC;
+  --leaf-l:    #A4916C;
+  --rule:      #CBBB99;
+  --wash:      #FFFEFB;
 }
 
 /* ------------------------------------------------------------
@@ -73,7 +77,7 @@
    「纸摆在格纹桌垫上」，不像地图。body 反过来用深一档的纸当桌面。
    ------------------------------------------------------------ */
 body {
-  background-color: #D9C89C;
+  background-color: var(--desk);
   background-image: none;
 }
 
@@ -82,13 +86,13 @@ body {
   background-color: var(--paper-2);
   background-image:
     repeating-linear-gradient(to right,
-      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px),
+      rgba(150, 130, 95, .09) 0 1px, transparent 1px 34px),
     repeating-linear-gradient(to bottom,
-      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px);
+      rgba(150, 130, 95, .09) 0 1px, transparent 1px 34px);
   box-shadow:
-    0 0 0 3px #D9C89C,
+    0 0 0 3px var(--desk),
     0 0 0 4px var(--ink-line-2),
-    7px 7px 0 4px rgba(43, 36, 23, .12);
+    7px 7px 0 4px rgba(43, 36, 23, .10);
 }
 
 /* ------------------------------------------------------------
@@ -154,8 +158,8 @@ body {
 .cell {
   border: 0;
   background: var(--paper-3);
-  border-top: 2px solid #FDF8E9;
-  border-left: 2px solid #FDF8E9;
+  border-top: 2px solid #FFFFFF;
+  border-left: 2px solid #FFFFFF;
   border-right: 2px solid var(--ink-line);
   border-bottom: 2px solid var(--ink-line);
 }
@@ -238,18 +242,18 @@ body {
       #2A4A33 37.5% 50%, #3A5F42 50% 62.5%, #2A4A33 62.5% 75%,
       #1E3324 75% 87.5%, #0F1A12 87.5% 100%),
     repeating-linear-gradient(to right,
-      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px),
+      rgba(150, 130, 95, .09) 0 1px, transparent 1px 34px),
     repeating-linear-gradient(to bottom,
-      rgba(156, 137, 104, .10) 0 1px, transparent 1px 34px);
+      rgba(150, 130, 95, .09) 0 1px, transparent 1px 34px);
   background-repeat: no-repeat, repeat, repeat;
   background-size: 100% 18px, auto, auto;
   background-position: left top, 0 0, 0 0;
   /* 色带下面那条金线，用内阴影画，不占高度 */
   box-shadow:
     inset 0 18px 0 -17px var(--gold),
-    0 0 0 3px #D9C89C,
+    0 0 0 3px var(--desk),
     0 0 0 4px var(--ink-line-2),
-    7px 7px 0 4px rgba(43, 36, 23, .12);
+    7px 7px 0 4px rgba(43, 36, 23, .10);
 }
 
 /* 封面正文外面套一圈双线框 —— 古书封面的做法。
@@ -294,11 +298,12 @@ body {
 .foot-toc .toc-num { color: #E8CF7A; }
 
 /* ------------------------------------------------------------
-   跑马灯：页脚顶部那一条。原来是近白绿底 + 橙字，这一条在深墨绿页脚上
-   会亮成一道白缝，换成纸色压下去。
+   跑马灯：页脚顶部那一条。原来是近白绿底 + 橙字。
+   纸面提亮之后它就成了深墨绿上的一道白缝，太扎眼 ——
+   单独退一档暖纸色，跟上下两头都留出层次。
    ------------------------------------------------------------ */
 .marquee {
-  background: var(--paper-3);
+  background: #EDE2C2;
   border-bottom-color: var(--ink-line-2);
   color: var(--wax);
 }
@@ -335,12 +340,12 @@ input[type="password"], textarea, select {
   .toc a::before { left: -15px; width: 12px; height: 12px; margin-top: -6px; }
   /* 窄屏上纸边和那圈框都要收一收，否则框会顶到屏幕两侧 */
   .page {
-    box-shadow: 0 0 0 2px #D9C89C, 0 0 0 3px var(--ink-line-2);
+    box-shadow: 0 0 0 2px var(--desk), 0 0 0 3px var(--ink-line-2);
   }
   .cover-body .page {
     box-shadow:
       inset 0 18px 0 -17px var(--gold),
-      0 0 0 2px #D9C89C,
+      0 0 0 2px var(--desk),
       0 0 0 3px var(--ink-line-2);
   }
   .cover-inner {
