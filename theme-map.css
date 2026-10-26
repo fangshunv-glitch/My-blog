@@ -15,63 +15,69 @@
    ============================================================ */
 
 :root {
-  /* 配色取自两张参考图（枫丹那种明亮的水彩）：
-     薄荷青绿的屋顶与天光、奶油黄的墙、陶土玫瑰的裙子、暖金的阳光、
-     暗部是暖棕而不是黑。所以整站不走「深墨绿」，走「青绿 + 奶油」。
+  /* 配色照两张参考图重来。上一版做错的地方：把画面里只占 7% 的青绿
+     （#8FE5D4）当成了主色，结果整站成了冷调清爽风。
+     按面积统计，主体是**黄绿、橄榄、灰绿**这一族，青绿只是窗玻璃上的高光：
 
-     纸：三层，从页面到最亮的输入面。之前偏土黄发闷，这一版把黄压薄、
-     往奶油白靠，但仍然带暖 —— 冷白纸配青绿会显得像医院。 */
-  --paper:      #FAF4DE;   /* 页面底 · 奶油纸 */
-  --paper-2:    #FDFAEC;   /* 面板 / 侧栏 */
-  --paper-3:    #FFFEF8;   /* 最亮 · 输入框、图片底 */
-  --desk:       #EDE0BC;   /* 纸外那圈桌面 · 参考图里那片暖黄 */
+       图B 主绿   #6D724F  #7A9171  #A8B887  #C2E3BA
+       图B 奶油   #D2CC8F  #E6E1B2  #F7F7D7
+       图A 暖金   #DABA77  #E6CD89  #F0EEC7
+       图A 陶土   #D69F68  #B67251  #8C4F3D
+       暗部       #363526  #352D1F   <- 暖橄榄褐，不是黑
 
-  /* 墨：字和线分三层。暗部是暖棕（#322B1D 那一族），不是冷黑。 */
-  --ink:        #2B2A1D;
-  --ink-2:      #34331F;
-  --ink-3:      #5F5C3F;
-  --ink-line:   #A99A6A;
-  --ink-line-2: #D2C9A4;
+     所以这一版：绿是主角且要有层次（不同明度、不同黄蓝倾向的绿），
+     金和陶土只做点缀，纸是翻旧的书页，整体压一层雾 ——
+     求的是「回忆里发亮的朦胧」，不是清爽通透。 */
 
-  /* 青绿：接替原来的墨绿，但明度高一整档 —— 这是「通透」的来源 */
-  --mint:       #7FD6C6;
-  --mint-l:     #A9E8DA;
-  --mint-d:     #4E9E90;   /* 页眉 */
-  --mint-dd:    #356860;   /* 深色字 / 标题 */
-  --bark:       #4B3A28;   /* 页脚 · 暖棕 */
-  --bark-d:     #3A2C1E;
+  /* 纸：翻旧的书页。图B那种泛黄的奶油，不是漂白纸 */
+  --paper:      #F3ECC2;   /* 页面底 · 泛黄的旧书页 */
+  --paper-2:    #F7F1D2;   /* 面板 / 侧栏 */
+  --paper-3:    #FCF8E2;   /* 最亮 · 输入框、图片底 */
+  --desk:       #E0D8A6;   /* 纸外那圈桌面 · 旧木色 */
 
-  /* 陶土玫瑰 + 暖金：强调色，替掉原来的火漆红。
-     红太正会在这套配色里显得脏，往橙偏一点就像布料了。 */
-  --clay:       #B4694A;
-  --clay-d:     #93513A;
-  --gold:       #D9A93C;
+  /* 墨：暖橄榄褐。纯黑会把这套配色压死，也破坏朦胧感 */
+  --ink:        #35341F;
+  --ink-2:      #403E28;
+  --ink-3:      #6E6B47;
+  --ink-line:   #B5A87B;
+  --ink-line-2: #D8CEA2;
+
+  /* 绿：五彩斑斓的那一族 —— 苔绿、灰绿、黄绿、嫩绿，
+     明度一层层推开。这就是「绿是主角」的做法，
+     而不是把某一种绿刷满全站。 */
+  --moss:       #7A9171;   /* 灰绿 · 主色 */
+  --moss-ll:    #C2E3BA;   /* 嫩绿 · 最亮那档 */
+  --moss-d:     #5A6440;   /* 深橄榄 · 页眉 */
+  --moss-dd:    #434C2E;   /* 最深 · 页脚、深色字 */
+
+  /* 枯叶：陶土与赭，只在需要戳一下的地方出现 */
+  --clay:       #B67251;
+  --clay-d:     #8C4F3D;
+  --gold:       #D2A62E;
 
   /* 覆盖 style.css 那套变量 */
   --bg:        var(--paper);
-  --header:    var(--mint-d);
-  --footer:    var(--bark);
-  --nav:       #F7F0D8;
+  --header:    var(--moss-d);
+  --footer:    var(--moss-dd);
+  --nav:       #F5F0CD;
   --line:      var(--ink-line);
   --line-soft: var(--ink-line-2);
-  --link:      #1F6E60;
+  --link:      #55613A;
   --text:      var(--ink-2);
-  --muted:     #6B6746;
-  --new:       var(--clay);
-  --yellow:    #E3B23C;
+  --muted:     #6E6B47;
+  --new:       var(--clay-d);
+  --yellow:    #C9A227;
   --panel:     var(--paper-2);
-  --lcd-bg:    #264A42;
-  --lcd-fg:    #A6E3D1;
+  --lcd-bg:    #3C4529;
+  --lcd-fg:    #C2E3BA;
 
-  /* 这六个是 style.css 里从散落色提出来的，一一对位换掉：
-     橙→陶土赭、绿→青绿、淡绿点线→暖线。改完这一组，
-     那些没走 --header/--link 的地方也就跟着变了。 */
-  --accent:    #A2563A;
-  --leaf:      #3A8578;
-  --leaf-d:    #2A6357;
-  --leaf-l:    #A99A6A;
-  --rule:      #D2C9A4;
-  --wash:      #FFFEF8;
+  /* 这六个是 style.css 里从散落色提出来的，一一对位换掉 */
+  --accent:    #8C4F3D;
+  --leaf:      #6D724F;
+  --leaf-d:    #434C2E;
+  --leaf-l:    #B5A87B;
+  --rule:      #D8CEA2;
+  --wash:      #FBF7E8;
 }
 
 /* ------------------------------------------------------------
@@ -95,24 +101,27 @@ body {
    用内联 SVG 的 feTurbulence 生成，140px 一块拼接，无外部请求。
    ------------------------------------------------------------ */
 :root {
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='pn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23pn)' opacity='0.16'/%3E%3C/svg%3E");
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='pn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23pn)' opacity='0.26'/%3E%3C/svg%3E");
 }
 
 .page {
+  /* 叶枝要绝对定位在这张纸上，所以这里得有定位上下文 */
+  position: relative;
   border: 1px solid var(--ink-line);
   background-color: var(--paper-2);
   background-image:
     var(--grain),
-    /* 两片柔光：左上到右上的暖金（阳光），左下角一点薄荷（环境反光）。
-       参考图最抓人的就是这层不均匀的光 —— 纸面是一块死平色，
-       怎么调都像蒙了灰，有了光影才「活」。 */
-    radial-gradient(1500px 1000px at 64% -14%, rgba(255, 228, 158, .52), transparent 70%),
-    radial-gradient(950px 720px at 2% 108%, rgba(127, 214, 198, .14), transparent 66%),
+    /* 暖白的雾 —— 回忆感的来源。整片压在最上面，把对比往下拉一档，
+       纸面就像隔着一层空气看过去，不再是硬邦邦的平涂。 */
+    radial-gradient(2400px 1600px at 50% 0%, rgba(255, 249, 216, .46), transparent 92%),
+    /* 左下角透一点绿 —— 环境反光，也是「绿是主角」的暗处呼应 */
+    radial-gradient(1600px 1200px at -12% 112%, rgba(150, 172, 108, .50), transparent 74%),
+    /* 网格减到极淡 —— 旧书上不该有明显的经纬线 */
     repeating-linear-gradient(to right,
-      rgba(169, 154, 106, .16) 0 1px, transparent 1px 34px),
+      rgba(160, 144, 96, .085) 0 1px, transparent 1px 34px),
     repeating-linear-gradient(to bottom,
-      rgba(169, 154, 106, .16) 0 1px, transparent 1px 34px);
-  /* 光斑跟着视口走 —— 长文章滚到哪儿都有阳光；
+      rgba(160, 144, 96, .085) 0 1px, transparent 1px 34px);
+  /* 雾和绿光跟着视口走（长文章滚到哪儿都一样朦胧）；
      纸纹和网格跟着纸走，否则滚动时格子会「游」 */
   background-repeat: repeat, no-repeat, no-repeat, repeat, repeat;
   background-size: 140px 140px, auto, auto, auto, auto;
@@ -125,37 +134,37 @@ body {
 }
 
 /* ------------------------------------------------------------
-   页眉：薄荷青绿 + 双金线（古书装帧那种）
-   原来是深墨绿 —— 太沉，整页像盖着。青绿是参考图的天光色，
-   明度高一整档，站名压在上面也不会闷。
+   页眉：深橄榄 + 双金线（古书装帧那种）
+   这里放整站最深的一块绿 —— 页面太浅会「飘」，需要顶部有个压舱的。
+   但它是橄榄不是墨绿：同明度下更黄更暖，跟枯叶、旧书是一路的。
    ------------------------------------------------------------ */
 .site-head {
-  background: var(--mint-d);
+  background: var(--moss-d);
   border-bottom: 3px double var(--gold);
 }
-.site-head .slogan { background: var(--mint-d); color: #F2FAF0; }
-.site-head .right { color: #EAF6EC; }
-.site-head .right .date-line { color: #F7DA8C; }
-.site-head .right a { color: #FBE9A8; border-bottom-color: #FBE9A8; }
-.site-head .right a:hover { color: #FFFBE8; border-bottom-color: #FFFBE8; }
+.site-head .slogan { background: var(--moss-d); color: #EDEFC8; }
+.site-head .right { color: #DDE2B4; }
+.site-head .right .date-line { color: #D9C179; }
+.site-head .right a { color: #EADFA0; border-bottom-color: #EADFA0; }
+.site-head .right a:hover { color: #FAF6DC; border-bottom-color: #FAF6DC; }
 
-/* 账号按钮：陶土色的小方块 —— 像块染过的粗布，配青绿页眉
-   红正色在这里会显脏，往橙偏一点反而更亮。 */
+/* 账号按钮：陶土色的小方块 —— 像块染过的粗布，压在深橄榄页眉上。
+   正红在这套配色里会显脏，往橙偏一点才像布料。 */
 .head-login {
   background: var(--clay);
-  color: #FFF3E6;
-  border: 2px solid #2A5F53;
-  box-shadow: 3px 3px 0 #2A5F53;
+  color: #FFF6E8;
+  border: 2px solid #3C4529;
+  box-shadow: 3px 3px 0 #3C4529;
 }
-.head-login .dot { background: #F7DA8C; border-color: #2A5F53; }
+.head-login .dot { background: #D9C179; border-color: #3C4529; }
 .head-login:hover {
-  background: #C0785A;
-  color: #FFFDF4;
-  box-shadow: 4px 4px 0 #2A5F53;
+  background: #C48162;
+  color: #FFFAF0;
+  box-shadow: 4px 4px 0 #3C4529;
 }
-.head-login:active { box-shadow: 1px 1px 0 #2A5F53; }
-.head-login.is-in { background: #2A5F53; color: #EAF6EC; }
-.head-login.is-in .dot { background: #F7DA8C; }
+.head-login:active { box-shadow: 1px 1px 0 #3C4529; }
+.head-login.is-in { background: #3C4529; color: #DDE2B4; }
+.head-login.is-in .dot { background: #D9C179; }
 
 /* 导航：奶油纸色，当前项用陶土赭（正陶土在浅底上太淡，压深一档） */
 .nav {
@@ -178,7 +187,7 @@ body {
   background-position: left bottom;
   background-size: 100% 1px;
 }
-.post-title a { color: var(--mint-dd); }
+.post-title a { color: var(--moss-dd); }
 .post-title a:hover { color: var(--clay); }
 .post-meta, .post-excerpt { color: var(--ink-3); }
 
@@ -197,15 +206,16 @@ body {
 }
 .cell-title { border-bottom: 1px solid var(--ink-line); }
 
-/* 侧栏标签栏：青绿家族，掺两块陶土提神（原来是墨绿 + 赭石） */
-.bar-1 { background: #4E9E90; }
-.bar-2 { background: #A2563A; }
-.bar-3 { background: #356860; }
-.bar-4 { background: #2A5F53; }
-.bar-5 { background: #63B4A8; }
-.bar-6 { background: #356860; }
-.bar-7 { background: #235650; }
-.bar-8 { background: #B4694A; }
+/* 侧栏标签栏：八段里有七段是不同深浅、不同黄蓝倾向的绿，
+   只留一段枯叶褐做异类 —— 「五彩斑斓的绿，别的颜色不喧宾夺主」。 */
+.bar-1 { background: #6D724F; }   /* 橄榄 */
+.bar-2 { background: #6E7A46; }   /* 草黄绿 */
+.bar-3 { background: #5A6440; }   /* 深橄榄 */
+.bar-4 { background: #7A9171; }   /* 灰绿 */
+.bar-5 { background: #8C9A5C; }   /* 浅黄绿 */
+.bar-6 { background: #434C2E; }   /* 最深 */
+.bar-7 { background: #8C4F3D; }   /* 枯叶褐 · 唯一的异类 */
+.bar-8 { background: #7C8A50; }   /* 鲜黄绿 */
 
 /* 小标签与置顶 */
 .chip { background: var(--paper-2); border-color: var(--ink-line-2); color: var(--ink-3); }
@@ -272,23 +282,27 @@ body {
     var(--grain),
     linear-gradient(
       to right,
-      #1E5049 0 12.5%, #2A655C 12.5% 25%, #3A8578 25% 37.5%,
-      #57AFA2 37.5% 50%, #7FD6C6 50% 62.5%, #57AFA2 62.5% 75%,
-      #3A8578 75% 87.5%, #1E5049 87.5% 100%),
-    radial-gradient(1500px 1000px at 64% -14%, rgba(255, 228, 158, .52), transparent 70%),
-    radial-gradient(950px 720px at 2% 108%, rgba(127, 214, 198, .14), transparent 66%),
+      #2A3120 0 12.5%, #333D25 12.5% 25%, #3E4A2C 25% 37.5%,
+      #4E5A36 37.5% 50%, #5F6B45 50% 62.5%, #4E5A36 62.5% 75%,
+      #3E4A2C 75% 87.5%, #2A3120 87.5% 100%),
+    radial-gradient(2400px 1600px at 50% 0%, rgba(255, 249, 216, .46), transparent 92%),
+    radial-gradient(1600px 1200px at -12% 112%, rgba(150, 172, 108, .50), transparent 74%),
+    /* 两片水彩晕染：右上暖金、左下枯叶褐。
+       封面太空，只有一片均匀的纸色撑不住；淡淡两笔就像纸上被水洇过。 */
+    radial-gradient(760px 560px at 76% 20%, rgba(201, 162, 39, .16), transparent 66%),
+    radial-gradient(680px 520px at 20% 78%, rgba(140, 79, 61, .11), transparent 64%),
     repeating-linear-gradient(to right,
-      rgba(169, 154, 106, .16) 0 1px, transparent 1px 34px),
+      rgba(160, 144, 96, .085) 0 1px, transparent 1px 34px),
     repeating-linear-gradient(to bottom,
-      rgba(169, 154, 106, .16) 0 1px, transparent 1px 34px);
-  background-repeat: repeat, no-repeat, no-repeat, no-repeat, repeat, repeat;
-  /* 纸纹 140px 铺满；色带 18px 顶到头；两片光斑固定，网格跟着纸走 */
-  background-size: 140px 140px, 100% 18px, auto, auto, auto, auto;
-  background-position: 0 0, left top, 0 0, 0 0, 0 0, 0 0;
-  background-attachment: scroll, scroll, fixed, fixed, scroll, scroll;
+      rgba(160, 144, 96, .085) 0 1px, transparent 1px 34px);
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat;
+  /* 纸纹 140px 铺满；色带 13px 顶到头；雾/绿光/两片晕染固定，网格跟着纸走 */
+  background-size: 140px 140px, 100% 13px, auto, auto, auto, auto, auto;
+  background-position: 0 0, left top, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-attachment: scroll, scroll, fixed, fixed, fixed, fixed, scroll, scroll;
   /* 色带下面那条金线，用内阴影画，不占高度 */
   box-shadow:
-    inset 0 18px 0 -17px var(--gold),
+    inset 0 13px 0 -12px var(--gold),
     0 0 0 3px var(--desk),
     0 0 0 4px var(--ink-line-2),
     7px 7px 0 4px rgba(43, 36, 23, .12);
@@ -317,25 +331,26 @@ body {
 }
 
 /* ------------------------------------------------------------
-   页脚：青绿 + 金顶线
-   页眉页脚是这套配色里唯一成片的深色。原来用深墨绿，压得整页发暗；
-   换成深一档的青绿之后，明度上来了一整阶，跟纸面接得上。
+   页脚：深橄榄 + 金顶线
+   跟页眉同族但再深一点，是页面收口的那一笔。
+   不用暖棕：整套配色已经全是暖的，页脚再暖就糊成一片了，
+   用最深的一格绿反而收得住。
    ------------------------------------------------------------ */
 .site-foot {
-  background: var(--bark);
+  background: var(--moss-dd);
   border-top: 3px double var(--gold);
-  color: #F3E9D2;
+  color: #E8EBC8;
 }
-.site-foot a { color: #FBE9A8; }
-.site-foot .px-en { color: #F7DA8C; }
-.foot-contact .sep { color: #9C8A6E; }
-.foot-toc a { color: #F3E9D2; }
-.foot-toc a:hover { color: #FBE9A8; }
+.site-foot a { color: #EADFA0; }
+.site-foot .px-en { color: #D9C179; }
+.foot-contact .sep { color: #7E7A56; }
+.foot-toc a { color: #E8EBC8; }
+.foot-toc a:hover { color: #EADFA0; }
 .foot-toc .toc-dots {
   background-image: repeating-linear-gradient(
-    to right, #9C8A6E 0 2px, transparent 2px 7px);
+    to right, #7E7A56 0 2px, transparent 2px 7px);
 }
-.foot-toc .toc-num { color: #F7DA8C; }
+.foot-toc .toc-num { color: #D9C179; }
 
 /* ------------------------------------------------------------
    跑马灯：页脚顶部那一条。原来是近白绿底 + 橙字。
@@ -343,7 +358,7 @@ body {
    单独退一档暖纸色，跟上下两头都留出层次。
    ------------------------------------------------------------ */
 .marquee {
-  background: #F3EAC8;
+  background: #EFE6C2;
   border-color: var(--ink-line-2);
   color: var(--clay-d);
 }
@@ -352,8 +367,8 @@ body {
 .like-btn { color: var(--ink-3); background: var(--paper-3); border-color: var(--ink-line-2); }
 .like-btn .lk-heart { color: var(--ink-line-2); }
 .like-btn:hover { color: var(--clay-d); border-color: var(--clay); }
-.like-btn.on { color: #FFF4EC; background: #BC5F41; border-color: #93462E; }
-.like-btn.on .lk-heart { color: #FFE3D6; }
+.like-btn.on { color: #FFF4EC; background: #B67251; border-color: #8C4F3D; }
+.like-btn.on .lk-heart { color: #FFE7DA; }
 
 /* ------------------------------------------------------------
    图片：一律给一道墨边，免得照片像浮在纸上
@@ -376,7 +391,7 @@ img { border-color: var(--ink-line-2); }
 .post.featured { border-left-color: var(--clay); }
 
 /* 主按钮：绿底绿边 → 墨边；悬停原来是亮绿，改成金 */
-.btn { border-color: var(--mint-d); }
+.btn { border-color: var(--moss-d); }
 .btn:hover { background: var(--gold); color: var(--ink); border-color: var(--ink-line); }
 
 /* 小按钮：浅绿底 → 纸底墨边。危险按钮的橙红留着，只把底色拉到纸系 */
@@ -389,7 +404,7 @@ label { border-color: var(--ink-line-2); color: var(--ink-3); }
 
 /* 没设头像的人的占位：绿色斜纹 → 旧地图那种棕褐细斜线 */
 .comment-avatar {
-  background: repeating-linear-gradient(45deg, #E9DFC4 0 4px, #DCD2B4 4px 8px);
+  background: repeating-linear-gradient(45deg, #E7DEBD 0 4px, #D9CFA6 4px 8px);
   border-color: var(--ink-line-2);
 }
 
@@ -419,7 +434,7 @@ input[type="password"], textarea, select {
   }
   .cover-body .page {
     box-shadow:
-      inset 0 18px 0 -17px var(--gold),
+      inset 0 13px 0 -12px var(--gold),
       0 0 0 2px var(--desk),
       0 0 0 3px var(--ink-line-2);
   }
@@ -427,4 +442,94 @@ input[type="password"], textarea, select {
     padding: 22px 14px 20px;
     outline-offset: 3px;
   }
+}
+
+/* ------------------------------------------------------------
+   植物花纹
+   纯色怎么调都到不了参考图那种层次 —— 画面里的丰富度一半来自
+   树叶、藤蔓、水彩笔触。CSS 画不出画，但可以补一枝植物：
+   沿茎两侧交替长叶，叶形是两条三次贝塞尔合的，不是几何椭圆。
+
+   只在封面右下角放一枝（大枝铺满会很 wallpaper），
+   透明度压得很低，远看是纸上的水痕，近看才认出是叶子。
+   ------------------------------------------------------------ */
+.cover-body .page::before {
+  content: "";
+  position: absolute;
+  /* 内页那条用的是 left/top，这里必须把 left/top 重置掉，
+     否则两套定位同时生效，枝子会跑到左上角跟另一枝叠在一起 */
+  left: auto;
+  top: auto;
+  right: 26px;
+  bottom: 208px;
+  width: 220px;
+  height: 288px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22340%22 viewBox=%220 0 260 340%22%3E%3Cg fill=%22none%22 stroke=%22%234E5A34%22 stroke-opacity=%22.40%22 stroke-width=%221.5%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M232 308 C196 262 176 214 138 178 C104 146 74 100 26 26%22/%3E%3C/g%3E%3Cg fill=%22%237A9171%22 fill-opacity=%22.26%22 stroke=%22%2343502E%22 stroke-opacity=%22.34%22 stroke-width=%221%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cg transform=%22translate(221.6 294.2) rotate(-73.6)%22%3E%3Cpath d=%22M0 0 C6.6 -12.6 22.2 -11.6 30.0 0 C22.2 11.6 6.6 12.6 0 0 Z%22/%3E%3Cpath d=%221.8 0 L26.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(221.6 294.2) rotate(-177.6)%22%3E%3Cpath d=%22M0 0 C5.7 -10.8 19.1 -10.0 25.8 0 C19.1 10.0 5.7 10.8 0 0 Z%22/%3E%3Cpath d=%221.5 0 L22.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-70.8)%22%3E%3Cpath d=%22M0 0 C6.1 -11.6 20.4 -10.7 27.6 0 C20.4 10.7 6.1 11.6 0 0 Z%22/%3E%3Cpath d=%221.7 0 L24.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-174.8)%22%3E%3Cpath d=%22M0 0 C5.2 -10.0 17.6 -9.2 23.7 0 C17.6 9.2 5.2 10.0 0 0 Z%22/%3E%3Cpath d=%221.4 0 L20.9 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-70.4)%22%3E%3Cpath d=%22M0 0 C5.5 -10.6 18.6 -9.7 25.2 0 C18.6 9.7 5.5 10.6 0 0 Z%22/%3E%3Cpath d=%221.5 0 L22.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-174.4)%22%3E%3Cpath d=%22M0 0 C4.8 -9.1 16.0 -8.4 21.7 0 C16.0 8.4 4.8 9.1 0 0 Z%22/%3E%3Cpath d=%221.3 0 L19.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-72.5)%22%3E%3Cpath d=%22M0 0 C5.0 -9.6 16.9 -8.8 22.8 0 C16.9 8.8 5.0 9.6 0 0 Z%22/%3E%3Cpath d=%221.4 0 L20.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-176.5)%22%3E%3Cpath d=%22M0 0 C4.3 -8.2 14.5 -7.6 19.6 0 C14.5 7.6 4.3 8.2 0 0 Z%22/%3E%3Cpath d=%221.2 0 L17.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-77.3)%22%3E%3Cpath d=%22M0 0 C4.5 -8.6 15.1 -7.9 20.4 0 C15.1 7.9 4.5 8.6 0 0 Z%22/%3E%3Cpath d=%221.2 0 L18.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-181.3)%22%3E%3Cpath d=%22M0 0 C3.9 -7.4 13.0 -6.8 17.5 0 C13.0 6.8 3.9 7.4 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-81.9)%22%3E%3Cpath d=%22M0 0 C4.0 -7.6 13.3 -7.0 18.0 0 C13.3 7.0 4.0 7.6 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.8 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-185.9)%22%3E%3Cpath d=%22M0 0 C3.4 -6.5 11.5 -6.0 15.5 0 C11.5 6.0 3.4 6.5 0 0 Z%22/%3E%3Cpath d=%220.9 0 L13.6 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-83.2)%22%3E%3Cpath d=%22M0 0 C4.6 -8.8 15.5 -8.1 21.0 0 C15.5 8.1 4.6 8.8 0 0 Z%22/%3E%3Cpath d=%221.3 0 L18.5 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-183.2)%22%3E%3Cpath d=%22M0 0 C3.9 -7.5 13.2 -6.9 17.8 0 C13.2 6.9 3.9 7.5 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-78.5)%22%3E%3Cpath d=%22M0 0 C4.2 -8.0 14.1 -7.3 19.0 0 C14.1 7.3 4.2 8.0 0 0 Z%22/%3E%3Cpath d=%221.1 0 L16.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-178.5)%22%3E%3Cpath d=%22M0 0 C3.6 -6.8 12.0 -6.2 16.1 0 C12.0 6.2 3.6 6.8 0 0 Z%22/%3E%3Cpath d=%221.0 0 L14.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-75.4)%22%3E%3Cpath d=%22M0 0 C3.7 -7.1 12.6 -6.6 17.0 0 C12.6 6.6 3.7 7.1 0 0 Z%22/%3E%3Cpath d=%221.0 0 L15.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-175.4)%22%3E%3Cpath d=%22M0 0 C3.2 -6.1 10.7 -5.6 14.4 0 C10.7 5.6 3.2 6.1 0 0 Z%22/%3E%3Cpath d=%220.9 0 L12.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-73.7)%22%3E%3Cpath d=%22M0 0 C3.3 -6.3 11.1 -5.8 15.0 0 C11.1 5.8 3.3 6.3 0 0 Z%22/%3E%3Cpath d=%220.9 0 L13.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-173.7)%22%3E%3Cpath d=%22M0 0 C2.8 -5.4 9.4 -4.9 12.8 0 C9.4 4.9 2.8 5.4 0 0 Z%22/%3E%3Cpath d=%220.8 0 L11.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-73.1)%22%3E%3Cpath d=%22M0 0 C2.9 -5.5 9.6 -5.0 13.0 0 C9.6 5.0 2.9 5.5 0 0 Z%22/%3E%3Cpath d=%220.8 0 L11.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-173.1)%22%3E%3Cpath d=%22M0 0 C2.4 -4.6 8.2 -4.3 11.0 0 C8.2 4.3 2.4 4.6 0 0 Z%22/%3E%3Cpath d=%220.7 0 L9.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3C/g%3E%3Cg fill=%22%23C9A227%22 fill-opacity=%22.24%22%3E%3Ccircle cx=%22150%22 cy=%22196%22 r=%222.3%22/%3E%3Ccircle cx=%2298%22 cy=%22132%22 r=%222.3%22/%3E%3Ccircle cx=%2256%22 cy=%2274%22 r=%222.3%22/%3E%3C/g%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  z-index: 0;
+}
+/* 对角再放一枝镜像的，两枝才不会让画面偏一边 */
+.cover-body .page::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 196px;
+  width: 190px;
+  height: 248px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22340%22 viewBox=%220 0 260 340%22%3E%3Cg transform=%22translate(260 0) scale(-1 1)%22%3E%3Cg fill=%22none%22 stroke=%22%234E5A34%22 stroke-opacity=%22.40%22 stroke-width=%221.5%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M232 308 C196 262 176 214 138 178 C104 146 74 100 26 26%22/%3E%3C/g%3E%3Cg fill=%22%237A9171%22 fill-opacity=%22.22%22 stroke=%22%2343502E%22 stroke-opacity=%22.30%22 stroke-width=%221%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cg transform=%22translate(221.6 294.2) rotate(-73.6)%22%3E%3Cpath d=%22M0 0 C6.6 -12.6 22.2 -11.6 30.0 0 C22.2 11.6 6.6 12.6 0 0 Z%22/%3E%3Cpath d=%221.8 0 L26.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(221.6 294.2) rotate(-177.6)%22%3E%3Cpath d=%22M0 0 C5.7 -10.8 19.1 -10.0 25.8 0 C19.1 10.0 5.7 10.8 0 0 Z%22/%3E%3Cpath d=%221.5 0 L22.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-70.8)%22%3E%3Cpath d=%22M0 0 C6.1 -11.6 20.4 -10.7 27.6 0 C20.4 10.7 6.1 11.6 0 0 Z%22/%3E%3Cpath d=%221.7 0 L24.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-174.8)%22%3E%3Cpath d=%22M0 0 C5.2 -10.0 17.6 -9.2 23.7 0 C17.6 9.2 5.2 10.0 0 0 Z%22/%3E%3Cpath d=%221.4 0 L20.9 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-70.4)%22%3E%3Cpath d=%22M0 0 C5.5 -10.6 18.6 -9.7 25.2 0 C18.6 9.7 5.5 10.6 0 0 Z%22/%3E%3Cpath d=%221.5 0 L22.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-174.4)%22%3E%3Cpath d=%22M0 0 C4.8 -9.1 16.0 -8.4 21.7 0 C16.0 8.4 4.8 9.1 0 0 Z%22/%3E%3Cpath d=%221.3 0 L19.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-72.5)%22%3E%3Cpath d=%22M0 0 C5.0 -9.6 16.9 -8.8 22.8 0 C16.9 8.8 5.0 9.6 0 0 Z%22/%3E%3Cpath d=%221.4 0 L20.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-176.5)%22%3E%3Cpath d=%22M0 0 C4.3 -8.2 14.5 -7.6 19.6 0 C14.5 7.6 4.3 8.2 0 0 Z%22/%3E%3Cpath d=%221.2 0 L17.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-77.3)%22%3E%3Cpath d=%22M0 0 C4.5 -8.6 15.1 -7.9 20.4 0 C15.1 7.9 4.5 8.6 0 0 Z%22/%3E%3Cpath d=%221.2 0 L18.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-181.3)%22%3E%3Cpath d=%22M0 0 C3.9 -7.4 13.0 -6.8 17.5 0 C13.0 6.8 3.9 7.4 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-81.9)%22%3E%3Cpath d=%22M0 0 C4.0 -7.6 13.3 -7.0 18.0 0 C13.3 7.0 4.0 7.6 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.8 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-185.9)%22%3E%3Cpath d=%22M0 0 C3.4 -6.5 11.5 -6.0 15.5 0 C11.5 6.0 3.4 6.5 0 0 Z%22/%3E%3Cpath d=%220.9 0 L13.6 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-83.2)%22%3E%3Cpath d=%22M0 0 C4.6 -8.8 15.5 -8.1 21.0 0 C15.5 8.1 4.6 8.8 0 0 Z%22/%3E%3Cpath d=%221.3 0 L18.5 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-183.2)%22%3E%3Cpath d=%22M0 0 C3.9 -7.5 13.2 -6.9 17.8 0 C13.2 6.9 3.9 7.5 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-78.5)%22%3E%3Cpath d=%22M0 0 C4.2 -8.0 14.1 -7.3 19.0 0 C14.1 7.3 4.2 8.0 0 0 Z%22/%3E%3Cpath d=%221.1 0 L16.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-178.5)%22%3E%3Cpath d=%22M0 0 C3.6 -6.8 12.0 -6.2 16.1 0 C12.0 6.2 3.6 6.8 0 0 Z%22/%3E%3Cpath d=%221.0 0 L14.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-75.4)%22%3E%3Cpath d=%22M0 0 C3.7 -7.1 12.6 -6.6 17.0 0 C12.6 6.6 3.7 7.1 0 0 Z%22/%3E%3Cpath d=%221.0 0 L15.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-175.4)%22%3E%3Cpath d=%22M0 0 C3.2 -6.1 10.7 -5.6 14.4 0 C10.7 5.6 3.2 6.1 0 0 Z%22/%3E%3Cpath d=%220.9 0 L12.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-73.7)%22%3E%3Cpath d=%22M0 0 C3.3 -6.3 11.1 -5.8 15.0 0 C11.1 5.8 3.3 6.3 0 0 Z%22/%3E%3Cpath d=%220.9 0 L13.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-173.7)%22%3E%3Cpath d=%22M0 0 C2.8 -5.4 9.4 -4.9 12.8 0 C9.4 4.9 2.8 5.4 0 0 Z%22/%3E%3Cpath d=%220.8 0 L11.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-73.1)%22%3E%3Cpath d=%22M0 0 C2.9 -5.5 9.6 -5.0 13.0 0 C9.6 5.0 2.9 5.5 0 0 Z%22/%3E%3Cpath d=%220.8 0 L11.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-173.1)%22%3E%3Cpath d=%22M0 0 C2.4 -4.6 8.2 -4.3 11.0 0 C8.2 4.3 2.4 4.6 0 0 Z%22/%3E%3Cpath d=%220.7 0 L9.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3C/g%3E%3Cg fill=%22%23C9A227%22 fill-opacity=%22.20%22%3E%3Ccircle cx=%22150%22 cy=%22196%22 r=%222.3%22/%3E%3Ccircle cx=%2298%22 cy=%22132%22 r=%222.3%22/%3E%3Ccircle cx=%2256%22 cy=%2274%22 r=%222.3%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 内页：一枝更淡的，压在主栏留白处。内容有不透明底，会把它挡住一部分 ——
+   露出来的那半截反而像印在纸上的旧插画，不是贴上去的贴纸。
+   封面另有一条 .cover-body .page::before，特异性更高，会自动盖掉这条的
+   位置和背景，所以这里不用再写例外。 */
+.page::before {
+  content: "";
+  position: absolute;
+  left: 96px;
+  top: 104px;
+  width: 168px;
+  height: 220px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22340%22 viewBox=%220 0 260 340%22%3E%3Cg transform=%22translate(260 0) scale(-1 1)%22%3E%3Cg fill=%22none%22 stroke=%22%234E5A34%22 stroke-opacity=%22.40%22 stroke-width=%221.5%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M232 308 C196 262 176 214 138 178 C104 146 74 100 26 26%22/%3E%3C/g%3E%3Cg fill=%22%237A9171%22 fill-opacity=%22.18%22 stroke=%22%2343502E%22 stroke-opacity=%22.24%22 stroke-width=%221%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cg transform=%22translate(221.6 294.2) rotate(-73.6)%22%3E%3Cpath d=%22M0 0 C6.6 -12.6 22.2 -11.6 30.0 0 C22.2 11.6 6.6 12.6 0 0 Z%22/%3E%3Cpath d=%22M1.8 0 L26.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(221.6 294.2) rotate(-177.6)%22%3E%3Cpath d=%22M0 0 C5.7 -10.8 19.1 -10.0 25.8 0 C19.1 10.0 5.7 10.8 0 0 Z%22/%3E%3Cpath d=%22M1.5 0 L22.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-70.8)%22%3E%3Cpath d=%22M0 0 C6.1 -11.6 20.4 -10.7 27.6 0 C20.4 10.7 6.1 11.6 0 0 Z%22/%3E%3Cpath d=%22M1.7 0 L24.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-174.8)%22%3E%3Cpath d=%22M0 0 C5.2 -10.0 17.6 -9.2 23.7 0 C17.6 9.2 5.2 10.0 0 0 Z%22/%3E%3Cpath d=%22M1.4 0 L20.9 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-70.4)%22%3E%3Cpath d=%22M0 0 C5.5 -10.6 18.6 -9.7 25.2 0 C18.6 9.7 5.5 10.6 0 0 Z%22/%3E%3Cpath d=%22M1.5 0 L22.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-174.4)%22%3E%3Cpath d=%22M0 0 C4.8 -9.1 16.0 -8.4 21.7 0 C16.0 8.4 4.8 9.1 0 0 Z%22/%3E%3Cpath d=%22M1.3 0 L19.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-72.5)%22%3E%3Cpath d=%22M0 0 C5.0 -9.6 16.9 -8.8 22.8 0 C16.9 8.8 5.0 9.6 0 0 Z%22/%3E%3Cpath d=%22M1.4 0 L20.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-176.5)%22%3E%3Cpath d=%22M0 0 C4.3 -8.2 14.5 -7.6 19.6 0 C14.5 7.6 4.3 8.2 0 0 Z%22/%3E%3Cpath d=%22M1.2 0 L17.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-77.3)%22%3E%3Cpath d=%22M0 0 C4.5 -8.6 15.1 -7.9 20.4 0 C15.1 7.9 4.5 8.6 0 0 Z%22/%3E%3Cpath d=%22M1.2 0 L18.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-181.3)%22%3E%3Cpath d=%22M0 0 C3.9 -7.4 13.0 -6.8 17.5 0 C13.0 6.8 3.9 7.4 0 0 Z%22/%3E%3Cpath d=%22M1.1 0 L15.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-81.9)%22%3E%3Cpath d=%22M0 0 C4.0 -7.6 13.3 -7.0 18.0 0 C13.3 7.0 4.0 7.6 0 0 Z%22/%3E%3Cpath d=%22M1.1 0 L15.8 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-185.9)%22%3E%3Cpath d=%22M0 0 C3.4 -6.5 11.5 -6.0 15.5 0 C11.5 6.0 3.4 6.5 0 0 Z%22/%3E%3Cpath d=%22M0.9 0 L13.6 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-83.2)%22%3E%3Cpath d=%22M0 0 C4.6 -8.8 15.5 -8.1 21.0 0 C15.5 8.1 4.6 8.8 0 0 Z%22/%3E%3Cpath d=%22M1.3 0 L18.5 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-183.2)%22%3E%3Cpath d=%22M0 0 C3.9 -7.5 13.2 -6.9 17.8 0 C13.2 6.9 3.9 7.5 0 0 Z%22/%3E%3Cpath d=%22M1.1 0 L15.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-78.5)%22%3E%3Cpath d=%22M0 0 C4.2 -8.0 14.1 -7.3 19.0 0 C14.1 7.3 4.2 8.0 0 0 Z%22/%3E%3Cpath d=%22M1.1 0 L16.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-178.5)%22%3E%3Cpath d=%22M0 0 C3.6 -6.8 12.0 -6.2 16.1 0 C12.0 6.2 3.6 6.8 0 0 Z%22/%3E%3Cpath d=%22M1.0 0 L14.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-75.4)%22%3E%3Cpath d=%22M0 0 C3.7 -7.1 12.6 -6.6 17.0 0 C12.6 6.6 3.7 7.1 0 0 Z%22/%3E%3Cpath d=%22M1.0 0 L15.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-175.4)%22%3E%3Cpath d=%22M0 0 C3.2 -6.1 10.7 -5.6 14.4 0 C10.7 5.6 3.2 6.1 0 0 Z%22/%3E%3Cpath d=%22M0.9 0 L12.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-73.7)%22%3E%3Cpath d=%22M0 0 C3.3 -6.3 11.1 -5.8 15.0 0 C11.1 5.8 3.3 6.3 0 0 Z%22/%3E%3Cpath d=%22M0.9 0 L13.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-173.7)%22%3E%3Cpath d=%22M0 0 C2.8 -5.4 9.4 -4.9 12.8 0 C9.4 4.9 2.8 5.4 0 0 Z%22/%3E%3Cpath d=%22M0.8 0 L11.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-73.1)%22%3E%3Cpath d=%22M0 0 C2.9 -5.5 9.6 -5.0 13.0 0 C9.6 5.0 2.9 5.5 0 0 Z%22/%3E%3Cpath d=%22M0.8 0 L11.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-173.1)%22%3E%3Cpath d=%22M0 0 C2.4 -4.6 8.2 -4.3 11.0 0 C8.2 4.3 2.4 4.6 0 0 Z%22/%3E%3Cpath d=%22M0.7 0 L9.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3C/g%3E%3Cg fill=%22%23C9A227%22 fill-opacity=%22.16%22%3E%3Ccircle cx=%22150%22 cy=%22196%22 r=%222.3%22/%3E%3Ccircle cx=%2298%22 cy=%22132%22 r=%222.3%22/%3E%3Ccircle cx=%2256%22 cy=%2274%22 r=%222.3%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  z-index: 0;
+}
+
+
+/* 页脚：烫金的一枝，压在深橄榄上 */
+.site-foot {
+  position: relative;
+}
+.site-foot::after {
+  content: "";
+  position: absolute;
+  right: 40px;
+  bottom: 30px;
+  width: 118px;
+  height: 154px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22340%22 viewBox=%220 0 260 340%22%3E%3Cg fill=%22none%22 stroke=%22%23D9C179%22 stroke-opacity=%22.30%22 stroke-width=%221.5%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M232 308 C196 262 176 214 138 178 C104 146 74 100 26 26%22/%3E%3C/g%3E%3Cg fill=%22%23C9A227%22 fill-opacity=%22.18%22 stroke=%22%23C9A227%22 stroke-opacity=%22.30%22 stroke-width=%221%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cg transform=%22translate(221.6 294.2) rotate(-73.6)%22%3E%3Cpath d=%22M0 0 C6.6 -12.6 22.2 -11.6 30.0 0 C22.2 11.6 6.6 12.6 0 0 Z%22/%3E%3Cpath d=%221.8 0 L26.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(221.6 294.2) rotate(-177.6)%22%3E%3Cpath d=%22M0 0 C5.7 -10.8 19.1 -10.0 25.8 0 C19.1 10.0 5.7 10.8 0 0 Z%22/%3E%3Cpath d=%221.5 0 L22.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-70.8)%22%3E%3Cpath d=%22M0 0 C6.1 -11.6 20.4 -10.7 27.6 0 C20.4 10.7 6.1 11.6 0 0 Z%22/%3E%3Cpath d=%221.7 0 L24.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(204.8 269.2) rotate(-174.8)%22%3E%3Cpath d=%22M0 0 C5.2 -10.0 17.6 -9.2 23.7 0 C17.6 9.2 5.2 10.0 0 0 Z%22/%3E%3Cpath d=%221.4 0 L20.9 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-70.4)%22%3E%3Cpath d=%22M0 0 C5.5 -10.6 18.6 -9.7 25.2 0 C18.6 9.7 5.5 10.6 0 0 Z%22/%3E%3Cpath d=%221.5 0 L22.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(189.2 244.6) rotate(-174.4)%22%3E%3Cpath d=%22M0 0 C4.8 -9.1 16.0 -8.4 21.7 0 C16.0 8.4 4.8 9.1 0 0 Z%22/%3E%3Cpath d=%221.3 0 L19.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-72.5)%22%3E%3Cpath d=%22M0 0 C5.0 -9.6 16.9 -8.8 22.8 0 C16.9 8.8 5.0 9.6 0 0 Z%22/%3E%3Cpath d=%221.4 0 L20.1 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(173.6 220.9) rotate(-176.5)%22%3E%3Cpath d=%22M0 0 C4.3 -8.2 14.5 -7.6 19.6 0 C14.5 7.6 4.3 8.2 0 0 Z%22/%3E%3Cpath d=%221.2 0 L17.3 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-77.3)%22%3E%3Cpath d=%22M0 0 C4.5 -8.6 15.1 -7.9 20.4 0 C15.1 7.9 4.5 8.6 0 0 Z%22/%3E%3Cpath d=%221.2 0 L18.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(157.0 198.5) rotate(-181.3)%22%3E%3Cpath d=%22M0 0 C3.9 -7.4 13.0 -6.8 17.5 0 C13.0 6.8 3.9 7.4 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-81.9)%22%3E%3Cpath d=%22M0 0 C4.0 -7.6 13.3 -7.0 18.0 0 C13.3 7.0 4.0 7.6 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.8 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(144.7 184.6) rotate(-185.9)%22%3E%3Cpath d=%22M0 0 C3.4 -6.5 11.5 -6.0 15.5 0 C11.5 6.0 3.4 6.5 0 0 Z%22/%3E%3Cpath d=%220.9 0 L13.6 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-83.2)%22%3E%3Cpath d=%22M0 0 C4.6 -8.8 15.5 -8.1 21.0 0 C15.5 8.1 4.6 8.8 0 0 Z%22/%3E%3Cpath d=%221.3 0 L18.5 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(125.9 165.9) rotate(-183.2)%22%3E%3Cpath d=%22M0 0 C3.9 -7.5 13.2 -6.9 17.8 0 C13.2 6.9 3.9 7.5 0 0 Z%22/%3E%3Cpath d=%221.1 0 L15.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-78.5)%22%3E%3Cpath d=%22M0 0 C4.2 -8.0 14.1 -7.3 19.0 0 C14.1 7.3 4.2 8.0 0 0 Z%22/%3E%3Cpath d=%221.1 0 L16.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(105.9 142.5) rotate(-178.5)%22%3E%3Cpath d=%22M0 0 C3.6 -6.8 12.0 -6.2 16.1 0 C12.0 6.2 3.6 6.8 0 0 Z%22/%3E%3Cpath d=%221.0 0 L14.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-75.4)%22%3E%3Cpath d=%22M0 0 C3.7 -7.1 12.6 -6.6 17.0 0 C12.6 6.6 3.7 7.1 0 0 Z%22/%3E%3Cpath d=%221.0 0 L15.0 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(85.1 114.8) rotate(-175.4)%22%3E%3Cpath d=%22M0 0 C3.2 -6.1 10.7 -5.6 14.4 0 C10.7 5.6 3.2 6.1 0 0 Z%22/%3E%3Cpath d=%220.9 0 L12.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-73.7)%22%3E%3Cpath d=%22M0 0 C3.3 -6.3 11.1 -5.8 15.0 0 C11.1 5.8 3.3 6.3 0 0 Z%22/%3E%3Cpath d=%220.9 0 L13.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(62.6 81.9) rotate(-173.7)%22%3E%3Cpath d=%22M0 0 C2.8 -5.4 9.4 -4.9 12.8 0 C9.4 4.9 2.8 5.4 0 0 Z%22/%3E%3Cpath d=%220.8 0 L11.2 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-73.1)%22%3E%3Cpath d=%22M0 0 C2.9 -5.5 9.6 -5.0 13.0 0 C9.6 5.0 2.9 5.5 0 0 Z%22/%3E%3Cpath d=%220.8 0 L11.4 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3Cg transform=%22translate(39.9 47.4) rotate(-173.1)%22%3E%3Cpath d=%22M0 0 C2.4 -4.6 8.2 -4.3 11.0 0 C8.2 4.3 2.4 4.6 0 0 Z%22/%3E%3Cpath d=%220.7 0 L9.7 0%22 fill=%22none%22 stroke-width=%22.55%22/%3E%3C/g%3E%3C/g%3E%3Cg fill=%22%23F0E3B4%22 fill-opacity=%22.34%22%3E%3Ccircle cx=%22150%22 cy=%22196%22 r=%222.3%22/%3E%3Ccircle cx=%2298%22 cy=%22132%22 r=%222.3%22/%3E%3Ccircle cx=%2256%22 cy=%2274%22 r=%222.3%22/%3E%3C/g%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  opacity: .9;
+}
+
+/* ------------------------------------------------------------
+   补漏：style.css 里还有三处写死的旧绿（不在这套变量体系里），
+   在暖纸上会显得像塑料片 —— 逐个压回橄榄/枯叶色。
+   ------------------------------------------------------------ */
+.crumb .sep { color: var(--ink-line-2); }
+.section-head .en { color: #7A8A4E; }
+.link-list li::before { color: #8C9A5C; }
+
+/* ------------------------------------------------------------
+   窄屏：叶枝会直接压在标题和目录上（手机上字号大、留白少，
+   桌面看着是「点缀」，手机看着是「脏」）。760px 以下全部关掉 ——
+   与其缩小，不如不放，纸色和纸纹本身已经够了。
+   ------------------------------------------------------------ */
+@media (max-width: 760px) {
+  .page::before,
+  .cover-body .page::before,
+  .cover-body .page::after,
+  .site-foot::after { content: none; display: none; }
 }
