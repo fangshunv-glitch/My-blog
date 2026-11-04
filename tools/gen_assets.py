@@ -67,7 +67,7 @@ TITLES = [
     ("欢迎光临", 16, 6, "#F2FFE4", "#1B3308", "t_welcome.png"),
     ("像素日常", 16, 3, "#E3CB86", "#120C04", "t_sitename.png"),
     # 封面用的站名：倍数更大、颜色是深的（封面底色是浅绿，深字才看得清）
-    ("像素日常", 16, 6, "#434C2E", None, "t_cover.png"),
+    ("像素日常", 16, 6, "#2B2417", None, "t_cover.png"),
     ("相册", 16, 3, "#FFFFFF", None, "t_album.png"),
     ("留言板", 16, 3, "#FFFFFF", None, "t_guest.png"),
     # —— 博客版 ——
@@ -81,14 +81,14 @@ TITLES = [
     ("发表留言", 16, 2, "#FFFFFF", None, "t_msg.png"),
     ("照片墙", 16, 2, "#FFFFFF", None, "t_wall.png"),
     # —— 章节页（封面目录里的每一章）——
-    # 白字那套是给彩色标题栏用的；深橄榄这套（ch_*.png）给浅色背景的章节题头用。
+    # 白字那套是给彩色标题栏用的；深绿这套（ch_*.png）给浅色背景的章节题头用。
     ("项目", 16, 3, "#FFFFFF", None, "t_project.png"),
     ("博客", 16, 3, "#FFFFFF", None, "t_blog.png"),
-    ("关于", 16, 4, "#434C2E", None, "ch_about.png"),
-    ("项目", 16, 4, "#434C2E", None, "ch_projects.png"),
-    ("博客", 16, 4, "#434C2E", None, "ch_blog.png"),
-    ("相册", 16, 4, "#434C2E", None, "ch_album.png"),
-    ("留言板", 16, 4, "#434C2E", None, "ch_guestbook.png"),
+    ("关于", 16, 4, "#243B2A", None, "ch_about.png"),
+    ("项目", 16, 4, "#243B2A", None, "ch_projects.png"),
+    ("博客", 16, 4, "#243B2A", None, "ch_blog.png"),
+    ("相册", 16, 4, "#243B2A", None, "ch_album.png"),
+    ("留言板", 16, 4, "#243B2A", None, "ch_guestbook.png"),
     # —— 站长后台 / 分享页 ——
     ("站长登录", 16, 2, "#FFFFFF", None, "t_login.png"),
     ("认领站长", 16, 2, "#FFFFFF", None, "t_claim.png"),
@@ -396,12 +396,12 @@ def draw_grid(path, rows, palette, scale=8):
 # 房子：给「Love & Forever 看房管理」用。
 # 深绿屋顶 + 米白墙 + 绿门，左上角一点橙色小心。
 HOUSE_PAL = {
-    "R": "#434C2E", "r": "#5F6B45",          # 屋顶 深 / 亮
-    "W": "#FBFAE9", "w": "#E4DEB8",          # 墙面 亮 / 暗
-    "G": "#C2E3BA", "g": "#8C9A5C",          # 窗玻璃 / 窗框
-    "D": "#434C2E", "d": "#2E3520",          # 门 / 门把手
-    "F": "#C9A227",                          # 地基（暖金收口）
-    "X": "#B67251",                          # 小心（陶土点缀）
+    "R": "#2F5D1A", "r": "#4C8C1F",          # 屋顶 深 / 亮
+    "W": "#F2FFE4", "w": "#D6EBB8",          # 墙面 亮 / 暗
+    "G": "#B6E27F", "g": "#7CBF3F",          # 窗玻璃 / 窗框
+    "D": "#2F5D1A", "d": "#1B3308",          # 门 / 门把手
+    "F": "#3E7B14",                          # 地基
+    "X": "#FF6B35",                          # 小心（点缀色）
 }
 HOUSE = [
     "..XX.XX.................",
@@ -430,11 +430,11 @@ HOUSE = [
 
 # 显示器：给「像素日常」这个博客项目用。
 MONITOR_PAL = {
-    "F": "#434C2E",           # 机壳
-    "S": "#2E3520",           # 屏幕底色
-    "T": "#C2E3BA",           # 文字
-    "A": "#C9A227",           # 标题条
-    "f": "#5F6B45", "B": "#C9A227",   # 支架 / 底座
+    "F": "#2F5D1A",           # 机壳
+    "S": "#12260A",           # 屏幕底色
+    "T": "#8EC759",           # 文字
+    "A": "#FFD400",           # 标题条
+    "f": "#4C8C1F", "B": "#3E7B14",   # 支架 / 底座
 }
 MONITOR = [
     "........................",
@@ -470,11 +470,11 @@ draw_grid(os.path.join(OUT, "proj_blog.png"), MONITOR, MONITOR_PAL)
 # 所以这里不画「人头疼」，直接画那张日历：顶上深绿题头，下面四个格子，
 # 几个格子被橙红点亮。22px 的格子里画人头只会糊成一个球。
 CAL_PAL = {
-    "F": "#434C2E",           # 题头
-    "A": "#C9A227",           # 挂环 / 题头里的字
-    "W": "#FBFAE9",           # 没痛的一天
-    "X": "#B67251",           # 痛过
-    "x": "#8C4F3D",           # 连着痛
+    "F": "#2F5D1A",           # 题头
+    "A": "#FFD400",           # 挂环 / 题头里的字
+    "W": "#F2FFE4",           # 没痛的一天
+    "X": "#FF6B35",           # 痛过
+    "x": "#E8412F",           # 连着痛
 }
 CALENDAR = [
     ".......AA......AA.......",
@@ -502,6 +502,51 @@ CALENDAR = [
 ]
 
 draw_grid(os.path.join(OUT, "proj_headache.png"), CALENDAR, CAL_PAL)
+
+
+# 待办小窗：给「今日事 · Desktop To-Do List」用。
+# 它的招牌就是那块钉在桌面上的常驻小窗，所以直接画窗本身：
+# 深绿题头 + 白卡片，三条事情 —— 勾选框、正文、右侧截止日色签
+# （红=逾期、黄=快到），最后一条已完成：勾打上了、字划掉颜色变灰，
+# 底部一根完成进度条。22px 的高里塞不下项目标签栏，靠色签交代重点。
+TODO_PAL = {
+    "F": "#2F5D1A",           # 窗框 / 题头
+    "A": "#FFD400",           # 题头里的字
+    "W": "#F2FFE4",           # 卡片
+    "g": "#8EC759",           # 没勾的圆圈
+    "T": "#4C8C1F",           # 待办正文
+    "r": "#E8412F",           # 逾期色签
+    "d": "#FFD400",           # 快到色签
+    "v": "#2F5D1A",           # 已勾的勾
+    "t": "#B9CBA6",           # 已完成正文（划掉后发灰）
+    "p": "#8EC759",           # 进度条
+}
+TODO = [
+    "........................",
+    "........................",
+    "........................",
+    "....FFFFFFFFFFFFFFFF....",
+    "....FAAAAAAAAAAAAAAF....",
+    "....FFFFFFFFFFFFFFFF....",
+    "....FWWWWWWWWWWWWWWF....",
+    "....FWggWTTTTTTWrrWF....",
+    "....FWWWWWWWWWWWWWWF....",
+    "....FWggWTTTTTTWddWF....",
+    "....FWWWWWWWWWWWWWWF....",
+    "....FWggWTTTTTTTWWWF....",
+    "....FWWWWWWWWWWWWWWF....",
+    "....FWvvWtttttttWWWF....",
+    "....FWWWWWWWWWWWWWWF....",
+    "....FWWWppppppppWWWF....",
+    "....FWWWWWWWWWWWWWWF....",
+    "....FFFFFFFFFFFFFFFF....",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+]
+
+draw_grid(os.path.join(OUT, "proj_todo.png"), TODO, TODO_PAL)
 
 
 # ---------------- 站点二维码（分享页用） ----------------
