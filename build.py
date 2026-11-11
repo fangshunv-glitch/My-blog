@@ -1179,38 +1179,35 @@ def build_album():
 # ---------------------------------------------------------------------------
 def build_about():
     blocks = []
-    for sec in ABOUT["sections"]:
-        if sec.get("list"):
-            rows = "".join('<li><span class="k">%s</span><span class="v">%s</span></li>'
-                           % (html.escape(k), html.escape(v)) for k, v in sec["list"])
-            body = '<ul class="about-list">%s</ul>' % rows
-        else:
-            body = '<div class="about-body">%s</div>' % md(sec["md"])
-        blocks.append('<h2 class="about-h">%s</h2>\n%s'
-                      % (html.escape(sec["h"]), body))
+    for item in ABOUT.get("story", []):
+        if isinstance(item, dict):
+            if item.get("quote"):
+                blocks.append('<blockquote class="about-quote">%s</blockquote>'
+                              % md(item["quote"]))
+            continue
+        blocks.append('<div class="about-body">%s</div>' % md(item))
+
+    closing = ABOUT.get("closing", "")
+    closing_html = ('      <div class="about-closing">%s</div>\n'
+                    % escape_lines(closing)) if closing else ""
 
     main = """
     <div class="main">
 
-      <div class="cell">
-        <div class="cell-title tall bar-6">
-          <img class="pixel" src="assets/t_me.png" alt="关于我">
-          <span class="en">ABOUT ME</span>
-        </div>
-        <div class="cell-body">
-          <div class="about-grid">
-            <img class="avatar-lg" src="assets/avatar.png" alt="站长头像" data-site-avatar>
-            <div class="about-lede">{lede}</div>
-          </div>
-        </div>
+      <div class="about-hero">
+        <img class="avatar-round" src="assets/avatar.png" alt="站长头像" data-site-avatar>
+        <div class="about-lede">{lede}</div>
       </div>
 
+      <div class="about-prose">
 {blocks}
+      </div>
 
+{closing}
       <div class="about-foot-note">{foot}</div>
 
     </div>""".format(lede=escape_lines(ABOUT["lede"]), blocks="\n".join(blocks),
-                     foot=html.escape(ABOUT["foot_note"]))
+                     closing=closing_html, foot=html.escape(ABOUT["foot_note"]))
 
     out = page("关于 · %s" % SITE["name"],
                "关于站长清羽墨染：几座城，一个阳台，一些没说完的话。", "about", 0, main, skip_me=True,
