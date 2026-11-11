@@ -1210,7 +1210,7 @@ def build_about():
                      closing=closing_html, foot=html.escape(ABOUT["foot_note"]))
 
     out = page("关于 · %s" % SITE["name"],
-               "关于清羽墨染，和这个博客的来历。", "about", 0, main, skip_me=True,
+               "像素日常：照片、随笔，和几个做完的小项目。", "about", 0, main, skip_me=True,
                top=chapter_head("about", 0))
     write("about.html", out)
 
