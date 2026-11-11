@@ -2855,7 +2855,7 @@ img.comment-avatar { object-fit: cover; background: none; }
 .about-hero .about-lede {
   font-size: 20px;
   line-height: 2.1;
-  letter-spacing: .12em;
+  letter-spacing: .06em;
   color: var(--header);
 }
 .about-prose { max-width: 620px; margin: 0 auto; }
@@ -2869,9 +2869,9 @@ img.comment-avatar { object-fit: cover; background: none; }
   margin: 44px 0;
   padding: 2px 0 2px 20px;
   border-left: 4px solid var(--accent);
-  font-size: 23px;
+  font-size: 20px;
   line-height: 1.75;
-  letter-spacing: .06em;
+  letter-spacing: .02em;
   color: var(--header);
 }
 .about-quote p { margin: 0; }
@@ -2897,6 +2897,6 @@ img.comment-avatar { object-fit: cover; background: none; }
   .about-hero .about-lede { font-size: 17px; letter-spacing: .06em; }
   .about-prose .about-body { font-size: 15px; line-height: 2.05; }
   .about-prose .about-body p { margin-bottom: 24px; }
-  .about-quote { font-size: 19px; margin: 32px 0; padding-left: 14px; }
+  .about-quote { font-size: 18px; margin: 32px 0; padding-left: 14px; }
   .about-closing { margin-top: 36px; padding-top: 22px; font-size: 13px; }
 }
