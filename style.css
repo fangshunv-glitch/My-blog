@@ -2833,70 +2833,55 @@ img.comment-avatar { object-fit: cover; background: none; }
 }
 
 /* ============================================================
-   关于页 · 单栏散文（不分小标题）
-   头像圆形居中 → 题记放大 → 一栏窄正文 → 拉引言 → 收句
+   关于页 · 名片式（对外只留最低限度的介绍）
+   深绿 ID 条 + 方形像素头像，正文短句，收句当脚注
    ============================================================ */
 .about-hero {
-  text-align: center;
-  padding: 26px 0 32px;
-  border-bottom: 1px dashed var(--line-soft);
-  margin-bottom: 38px;
+  display: flex; align-items: center; gap: 18px;
+  padding: 16px 20px;
+  background: var(--header);
+  border: 1px solid var(--line);
+  box-shadow: 4px 4px 0 rgba(47, 93, 26, .18);
+  margin-bottom: 36px;
 }
-.avatar-round {
+.avatar-square {
   display: block;
-  width: 92px; height: 92px;
-  margin: 0 auto 18px;
-  border-radius: 50%;
-  border: 3px solid var(--header);
-  box-shadow: 4px 4px 0 rgba(47, 93, 26, .16);
+  width: 72px; height: 72px; flex: none;
+  border: 2px solid #DFF5C8;
   background: #DFF5C8;
   image-rendering: pixelated;
 }
 .about-hero .about-lede {
   font-size: 20px;
-  line-height: 2.1;
-  letter-spacing: .06em;
-  color: var(--header);
+  line-height: 1.9;
+  letter-spacing: .1em;
+  color: #E4F8CE;
+  text-align: left;
 }
-.about-prose { max-width: 620px; margin: 0 auto; }
+.about-prose { max-width: 560px; margin: 0 auto; }
 .about-prose .about-body {
-  font-size: 15px;
-  line-height: 2.15;
+  font-size: 18px;
+  line-height: 2.1;
   color: #2C4218;
 }
-.about-prose .about-body p { margin: 0 0 30px; }
-.about-quote {
-  margin: 44px 0;
-  padding: 2px 0 2px 20px;
-  border-left: 4px solid var(--accent);
-  font-size: 20px;
-  line-height: 1.75;
-  letter-spacing: .02em;
-  color: var(--header);
-}
-.about-quote p { margin: 0; }
+.about-prose .about-body p { margin: 0 0 24px; }
 .about-closing {
-  max-width: 620px;
-  margin: 50px auto 0;
-  padding-top: 28px;
+  max-width: 560px;
+  margin: 44px auto 0;
+  padding-top: 18px;
   border-top: 1px dashed var(--line-soft);
-  text-align: center;
-  font-size: 16px;
-  line-height: 2.2;
-  letter-spacing: .06em;
-  color: var(--header);
+  font-size: 13px;
+  line-height: 2;
+  color: var(--muted);
 }
-.about-closing p { margin: 0; }
 
 @media (max-width: 760px) {
-  .about-hero { padding: 16px 0 24px; margin-bottom: 26px; }
+  .about-hero { padding: 12px 14px; gap: 14px; margin-bottom: 28px; }
+  .avatar-square { width: 58px; height: 58px; }
+  .about-hero .about-lede { font-size: 17px; letter-spacing: .06em; }
   .about-hero, .about-prose, .about-closing, .about-foot-note {
     padding-left: 14px; padding-right: 14px;
   }
-  .avatar-round { width: 74px; height: 74px; margin-bottom: 14px; }
-  .about-hero .about-lede { font-size: 17px; letter-spacing: .06em; }
-  .about-prose .about-body { font-size: 15px; line-height: 2.05; }
-  .about-prose .about-body p { margin-bottom: 24px; }
-  .about-quote { font-size: 18px; margin: 32px 0; padding-left: 14px; }
-  .about-closing { margin-top: 36px; padding-top: 22px; font-size: 13px; }
+  .about-prose .about-body { font-size: 16px; line-height: 2.1; }
+  .about-closing { margin-top: 32px; font-size: 12px; }
 }

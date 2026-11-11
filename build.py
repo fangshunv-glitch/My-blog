@@ -1195,7 +1195,7 @@ def build_about():
     <div class="main">
 
       <div class="about-hero">
-        <img class="avatar-round" src="assets/avatar.png" alt="站长头像" data-site-avatar>
+        <img class="avatar-square" src="assets/avatar.png" alt="站长头像" data-site-avatar>
         <div class="about-lede">{lede}</div>
       </div>
 
